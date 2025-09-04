@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional, Dict, Callable
 import itertools
 import struct
 
@@ -17,7 +17,7 @@ def i_to_rc(i: int) -> Tuple[int, int]:
     return divmod(i, 4)
 
 
-def build_perm(fn):
+def build_perm(fn: Callable[[int, int], Tuple[int, int]]) -> List[int]:
     m = [0] * 16
     for i in range(16):
         r, c = i_to_rc(i)
@@ -86,7 +86,7 @@ class State:
     bb: Tuple[int, int, int, int, int, int, int, int]
 
     @staticmethod
-    def empty():
+    def empty() -> "State":
         return State((0, 0, 0, 0, 0, 0, 0, 0))
 
     # ----- binary core (18 bytes: B B 8H) ------------------------------------
@@ -101,7 +101,10 @@ class State:
         if ver != VERSION:
             raise ValueError(f"Unsupported version {ver}")
         bb = tuple(int(x) & 0xFFFF for x in rest)
-        return State(bb)  # flags ignored in state; carried in header
+        # Ensure bb has exactly 8 elements for type safety
+        if len(bb) != 8:
+            raise ValueError("Invalid bitboard data")
+        return State(bb)
 
     # ----- human-friendly (QFEN) ---------------------------------------------
     SHAPE_LETTERS = "ABCD"
@@ -137,11 +140,17 @@ class State:
                 color = 0 if ch.isupper() else 1
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
-        return State(tuple(bb))
+        # Ensure bb has exactly 8 elements for type safety
+        if len(bb) != 8:
+            raise ValueError("Invalid bitboard data")
+        bb_tuple: Tuple[int, int, int, int, int, int, int, int] = (
+            bb[0], bb[1], bb[2], bb[3], bb[4], bb[5], bb[6], bb[7]
+        )
+        return State(bb_tuple)
 
     # ----- canonicalization (uses LUT) ---------------------------------------
     def canonical_payload(self) -> bytes:
-        best = None
+        best: Optional[bytes] = None
         B = [[self.bb[c * 4 + s] for s in range(4)] for c in range(2)]
         for s_idx, _ in enumerate(D4):
             lut = _perm16[s_idx]
@@ -164,6 +173,7 @@ class State:
                     candidate = struct.pack("<8H", *flat)
                     if best is None or candidate < best:
                         best = candidate
+        assert best is not None  # We always find at least one candidate
         return best  # 16 bytes
 
     def canonical_key(self) -> bytes:
@@ -199,4 +209,8 @@ class State:
         if not isinstance(bb, (bytes, bytearray)) or len(bb) != 16:
             raise ValueError("CBOR field 'bb' must be 16 bytes")
         vals = struct.unpack("<8H", bb)
-        return State(tuple(int(x) & 0xFFFF for x in vals))
+        bb_tuple = tuple(int(x) & 0xFFFF for x in vals)
+        # Ensure bb_tuple has exactly 8 elements for type safety
+        if len(bb_tuple) != 8:
+            raise ValueError("Invalid bitboard data")
+        return State(bb_tuple)
