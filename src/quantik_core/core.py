@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict
 import itertools
 import struct
 
@@ -147,7 +147,7 @@ class State:
 
     # ----- CBOR wrappers (portable, self-describing) -------------------------
     # { "v":1, "canon":bool, "bb": h'16bytes', ? "mc":uint, ? "meta":{...} }
-    def to_cbor(self, canon: bool = False, mc: int | None = None, meta: dict | None = None) -> bytes:
+    def to_cbor(self, canon: bool = False, mc: Optional[int] = None, meta: Optional[Dict] = None) -> bytes:
         try:
             import cbor2  # pip install cbor2
         except ImportError:
