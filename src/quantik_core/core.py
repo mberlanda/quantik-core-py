@@ -144,7 +144,14 @@ class State:
         if len(bb) != 8:
             raise ValueError("Invalid bitboard data")
         bb_tuple: Tuple[int, int, int, int, int, int, int, int] = (
-            bb[0], bb[1], bb[2], bb[3], bb[4], bb[5], bb[6], bb[7]
+            bb[0],
+            bb[1],
+            bb[2],
+            bb[3],
+            bb[4],
+            bb[5],
+            bb[6],
+            bb[7],
         )
         return State(bb_tuple)
 

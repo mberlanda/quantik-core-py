@@ -1,5 +1,3 @@
-import itertools as it
-import random
 import struct
 import pytest
 from hypothesis import given, strategies as st
