@@ -7,7 +7,7 @@ name = "quantik-core"
 version = "0.1.0"
 description = "High-performance core utilities for Quantik game state manipulation"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Mauro Berlanda", email = "mauro.berlanda@gmail.com"}
 ]
@@ -15,7 +15,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
