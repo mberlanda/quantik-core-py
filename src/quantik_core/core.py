@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Callable
+from typing import List, Tuple, Optional, Dict, Callable, Any
 import itertools
 import struct
+
 
 # --- versioning/flags --------------------------------------------------------
 VERSION = 1
@@ -192,16 +193,16 @@ class State:
         self, canon: bool = False, mc: Optional[int] = None, meta: Optional[Dict] = None
     ) -> bytes:
         try:
-            import cbor2  # pip install cbor2
+            import cbor2  # type: ignore[import-not-found]
         except ImportError:
             raise RuntimeError("Please install cbor2 (pip install cbor2)")
         payload = struct.pack("<8H", *self.bb)
-        m = {"v": VERSION, "canon": bool(canon), "bb": payload}
+        m: Dict[str, Any] = {"v": VERSION, "canon": bool(canon), "bb": payload}
         if mc is not None:
             m["mc"] = int(mc)
         if meta:
             m["meta"] = meta
-        return cbor2.dumps(m)
+        return cbor2.dumps(m)  # type: ignore[no-any-return]
 
     @staticmethod
     def from_cbor(data: bytes) -> "State":
@@ -209,7 +210,7 @@ class State:
             import cbor2
         except ImportError:
             raise RuntimeError("Please install cbor2 (pip install cbor2)")
-        m = cbor2.loads(data)
+        m: Any = cbor2.loads(data)
         if m.get("v") != VERSION:
             raise ValueError("Unsupported CBOR version")
         bb = m.get("bb")

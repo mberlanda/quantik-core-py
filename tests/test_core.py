@@ -215,3 +215,41 @@ def test_cbor_payload_shape():
     blob = s.to_cbor(canon=True)
     s2 = State.from_cbor(blob)
     assert s2 == s
+
+
+def test_unpack_error_cases():
+    """Test error conditions in State.unpack() for better coverage."""
+    # Test buffer too small
+    with pytest.raises(ValueError, match="Buffer too small"):
+        State.unpack(b"\x00" * 17)  # Only 17 bytes, need 18
+
+    # Test unsupported version
+    invalid_version_data = struct.pack("<BB8H", 99, 0, *([0] * 8))  # version 99
+    with pytest.raises(ValueError, match="Unsupported version"):
+        State.unpack(invalid_version_data)
+
+
+def test_qfen_error_cases():
+    """Test error conditions in State.from_qfen() for better coverage."""
+    # Test invalid QFEN format - wrong number of parts
+    with pytest.raises(ValueError, match="QFEN must be 4 ranks"):
+        State.from_qfen("A.../B.../C...")  # Only 3 parts
+
+    # Test invalid QFEN format - wrong length
+    with pytest.raises(ValueError, match="QFEN must be 4 ranks"):
+        State.from_qfen("A../B.../C.../D...")  # Wrong part lengths
+
+
+def test_cbor_error_cases():
+    """Test CBOR error conditions for better coverage."""
+    cbor2 = pytest.importorskip("cbor2")
+
+    # Test unsupported version
+    invalid_data = cbor2.dumps({"v": 99, "canon": False, "bb": b"\x00" * 16})
+    with pytest.raises(ValueError, match="Unsupported CBOR version"):
+        State.from_cbor(invalid_data)
+
+    # Test invalid bb field
+    invalid_bb = cbor2.dumps({"v": VERSION, "canon": False, "bb": b"\x00" * 10})
+    with pytest.raises(ValueError, match="CBOR field 'bb' must be 16 bytes"):
+        State.from_cbor(invalid_bb)
