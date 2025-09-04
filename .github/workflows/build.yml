@@ -57,9 +57,14 @@ jobs:
         path: dist/
 
     - name: Install from wheel
+      shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install dist/*.whl
+        echo "Looking for wheel files in dist/:"
+        ls -la dist/
+        wheel_file=$(find dist/ -name "*.whl" -type f | head -n1)
+        echo "Installing wheel file: $wheel_file"
+        pip install "$wheel_file"
 
     - name: Test installation
       run: |
