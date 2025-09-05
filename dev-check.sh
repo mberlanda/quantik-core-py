@@ -14,7 +14,7 @@ if [ ! -d ".venv" ]; then
     source .venv/bin/activate
     
     # Install development dependencies
-    pip install -e ".[dev]"
+    pip install -e ".[dev,cbor]"
 else
     # Activate virtual environment
     source .venv/bin/activate

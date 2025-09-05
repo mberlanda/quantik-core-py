@@ -193,7 +193,7 @@ class State:
         self, canon: bool = False, mc: Optional[int] = None, meta: Optional[Dict] = None
     ) -> bytes:
         try:
-            import cbor2  # type: ignore[import-not-found]
+            import cbor2
         except ImportError:
             raise RuntimeError("Please install cbor2 (pip install cbor2)")
         payload = struct.pack("<8H", *self.bb)
@@ -202,7 +202,7 @@ class State:
             m["mc"] = int(mc)
         if meta:
             m["meta"] = meta
-        return cbor2.dumps(m)  # type: ignore[no-any-return]
+        return cbor2.dumps(m)
 
     @staticmethod
     def from_cbor(data: bytes) -> "State":
