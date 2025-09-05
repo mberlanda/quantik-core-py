@@ -12,7 +12,7 @@ __author__ = "Mauro Berlanda"
 
 __all__ = [
     "State",
-    "VERSION", 
+    "VERSION",
     "FLAG_CANON",
     "D4",
     "permute16",

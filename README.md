@@ -1,5 +1,8 @@
 # Quantik Core
 
+[![codecov](https://codecov.io/github/mberlanda/quantik-core-py/graph/badge.svg?token=CDLH126DO2)](https://codecov.io/github/mberlanda/quantik-core-py)
+
+
 A high-performance Python library for manipulating Quantik game states, optimized for Monte Carlo simulations, game analysis, and AI engines.
 
 ## What is Quantik?

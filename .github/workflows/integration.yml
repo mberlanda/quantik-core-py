@@ -1,0 +1,77 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-installation:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Build and install package
+      run: |
+        python -m pip install --upgrade pip build
+        python -m build
+        pip install dist/*.whl
+
+    - name: Test basic import and functionality
+      run: |
+        python -c "
+        import quantik_core
+        from quantik_core import State
+
+        # Test basic functionality
+        print('Testing quantik-core package...')
+        
+        # Test empty state creation
+        state = State.empty()
+        print(f'Empty state QFEN: {state.to_qfen()}')
+        
+        # Test QFEN parsing
+        test_qfen = 'A.../..../..../....'
+        state2 = State.from_qfen(test_qfen)
+        print(f'Parsed QFEN: {state2.to_qfen()}')
+        
+        # Test binary serialization
+        packed = state.pack()
+        unpacked = State.unpack(packed)
+        print(f'Binary round-trip successful: {unpacked.to_qfen()}')
+        
+        # Test canonicalization
+        canonical = state.canonical_key()
+        print(f'Canonical key length: {len(canonical)} bytes')
+        
+        print('All basic tests passed!')
+        "
+
+    - name: Test CBOR functionality (optional dependency)
+      run: |
+        pip install cbor2
+        python -c "
+        from quantik_core import State
+        
+        # Test CBOR serialization
+        state = State.from_qfen('A.../..../..../....')
+        cbor_data = state.to_cbor(canon=True, mc=42)
+        restored = State.from_cbor(cbor_data)
+        
+        print(f'CBOR round-trip: {restored.to_qfen()}')
+        print('CBOR tests passed!')
+        "
+
+    - name: Test examples
+      run: |
+        python examples/basic_usage.py
