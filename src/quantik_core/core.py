@@ -86,6 +86,11 @@ class State:
     # bitboards in order C0S0..C0S3, C1S0..C1S3 (each uint16)
     bb: Tuple[int, int, int, int, int, int, int, int]
 
+    def __post_init__(self):
+        # Validate that bb has exactly 8 elements for type safety
+        if len(self.bb) != 8:
+            raise ValueError("Invalid bitboard data")
+
     @staticmethod
     def empty() -> "State":
         return State((0, 0, 0, 0, 0, 0, 0, 0))
@@ -102,9 +107,7 @@ class State:
         if ver != VERSION:
             raise ValueError(f"Unsupported version {ver}")
         bb = tuple(int(x) & 0xFFFF for x in rest)
-        # Ensure bb has exactly 8 elements for type safety
-        if len(bb) != 8:
-            raise ValueError("Invalid bitboard data")
+
         return State(bb)
 
     # ----- human-friendly (QFEN) ---------------------------------------------
@@ -141,9 +144,7 @@ class State:
                 color = 0 if ch.isupper() else 1
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
-        # Ensure bb has exactly 8 elements for type safety
-        if len(bb) != 8:
-            raise ValueError("Invalid bitboard data")
+
         bb_tuple: Tuple[int, int, int, int, int, int, int, int] = (
             bb[0],
             bb[1],
@@ -218,7 +219,4 @@ class State:
             raise ValueError("CBOR field 'bb' must be 16 bytes")
         vals = struct.unpack("<8H", bb)
         bb_tuple = tuple(int(x) & 0xFFFF for x in vals)
-        # Ensure bb_tuple has exactly 8 elements for type safety
-        if len(bb_tuple) != 8:
-            raise ValueError("Invalid bitboard data")
         return State(bb_tuple)

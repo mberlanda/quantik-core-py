@@ -48,7 +48,7 @@ def test_pack_unpack_empty():
 def test_qfen_roundtrip_examples():
     examples = [
         ".A../..b./.c../...D",
-        ".... / .... / .... / ....",
+        "..../..../..../....",  # Empty board (normalized, no spaces)
         "AbCd/aBcD/..../....",
         "A.../B.../C.../D...",
         "..a./.b../c.../...d",
@@ -56,6 +56,7 @@ def test_qfen_roundtrip_examples():
     for q in examples:
         s = State.from_qfen(q)
         assert State.from_qfen(s.to_qfen()) == s
+        assert s.to_qfen() == q
 
 
 def test_canonical_invariance_under_symmetry_examples():
@@ -253,3 +254,23 @@ def test_cbor_error_cases():
     invalid_bb = cbor2.dumps({"v": VERSION, "canon": False, "bb": b"\x00" * 10})
     with pytest.raises(ValueError, match="CBOR field 'bb' must be 16 bytes"):
         State.from_cbor(invalid_bb)
+
+
+def test_state_bitboard_validation():
+    """Test that State validates bitboard data has exactly 8 elements."""
+    # Test with too few bitboards
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State((1, 2, 3, 4, 5, 6))  # Only 6 elements instead of 8
+    
+    # Test with too many bitboards  
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State((1, 2, 3, 4, 5, 6, 7, 8, 9, 10))  # 10 elements instead of 8
+    
+    # Test with empty tuple
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State(())  # 0 elements instead of 8
+    
+    # Test that valid 8-element tuple works
+    valid_state = State((0, 1, 2, 3, 4, 5, 6, 7))
+    assert len(valid_state.bb) == 8
+    assert valid_state.bb == (0, 1, 2, 3, 4, 5, 6, 7)
