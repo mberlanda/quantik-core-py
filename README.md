@@ -22,10 +22,103 @@ Quantik is an elegant 4×4 abstract strategy game where players compete to compl
 ### Example Victory
 
 ```
-A B C D  ← Row with all 4 shapes = WIN!
+A b C d  ← Row with all 4 shapes = WIN!
 . . . .
 . . . .
 . . . .
+```
+
+## QFEN Notation
+
+Board states are represented using **QFEN** (Quantik FEN) notation - a human-readable format inspired by chess FEN.
+
+### Format Structure
+
+QFEN uses 4 slash-separated ranks representing rows from top to bottom:
+```
+rank1/rank2/rank3/rank4
+```
+
+### 4×4 Grid Layout
+```
+┌─────┬─────┬─────┬─────┐
+│  0  │  1  │  2  │  3  │  ← Rank 1: positions 0-3
+├─────┼─────┼─────┼─────┤
+│  4  │  5  │  6  │  7  │  ← Rank 2: positions 4-7
+├─────┼─────┼─────┼─────┤
+│  8  │  9  │ 10  │ 11  │  ← Rank 3: positions 8-11
+├─────┼─────┼─────┼─────┤
+│ 12  │ 13  │ 14  │ 15  │  ← Rank 4: positions 12-15
+└─────┴─────┴─────┴─────┘
+```
+
+### Notation Rules
+
+- **A, B, C, D** = Player 0 pieces (uppercase) with shapes A, B, C, D
+- **a, b, c, d** = Player 1 pieces (lowercase) with shapes A, B, C, D  
+- **.** = Empty square
+- **/** = Rank separator
+
+### Visual Examples
+
+#### 1. Empty Board
+```
+QFEN: "..../..../..../....."
+
+┌─────┬─────┬─────┬─────┐
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+└─────┴─────┴─────┴─────┘
+```
+
+#### 2. Mixed Position
+```
+QFEN: "A.bC/..../d..B/...a"
+
+┌─────┬─────┬─────┬─────┐
+│  A  │  .  │  b  │  C  │ ← Player 0: A,C  Player 1: b
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  d  │  .  │  .  │  B  │ ← Player 0: B    Player 1: d
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  a  │ ← Player 1: a
+└─────┴─────┴─────┴─────┘
+```
+
+#### 3. Winning Position (Complete Row)
+```
+QFEN: "AbCd/..../..../....."
+
+┌─────┬─────┬─────┬─────┐
+│  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in top row
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+├─────┼─────┼─────┼─────┤
+│  .  │  .  │  .  │  .  │
+└─────┴─────┴─────┴─────┘
+```
+
+#### 4. Complex Game State
+```
+QFEN: "Ab.C/d.BA/.cb./D.a."
+
+┌─────┬─────┬─────┬─────┐
+│  A  │  b  │  .  │  C  │ ← Player 0: A,C  Player 1: b
+├─────┼─────┼─────┼─────┤
+│  d  │  .  │  B  │  A  │ ← Player 0: B,A  Player 1: d  
+├─────┼─────┼─────┼─────┤
+│  .  │  c  │  b  │  .  │ ← Player 1: c,b
+├─────┼─────┼─────┼─────┤
+│  D  │  .  │  a  │  .  │ ← Player 0: D    Player 1: a
+└─────┴─────┴─────┴─────┘
 ```
 
 ## Features
@@ -69,13 +162,15 @@ from quantik_core import State
 
 # Create an empty game state
 state = State.empty()
+print(state.to_qfen())  # Output: ..../..../..../....
 
-# Create a position using QFEN notation
-state = State.from_qfen("A.../..b./.c../...D")
+# Create positions using QFEN notation (see QFEN section for visual examples)
+state = State.from_qfen("A.bC/..../d.B./...a")  # Mixed position
+state = State.from_qfen("ABCD/..../..../.....")  # Player 0 wins with top row
 
 # Convert to human-readable format
 qfen = state.to_qfen()
-print(f"Position: {qfen}")  # Output: A.../..b./.c../...D
+print(f"Position: {qfen}")  # Output: ABCD/..../..../.....
 
 # Get canonical representation for symmetry analysis
 canonical_key = state.canonical_key()

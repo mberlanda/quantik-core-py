@@ -131,6 +131,78 @@ class State:
 
     @staticmethod
     def from_qfen(qfen: str) -> "State":
+        """
+        Parse a QFEN (Quantik FEN) string into a State object.
+        
+        QFEN Format: 4 slash-separated ranks representing rows from top to bottom.
+        
+        4x4 Grid Layout:
+        ┌─────┬─────┬─────┬─────┐
+        │  0  │  1  │  2  │  3  │  ← Rank 1: positions 0-3
+        ├─────┼─────┼─────┼─────┤
+        │  4  │  5  │  6  │  7  │  ← Rank 2: positions 4-7
+        ├─────┼─────┼─────┼─────┤
+        │  8  │  9  │ 10  │ 11  │  ← Rank 3: positions 8-11
+        ├─────┼─────┼─────┼─────┤
+        │ 12  │ 13  │ 14  │ 15  │  ← Rank 4: positions 12-15
+        └─────┴─────┴─────┴─────┘
+        
+        Shape Notation:
+        • A, B, C, D = Player 0 pieces (uppercase)
+        • a, b, c, d = Player 1 pieces (lowercase)  
+        • . = Empty square
+        
+        Examples:
+        
+        1. Starting position:
+           QFEN: "..../..../..../....."
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           └─────┴─────┴─────┴─────┘
+        
+        2. Mixed position:
+           QFEN: "A.bC/..../d..B/...a"
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  A  │  .  │  b  │  C  │ ← Player 0: A,C  Player 1: b
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  d  │  .  │  .  │  B  │ ← Player 0: B    Player 1: d
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  a  │ ← Player 1: a
+           └─────┴─────┴─────┴─────┘
+        
+        3. Winning position (row):
+           QFEN: "AbCd/..../..../....."
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in row
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           └─────┴─────┴─────┴─────┘
+        
+        Args:
+            qfen: String in format "rank1/rank2/rank3/rank4" where each rank
+                  contains 4 characters representing one row of the board
+        
+        Returns:
+            State object with bitboards populated according to the QFEN
+            
+        Raises:
+            ValueError: If QFEN format is invalid (not 4 ranks of 4 chars each)
+        """
         parts = [p.strip() for p in qfen.replace(" ", "").split("/")]
         if len(parts) != 4 or any(len(p) != 4 for p in parts):
             raise ValueError("QFEN must be 4 ranks of 4 chars separated by '/'")
