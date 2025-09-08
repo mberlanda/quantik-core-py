@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Callable, Any
+from typing import List, Tuple, Optional, Dict, Callable, Any, Literal
 import itertools
 import struct
 
@@ -9,6 +9,9 @@ import struct
 # Layout: [C0S0, C0S1, C0S2, C0S3, C1S0, C1S1, C1S2, C1S3]
 # where C = color (0=player0, 1=player1), S = shape (0=A, 1=B, 2=C, 3=D)
 Bitboard = Tuple[int, int, int, int, int, int, int, int]
+
+# PlayerId: either 0 or 1
+PlayerId = Literal[0, 1]
 
 # --- versioning/flags --------------------------------------------------------
 VERSION = 1

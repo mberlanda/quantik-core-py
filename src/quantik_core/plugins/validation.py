@@ -1,7 +1,7 @@
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 from enum import IntEnum
 from functools import lru_cache
-from ..core import State, Bitboard
+from ..core import State, Bitboard, PlayerId
 
 
 class ValidationResult(IntEnum):
@@ -42,3 +42,52 @@ def _count_pieces_by_shape(bb: Bitboard) -> Tuple[List[int], List[int]]:
 
 def count_pieces_by_shape(state: State) -> Tuple[List[int], List[int]]:
     return _count_pieces_by_shape(state.bb)
+
+
+def get_current_player(state: State) -> Tuple[Optional[PlayerId], ValidationResult]:
+    """
+    Determine whose turn it is based on piece counts.
+
+    Player 0 goes first, so:
+    - If equal pieces: it's Player 0's turn
+    - If Player 0 has 1 more: it's Player 1's turn
+    - If Player 1 has 1 more: invalid state
+
+    Returns:
+        0 if it's Player 0's turn, 1 if it's Player 1's turn, None if invalid state
+    """
+    player0_counts, player1_counts = count_pieces_by_shape(state)
+    total0 = sum(player0_counts)
+    total1 = sum(player1_counts)
+
+    if total0 == total1:
+        return 0, ValidationResult.OK
+    elif total0 == total1 + 1:
+        return 1, ValidationResult.OK
+    else:
+        return None, ValidationResult.TURN_BALANCE_INVALID
+
+
+def validate_player_turn(state: State, expected_player: PlayerId) -> ValidationResult:
+    """
+    Validate that it's the expected player's turn.
+
+    Args:
+        state: The game state to validate
+        expected_player: The player who is expected to move (0 or 1)
+
+    Returns:
+        ValidationResult.OK if valid, error code otherwise
+    """
+    if expected_player not in (0, 1):
+        return ValidationResult.INVALID_PLAYER
+
+    actual_player, err = get_current_player(state)
+
+    if err is not ValidationResult.OK:
+        return err
+
+    if actual_player != expected_player:
+        return ValidationResult.NOT_PLAYER_TURN
+
+    return ValidationResult.OK
