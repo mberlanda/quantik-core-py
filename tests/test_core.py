@@ -229,15 +229,15 @@ def test_state_bitboard_validation():
     # Test with too few bitboards
     with pytest.raises(ValueError, match="Invalid bitboard data"):
         State((1, 2, 3, 4, 5, 6))  # Only 6 elements instead of 8
-    
-    # Test with too many bitboards  
+
+    # Test with too many bitboards
     with pytest.raises(ValueError, match="Invalid bitboard data"):
         State((1, 2, 3, 4, 5, 6, 7, 8, 9, 10))  # 10 elements instead of 8
-    
+
     # Test with empty tuple
     with pytest.raises(ValueError, match="Invalid bitboard data"):
         State(())  # 0 elements instead of 8
-    
+
     # Test that valid 8-element tuple works
     valid_state = State((0, 1, 2, 3, 4, 5, 6, 7))
     assert len(valid_state.bb) == 8

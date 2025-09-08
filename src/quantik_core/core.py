@@ -92,7 +92,7 @@ class State:
     # bitboards in order C0S0..C0S3, C1S0..C1S3 (each uint16)
     bb: Bitboard
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Validate that bb has exactly 8 elements for type safety
         if len(self.bb) != 8:
             raise ValueError("Invalid bitboard data")
@@ -140,9 +140,9 @@ class State:
     def from_qfen(qfen: str) -> "State":
         """
         Parse a QFEN (Quantik FEN) string into a State object.
-        
+
         QFEN Format: 4 slash-separated ranks representing rows from top to bottom.
-        
+
         4x4 Grid Layout:
         ┌─────┬─────┬─────┬─────┐
         │  0  │  1  │  2  │  3  │  ← Rank 1: positions 0-3
@@ -153,14 +153,14 @@ class State:
         ├─────┼─────┼─────┼─────┤
         │ 12  │ 13  │ 14  │ 15  │  ← Rank 4: positions 12-15
         └─────┴─────┴─────┴─────┘
-        
+
         Shape Notation:
         • A, B, C, D = Player 0 pieces (uppercase)
-        • a, b, c, d = Player 1 pieces (lowercase)  
+        • a, b, c, d = Player 1 pieces (lowercase)
         • . = Empty square
-        
+
         Examples:
-        
+
         1. Starting position:
            QFEN: "..../..../..../....."
            Visual:
@@ -173,7 +173,7 @@ class State:
            ├─────┼─────┼─────┼─────┤
            │  .  │  .  │  .  │  .  │
            └─────┴─────┴─────┴─────┘
-        
+
         2. Mixed position:
            QFEN: "A.bC/..../d..B/...a"
            Visual:
@@ -186,7 +186,7 @@ class State:
            ├─────┼─────┼─────┼─────┤
            │  .  │  .  │  .  │  a  │ ← Player 1: a
            └─────┴─────┴─────┴─────┘
-        
+
         3. Winning position (row):
            QFEN: "AbCd/..../..../....."
            Visual:
@@ -199,14 +199,14 @@ class State:
            ├─────┼─────┼─────┼─────┤
            │  .  │  .  │  .  │  .  │
            └─────┴─────┴─────┴─────┘
-        
+
         Args:
             qfen: String in format "rank1/rank2/rank3/rank4" where each rank
                   contains 4 characters representing one row of the board
-        
+
         Returns:
             State object with bitboards populated according to the QFEN
-            
+
         Raises:
             ValueError: If QFEN format is invalid (not 4 ranks of 4 chars each)
         """
@@ -267,7 +267,7 @@ class State:
     def canonical_key(self) -> bytes:
         return bytes([VERSION, FLAG_CANON]) + self.canonical_payload()
 
-    # TODO: provide a plugin architecture for serialization registering 
+    # TODO: provide a plugin architecture for serialization registering
     # ----- CBOR wrappers (portable, self-describing) -------------------------
     # { "v":1, "canon":bool, "bb": h'16bytes', ? "mc":uint, ? "meta":{...} }
     def to_cbor(
