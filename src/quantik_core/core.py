@@ -4,6 +4,12 @@ import itertools
 import struct
 
 
+# --- type aliases ------------------------------------------------------------
+# Bitboard: 8 uint16 values representing player pieces by color and shape
+# Layout: [C0S0, C0S1, C0S2, C0S3, C1S0, C1S1, C1S2, C1S3]
+# where C = color (0=player0, 1=player1), S = shape (0=A, 1=B, 2=C, 3=D)
+Bitboard = Tuple[int, int, int, int, int, int, int, int]
+
 # --- versioning/flags --------------------------------------------------------
 VERSION = 1
 FLAG_CANON = 1 << 1  # bit1
@@ -84,7 +90,7 @@ ALL_SHAPE_PERMS = list(itertools.permutations(range(4)))  # 24 tuples
 @dataclass(frozen=True)
 class State:
     # bitboards in order C0S0..C0S3, C1S0..C1S3 (each uint16)
-    bb: Tuple[int, int, int, int, int, int, int, int]
+    bb: Bitboard
 
     def __post_init__(self):
         # Validate that bb has exactly 8 elements for type safety
@@ -93,7 +99,8 @@ class State:
 
     @staticmethod
     def empty() -> "State":
-        return State((0, 0, 0, 0, 0, 0, 0, 0))
+        empty_bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
+        return State(empty_bb)
 
     # ----- binary core (18 bytes: B B 8H) ------------------------------------
     def pack(self, flags: int = 0) -> bytes:
@@ -106,7 +113,7 @@ class State:
         ver, flags, *rest = struct.unpack("<BB8H", data[:18])
         if ver != VERSION:
             raise ValueError(f"Unsupported version {ver}")
-        bb = tuple(int(x) & 0xFFFF for x in rest)
+        bb: Bitboard = tuple(int(x) & 0xFFFF for x in rest)  # type: ignore
 
         return State(bb)
 
@@ -217,7 +224,7 @@ class State:
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
 
-        bb_tuple: Tuple[int, int, int, int, int, int, int, int] = (
+        bb_tuple: Bitboard = (
             bb[0],
             bb[1],
             bb[2],
@@ -291,5 +298,5 @@ class State:
         if not isinstance(bb, (bytes, bytearray)) or len(bb) != 16:
             raise ValueError("CBOR field 'bb' must be 16 bytes")
         vals = struct.unpack("<8H", bb)
-        bb_tuple = tuple(int(x) & 0xFFFF for x in vals)
+        bb_tuple: Bitboard = tuple(int(x) & 0xFFFF for x in vals)  # type: ignore
         return State(bb_tuple)
