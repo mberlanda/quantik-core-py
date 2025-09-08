@@ -26,9 +26,9 @@ def count_pieces_by_shape(state: State) -> Tuple[List[int], List[int]]:
     player1_counts = []
     
     for shape in range(4):
-        # Count bits set in each shape's bitboard
-        count0 = bin(state.bb[0 * 4 + shape]).count('1')
-        count1 = bin(state.bb[1 * 4 + shape]).count('1')
+        # Count bits set in each shape's bitboard using optimized bit_count()
+        count0 = state.bb[0 * 4 + shape].bit_count()
+        count1 = state.bb[1 * 4 + shape].bit_count()
         player0_counts.append(count0)
         player1_counts.append(count1)
     
