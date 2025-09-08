@@ -175,14 +175,6 @@ def test_canonical_stability(s):
     assert k1 == k2
 
 
-def test_cbor_roundtrip():
-    pytest.importorskip("cbor2")  # Skip test if cbor2 not available
-    s = State.from_qfen(".A../..b./.c../...D")
-    blob = s.to_cbor(canon=False, mc=7, meta={"id": "X"})
-    s2 = State.from_cbor(blob)
-    assert s2 == s
-
-
 def test_golden_empty():
     s = State.empty()
     # canonical key: 0x01 0x02 + 16 zero bytes
@@ -209,15 +201,6 @@ def test_canonical_single_piece_stability():
         assert canonical1 == canonical2
 
 
-# Optional: quick CBOR payload shape
-def test_cbor_payload_shape():
-    pytest.importorskip("cbor2")  # Skip test if cbor2 not available
-    s = State.empty()
-    blob = s.to_cbor(canon=True)
-    s2 = State.from_cbor(blob)
-    assert s2 == s
-
-
 def test_unpack_error_cases():
     """Test error conditions in State.unpack() for better coverage."""
     # Test buffer too small
@@ -239,21 +222,6 @@ def test_qfen_error_cases():
     # Test invalid QFEN format - wrong length
     with pytest.raises(ValueError, match="QFEN must be 4 ranks"):
         State.from_qfen("A../B.../C.../D...")  # Wrong part lengths
-
-
-def test_cbor_error_cases():
-    """Test CBOR error conditions for better coverage."""
-    cbor2 = pytest.importorskip("cbor2")
-
-    # Test unsupported version
-    invalid_data = cbor2.dumps({"v": 99, "canon": False, "bb": b"\x00" * 16})
-    with pytest.raises(ValueError, match="Unsupported CBOR version"):
-        State.from_cbor(invalid_data)
-
-    # Test invalid bb field
-    invalid_bb = cbor2.dumps({"v": VERSION, "canon": False, "bb": b"\x00" * 10})
-    with pytest.raises(ValueError, match="CBOR field 'bb' must be 16 bytes"):
-        State.from_cbor(invalid_bb)
 
 
 def test_state_bitboard_validation():

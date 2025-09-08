@@ -188,6 +188,7 @@ class State:
     def canonical_key(self) -> bytes:
         return bytes([VERSION, FLAG_CANON]) + self.canonical_payload()
 
+    # TODO: provide a plugin architecture for serialization registering 
     # ----- CBOR wrappers (portable, self-describing) -------------------------
     # { "v":1, "canon":bool, "bb": h'16bytes', ? "mc":uint, ? "meta":{...} }
     def to_cbor(
