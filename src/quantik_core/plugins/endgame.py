@@ -1,4 +1,4 @@
-from ..core import State
+from ..core import Bitboard, State
 
 
 # Constants for win detection
@@ -30,7 +30,7 @@ ZONE_MASKS = [
 WIN_MASKS = ROW_MASKS + COLUMN_MASKS + ZONE_MASKS
 
 
-def has_winning_line(state: State) -> bool:
+def _has_winning_line(bb: Bitboard) -> bool:
     """
     Check if there is a winning line (row, column, or 2×2 zone) with all four
     different shapes (A, B, C, D).
@@ -45,26 +45,25 @@ def has_winning_line(state: State) -> bool:
     - etc.
 
     Args:
-        state: The game state to check for win conditions
+        bb: The bitboard representation of the game state
 
     Returns:
         True if there is a winning line, False otherwise
     """
+    # Precompute shape unions (combine both players for each shape)
+    shape_unions = [
+        bb[shape] | bb[shape + 4]  # Player 0 and Player 1 for each shape
+        for shape in range(4)
+    ]
+
     # Check each possible win line (row, column, or zone)
     for mask in WIN_MASKS:
-        # Check if all 4 shapes are present in this line
-        shapes_present = 0
-
-        for shape in range(4):
-            # Combine both players' pieces for this shape (shape union)
-            shape_union = state.bb[0 * 4 + shape] | state.bb[1 * 4 + shape]
-
-            # Check if this shape is present in the current line
-            if shape_union & mask:
-                shapes_present |= 1 << shape
-
-        # If all 4 shapes are present (bits 0,1,2,3 all set)
-        if shapes_present == 0b1111:
+        # Check if all 4 shapes are present in this line using bitwise operations
+        if all(shape_union & mask for shape_union in shape_unions):
             return True
 
     return False
+
+
+def has_winning_line(state: State) -> bool:
+    return _has_winning_line(state.bb)
