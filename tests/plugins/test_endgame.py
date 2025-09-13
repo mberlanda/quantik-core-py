@@ -1,4 +1,3 @@
-import itertools
 from quantik_core import State
 from quantik_core.plugins.endgame import has_winning_line
 

@@ -5,16 +5,10 @@ This module maintains backward compatibility while using the new comprehensive
 state validation system.
 """
 
-from typing import Optional, Tuple, List
 from enum import IntEnum
-from ..core import State, PlayerId
+from ..core import State
 from .endgame import has_winning_line
-from ..state_validator import (
-    ValidationResult, 
-    count_pieces_by_shape, 
-    get_current_player,
-    validate_player_turn
-)
+from ..state_validator import count_pieces_by_shape
 
 
 class WinStatus(IntEnum):

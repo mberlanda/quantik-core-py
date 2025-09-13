@@ -17,6 +17,7 @@ from .constants import WIN_MASKS, MAX_PIECES_PER_SHAPE
 
 class ValidationError(Exception):
     """Exception raised when game state validation fails."""
+
     pass
 
 
@@ -64,24 +65,24 @@ def count_pieces_by_shape(state: State) -> Tuple[List[int], List[int]]:
 def validate_piece_counts(state: State) -> ValidationResult:
     """
     Validate that no player exceeds the maximum number of pieces per shape.
-    
+
     Rule: Each player can have at most 2 pieces of each shape (A, B, C, D).
-    
+
     Args:
         state: The game state to validate
-        
+
     Returns:
         ValidationResult.OK if valid, ValidationResult.SHAPE_COUNT_EXCEEDED otherwise
     """
     player0_counts, player1_counts = count_pieces_by_shape(state)
-    
+
     # Check if any player exceeds max pieces per shape
     for shape in range(4):
         if player0_counts[shape] > MAX_PIECES_PER_SHAPE:
             return ValidationResult.SHAPE_COUNT_EXCEEDED
         if player1_counts[shape] > MAX_PIECES_PER_SHAPE:
             return ValidationResult.SHAPE_COUNT_EXCEEDED
-    
+
     return ValidationResult.OK
 
 
@@ -102,9 +103,9 @@ def validate_turn_balance(state: State) -> Tuple[Optional[PlayerId], ValidationR
     player0_counts, player1_counts = count_pieces_by_shape(state)
     total0 = sum(player0_counts)
     total1 = sum(player1_counts)
-    
+
     difference = total0 - total1
-    
+
     if difference == 0:
         # Equal pieces, Player 0's turn
         return 0, ValidationResult.OK
@@ -116,19 +117,21 @@ def validate_turn_balance(state: State) -> Tuple[Optional[PlayerId], ValidationR
         return None, ValidationResult.TURN_BALANCE_INVALID
 
 
-def validate_position_placement(state: State, position: int, shape: int, player: PlayerId) -> ValidationResult:
+def validate_position_placement(
+    state: State, position: int, shape: int, player: PlayerId
+) -> ValidationResult:
     """
     Validate that a piece can be placed at the given position according to Quantik rules.
-    
+
     Rule: A player cannot place a piece in a row, column, or zone where their opponent
     has already placed a piece of the same shape.
-    
+
     Args:
         state: Current game state
         position: Board position (0-15)
         shape: Shape index (0=A, 1=B, 2=C, 3=D)
         player: Player making the move (0 or 1)
-        
+
     Returns:
         ValidationResult indicating whether the placement is valid
     """
@@ -138,47 +141,44 @@ def validate_position_placement(state: State, position: int, shape: int, player:
         return ValidationResult.INVALID_SHAPE
     if player not in (0, 1):
         return ValidationResult.INVALID_PLAYER
-    
+
     # Check if position is already occupied by any piece
     position_mask = 1 << position
     for bb_index in range(8):  # Check all 8 bitboards
         if state.bb[bb_index] & position_mask:
             return ValidationResult.PIECE_OVERLAP
-    
+
     # Get opponent's pieces of the same shape
     opponent = 1 - player
     opponent_shape_bb = state.bb[opponent * 4 + shape]
-    
+
     # Check each line (row, column, zone) that contains this position
     for line_mask in WIN_MASKS:
         if position_mask & line_mask:  # This line contains our position
             # Check if opponent has same shape anywhere in this line
             if opponent_shape_bb & line_mask:
                 return ValidationResult.ILLEGAL_PLACEMENT
-    
+
     return ValidationResult.OK
 
 
 def validate_game_state(state: State, raise_on_error: bool = False) -> ValidationResult:
     """
     Comprehensive validation of a game state.
-    
+
     Checks:
     1. Piece count limits (max 2 per shape per player)
     2. Turn balance (proper alternating turns)
     3. No overlapping pieces (each position has at most one piece)
-    
-    Note: This validation does NOT check if the state could have been reached
-    through legal moves, as that requires move history which is not available
-    from the state alone.
-    
+    4. No illegal placements (opponent shapes in same row/column/zone)
+
     Args:
         state: The game state to validate
         raise_on_error: If True, raises ValidationError on invalid state
-        
+
     Returns:
         ValidationResult.OK if valid, specific error code otherwise
-        
+
     Raises:
         ValidationError: If raise_on_error=True and state is invalid
     """
@@ -188,31 +188,65 @@ def validate_game_state(state: State, raise_on_error: bool = False) -> Validatio
         if raise_on_error:
             raise ValidationError(f"Shape count exceeded: {result}")
         return result
-    
+
     # 2. Validate turn balance
     _, result = validate_turn_balance(state)
     if result != ValidationResult.OK:
         if raise_on_error:
             raise ValidationError(f"Invalid turn balance: {result}")
         return result
-    
+
     # 3. Validate no overlapping pieces
     result = _validate_no_overlaps(state)
     if result != ValidationResult.OK:
         if raise_on_error:
             raise ValidationError(f"Overlapping pieces detected: {result}")
         return result
-    
+
+    # 4. Validate no illegal placements
+    result = _validate_placement_legality(state)
+    if result != ValidationResult.OK:
+        if raise_on_error:
+            raise ValidationError(f"Illegal placement detected: {result}")
+        return result
+
+    return ValidationResult.OK
+
+
+def _validate_placement_legality(state: State) -> ValidationResult:
+    """
+    Validate that no illegal placements exist in the current state.
+
+    Rule: A player cannot have a piece in a row, column, or zone where their opponent
+    has already placed a piece of the same shape.
+
+    Args:
+        state: The game state to validate
+
+    Returns:
+        ValidationResult.OK if valid, ValidationResult.ILLEGAL_PLACEMENT otherwise
+    """
+    # For each shape, check that players don't have the same shape in conflicting lines
+    for shape in range(4):
+        player0_pieces = state.bb[0 * 4 + shape]
+        player1_pieces = state.bb[1 * 4 + shape]
+
+        # Check each line (row, column, zone)
+        for line_mask in WIN_MASKS:
+            # Check if both players have this shape in this line
+            if (player0_pieces & line_mask) and (player1_pieces & line_mask):
+                return ValidationResult.ILLEGAL_PLACEMENT
+
     return ValidationResult.OK
 
 
 def _validate_no_overlaps(state: State) -> ValidationResult:
     """
     Validate that no position has multiple pieces.
-    
+
     Args:
         state: The game state to validate
-        
+
     Returns:
         ValidationResult.OK if valid, ValidationResult.PIECE_OVERLAP otherwise
     """
@@ -222,17 +256,17 @@ def _validate_no_overlaps(state: State) -> ValidationResult:
         if all_positions & bb:  # Overlap detected
             return ValidationResult.PIECE_OVERLAP
         all_positions |= bb
-    
+
     return ValidationResult.OK
 
 
 def get_current_player(state: State) -> Tuple[Optional[PlayerId], ValidationResult]:
     """
     Determine whose turn it is based on the current game state.
-    
+
     Args:
         state: The game state to analyze
-        
+
     Returns:
         Tuple of (current_player, validation_result)
         current_player is None if state is invalid

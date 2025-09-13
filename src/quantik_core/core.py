@@ -226,7 +226,9 @@ class State:
                 if ch == ".":
                     continue
                 if ch.upper() not in letter_to_shape:
-                    raise ValueError(f"Invalid character '{ch}' in QFEN. Must be A,B,C,D (uppercase/lowercase) or '.'")
+                    raise ValueError(
+                        f"Invalid character '{ch}' in QFEN. Must be A,B,C,D (uppercase/lowercase) or '.'"
+                    )
                 color = 0 if ch.isupper() else 1
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
@@ -242,13 +244,14 @@ class State:
             bb[7],
         )
         state = State(bb_tuple)
-        
+
         # Validate the state if requested
         if validate:
             # Import here to avoid circular imports
             from .state_validator import validate_game_state
+
             validate_game_state(state, raise_on_error=True)
-        
+
         return state
 
     # ----- canonicalization (uses LUT) ---------------------------------------
