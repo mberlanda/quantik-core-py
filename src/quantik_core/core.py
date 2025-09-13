@@ -140,7 +140,7 @@ class State:
         return "/".join(grid)
 
     @staticmethod
-    def from_qfen(qfen: str) -> "State":
+    def from_qfen(qfen: str, validate: bool = False) -> "State":
         """
         Parse a QFEN (Quantik FEN) string into a State object.
 
@@ -206,12 +206,14 @@ class State:
         Args:
             qfen: String in format "rank1/rank2/rank3/rank4" where each rank
                   contains 4 characters representing one row of the board
+            validate: If True, validate the resulting state against Quantik rules (default: False)
 
         Returns:
             State object with bitboards populated according to the QFEN
 
         Raises:
             ValueError: If QFEN format is invalid (not 4 ranks of 4 chars each)
+                       or if validate=True and the state violates Quantik rules
         """
         parts = [p.strip() for p in qfen.replace(" ", "").split("/")]
         if len(parts) != 4 or any(len(p) != 4 for p in parts):
@@ -223,6 +225,8 @@ class State:
                 ch = parts[r][c]
                 if ch == ".":
                     continue
+                if ch.upper() not in letter_to_shape:
+                    raise ValueError(f"Invalid character '{ch}' in QFEN. Must be A,B,C,D (uppercase/lowercase) or '.'")
                 color = 0 if ch.isupper() else 1
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
@@ -237,7 +241,15 @@ class State:
             bb[6],
             bb[7],
         )
-        return State(bb_tuple)
+        state = State(bb_tuple)
+        
+        # Validate the state if requested
+        if validate:
+            # Import here to avoid circular imports
+            from .state_validator import validate_game_state
+            validate_game_state(state, raise_on_error=True)
+        
+        return state
 
     # ----- canonicalization (uses LUT) ---------------------------------------
     def canonical_payload(self) -> bytes:
