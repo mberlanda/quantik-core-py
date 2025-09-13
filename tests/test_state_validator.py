@@ -338,15 +338,15 @@ class TestUtilityFunctions:
         state = State.from_qfen("ABab/CDcd/..../....", validate=False)
         player0_counts, player1_counts = count_pieces_by_shape(state)
 
-        assert player0_counts == [1, 1, 1, 1]  # One of each shape for Player 0
-        assert player1_counts == [1, 1, 1, 1]  # One of each shape for Player 1
+        assert player0_counts == (1, 1, 1, 1)  # One of each shape for Player 0
+        assert player1_counts == (1, 1, 1, 1)  # One of each shape for Player 1
 
         # Test with unequal counts
         state = State.from_qfen("AABb/..../..../....", validate=False)
         player0_counts, player1_counts = count_pieces_by_shape(state)
 
-        assert player0_counts == [2, 1, 0, 0]  # Two A, one B for Player 0
-        assert player1_counts == [0, 1, 0, 0]  # One b for Player 1
+        assert player0_counts == (2, 1, 0, 0)  # Two A, one B for Player 0
+        assert player1_counts == (0, 1, 0, 0)  # One b for Player 1
 
     def test_get_current_player(self):
         """Test current player determination."""

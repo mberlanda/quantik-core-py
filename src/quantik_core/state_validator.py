@@ -14,6 +14,8 @@ from functools import lru_cache
 from .core import State, Bitboard, PlayerId
 from .constants import WIN_MASKS, MAX_PIECES_PER_SHAPE
 
+ShapesMap = Tuple[int, int, int, int]  # Counts of shapes A, B, C, D
+
 
 class ValidationError(Exception):
     """Exception raised when game state validation fails."""
@@ -36,30 +38,42 @@ class ValidationResult(IntEnum):
 
 
 @lru_cache(maxsize=1024)
-def _count_pieces_by_shape(bb: Bitboard) -> Tuple[List[int], List[int]]:
+def _count_pieces_by_shape(bb: Bitboard) -> Tuple[ShapesMap, ShapesMap]:
     """
     Count pieces for each shape for each player.
 
     Returns:
-        Tuple of (player0_counts, player1_counts) where each is a list of 4 ints
+        Tuple of (player0_counts, player1_counts) where each is a tuple of 4 ints
         representing count of shapes A, B, C, D respectively.
     """
-    player0_counts = []
-    player1_counts = []
-
-    for shape in range(4):
-        # Count bits set in each shape's bitboard using optimized bit_count()
-        count0 = bb[0 * 4 + shape].bit_count()
-        count1 = bb[1 * 4 + shape].bit_count()
-        player0_counts.append(count0)
-        player1_counts.append(count1)
+    # Use tuple comprehension for better memory efficiency
+    player0_counts = tuple(bb[shape].bit_count() for shape in range(4))
+    player1_counts = tuple(bb[4 + shape].bit_count() for shape in range(4))
 
     return player0_counts, player1_counts
 
 
-def count_pieces_by_shape(state: State) -> Tuple[List[int], List[int]]:
+def count_pieces_by_shape(
+    state: State,
+) -> Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]:
     """Public interface for counting pieces by shape."""
     return _count_pieces_by_shape(state.bb)
+
+
+@lru_cache(maxsize=2048)
+def _validate_piece_counts_fast(bb: Bitboard) -> ValidationResult:
+    """
+    Fast validation that no player exceeds the maximum number of pieces per shape.
+    Uses bitwise operations and avoids intermediate allocations.
+    """
+    # Check all shapes in single pass using bit counting
+    for shape in range(4):
+        if bb[shape].bit_count() > MAX_PIECES_PER_SHAPE:
+            return ValidationResult.SHAPE_COUNT_EXCEEDED
+        if bb[4 + shape].bit_count() > MAX_PIECES_PER_SHAPE:
+            return ValidationResult.SHAPE_COUNT_EXCEEDED
+
+    return ValidationResult.OK
 
 
 def validate_piece_counts(state: State) -> ValidationResult:
@@ -74,16 +88,28 @@ def validate_piece_counts(state: State) -> ValidationResult:
     Returns:
         ValidationResult.OK if valid, ValidationResult.SHAPE_COUNT_EXCEEDED otherwise
     """
-    player0_counts, player1_counts = count_pieces_by_shape(state)
+    return _validate_piece_counts_fast(state.bb)
 
-    # Check if any player exceeds max pieces per shape
-    for shape in range(4):
-        if player0_counts[shape] > MAX_PIECES_PER_SHAPE:
-            return ValidationResult.SHAPE_COUNT_EXCEEDED
-        if player1_counts[shape] > MAX_PIECES_PER_SHAPE:
-            return ValidationResult.SHAPE_COUNT_EXCEEDED
 
-    return ValidationResult.OK
+@lru_cache(maxsize=2048)
+def _validate_turn_balance_fast(
+    bb: Bitboard,
+) -> Tuple[Optional[PlayerId], ValidationResult]:
+    """
+    Fast validation of turn balance using bitwise operations.
+    """
+    # Calculate total pieces for each player using bit counting
+    total0 = sum(bb[shape].bit_count() for shape in range(4))
+    total1 = sum(bb[4 + shape].bit_count() for shape in range(4))
+
+    difference = total0 - total1
+
+    if difference == 0:
+        return 0, ValidationResult.OK
+    elif difference == 1:
+        return 1, ValidationResult.OK
+    else:
+        return None, ValidationResult.TURN_BALANCE_INVALID
 
 
 def validate_turn_balance(state: State) -> Tuple[Optional[PlayerId], ValidationResult]:
@@ -100,21 +126,7 @@ def validate_turn_balance(state: State) -> Tuple[Optional[PlayerId], ValidationR
         Tuple of (current_player, validation_result)
         current_player is None if state is invalid
     """
-    player0_counts, player1_counts = count_pieces_by_shape(state)
-    total0 = sum(player0_counts)
-    total1 = sum(player1_counts)
-
-    difference = total0 - total1
-
-    if difference == 0:
-        # Equal pieces, Player 0's turn
-        return 0, ValidationResult.OK
-    elif difference == 1:
-        # Player 0 has one more, Player 1's turn
-        return 1, ValidationResult.OK
-    else:
-        # Invalid turn balance
-        return None, ValidationResult.TURN_BALANCE_INVALID
+    return _validate_turn_balance_fast(state.bb)
 
 
 def validate_position_placement(
@@ -135,28 +147,77 @@ def validate_position_placement(
     Returns:
         ValidationResult indicating whether the placement is valid
     """
-    if not (0 <= position <= 15):
+    # Fast parameter validation using bitwise checks
+    if position & ~15:  # position > 15 or position < 0
         return ValidationResult.INVALID_POSITION
-    if not (0 <= shape <= 3):
+    if shape & ~3:  # shape > 3 or shape < 0
         return ValidationResult.INVALID_SHAPE
-    if player not in (0, 1):
+    if player & ~1:  # player > 1 or player < 0
         return ValidationResult.INVALID_PLAYER
 
-    # Check if position is already occupied by any piece
     position_mask = 1 << position
-    for bb_index in range(8):  # Check all 8 bitboards
-        if state.bb[bb_index] & position_mask:
-            return ValidationResult.PIECE_OVERLAP
 
-    # Get opponent's pieces of the same shape
+    # Fast overlap check - combine all bitboards and check at once
+    all_pieces = 0
+    for bb_value in state.bb:
+        all_pieces |= bb_value
+    if all_pieces & position_mask:
+        return ValidationResult.PIECE_OVERLAP
+
+    # Fast opponent conflict check
     opponent = 1 - player
     opponent_shape_bb = state.bb[opponent * 4 + shape]
 
-    # Check each line (row, column, zone) that contains this position
+    # Early exit if opponent has no pieces of this shape
+    if not opponent_shape_bb:
+        return ValidationResult.OK
+
+    # Check for conflicts using bitwise operations
     for line_mask in WIN_MASKS:
-        if position_mask & line_mask:  # This line contains our position
-            # Check if opponent has same shape anywhere in this line
-            if opponent_shape_bb & line_mask:
+        if (position_mask & line_mask) and (opponent_shape_bb & line_mask):
+            return ValidationResult.ILLEGAL_PLACEMENT
+
+    return ValidationResult.OK
+
+
+@lru_cache(maxsize=2048)
+def _validate_game_state_fast(bb: Bitboard) -> ValidationResult:
+    """
+    Optimized comprehensive validation of a game state using bitwise operations.
+
+    Combines all validation checks into a single optimized pass to minimize
+    function call overhead and memory allocations.
+    """
+    # 1. Fast piece count validation - check all shapes at once
+    for shape in range(4):
+        if bb[shape].bit_count() > MAX_PIECES_PER_SHAPE:
+            return ValidationResult.SHAPE_COUNT_EXCEEDED
+        if bb[4 + shape].bit_count() > MAX_PIECES_PER_SHAPE:
+            return ValidationResult.SHAPE_COUNT_EXCEEDED
+
+    # 2. Fast turn balance validation
+    total0 = sum(bb[shape].bit_count() for shape in range(4))
+    total1 = sum(bb[4 + shape].bit_count() for shape in range(4))
+    difference = total0 - total1
+
+    if not (difference == 0 or difference == 1):
+        return ValidationResult.TURN_BALANCE_INVALID
+
+    # 3. Fast overlap validation - combine all bitboards
+    all_positions = 0
+    for bb_value in bb:
+        if all_positions & bb_value:
+            return ValidationResult.PIECE_OVERLAP
+        all_positions |= bb_value
+
+    # 4. Fast placement legality validation
+    for shape in range(4):
+        player0_pieces = bb[shape]
+        player1_pieces = bb[4 + shape]
+
+        # Use bitwise operations to check all lines at once
+        for line_mask in WIN_MASKS:
+            if (player0_pieces & line_mask) and (player1_pieces & line_mask):
                 return ValidationResult.ILLEGAL_PLACEMENT
 
     return ValidationResult.OK
@@ -182,38 +243,24 @@ def validate_game_state(state: State, raise_on_error: bool = False) -> Validatio
     Raises:
         ValidationError: If raise_on_error=True and state is invalid
     """
-    # 1. Validate piece counts
-    result = validate_piece_counts(state)
-    if result != ValidationResult.OK:
-        if raise_on_error:
-            raise ValidationError(f"Shape count exceeded: {result}")
-        return result
+    result = _validate_game_state_fast(state.bb)
 
-    # 2. Validate turn balance
-    _, result = validate_turn_balance(state)
-    if result != ValidationResult.OK:
-        if raise_on_error:
-            raise ValidationError(f"Invalid turn balance: {result}")
-        return result
+    if result != ValidationResult.OK and raise_on_error:
+        error_messages = {
+            ValidationResult.SHAPE_COUNT_EXCEEDED: "Shape count exceeded",
+            ValidationResult.TURN_BALANCE_INVALID: "Invalid turn balance",
+            ValidationResult.PIECE_OVERLAP: "Overlapping pieces detected",
+            ValidationResult.ILLEGAL_PLACEMENT: "Illegal placement detected",
+        }
+        raise ValidationError(
+            f"{error_messages.get(result, 'Validation failed')}: {result}"
+        )
 
-    # 3. Validate no overlapping pieces
-    result = _validate_no_overlaps(state)
-    if result != ValidationResult.OK:
-        if raise_on_error:
-            raise ValidationError(f"Overlapping pieces detected: {result}")
-        return result
-
-    # 4. Validate no illegal placements
-    result = _validate_placement_legality(state)
-    if result != ValidationResult.OK:
-        if raise_on_error:
-            raise ValidationError(f"Illegal placement detected: {result}")
-        return result
-
-    return ValidationResult.OK
+    return result
 
 
-def _validate_placement_legality(state: State) -> ValidationResult:
+@lru_cache(maxsize=1024)
+def _validate_placement_legality(bb: Bitboard) -> ValidationResult:
     """
     Validate that no illegal placements exist in the current state.
 
@@ -221,41 +268,45 @@ def _validate_placement_legality(state: State) -> ValidationResult:
     has already placed a piece of the same shape.
 
     Args:
-        state: The game state to validate
+        bb: The bitboard tuple to validate
 
     Returns:
         ValidationResult.OK if valid, ValidationResult.ILLEGAL_PLACEMENT otherwise
     """
-    # For each shape, check that players don't have the same shape in conflicting lines
+    # Optimized: check all shapes and lines in nested loops for better cache locality
     for shape in range(4):
-        player0_pieces = state.bb[0 * 4 + shape]
-        player1_pieces = state.bb[1 * 4 + shape]
+        player0_pieces = bb[shape]
+        player1_pieces = bb[4 + shape]
 
-        # Check each line (row, column, zone)
+        # Early exit if either player has no pieces of this shape
+        if not player0_pieces or not player1_pieces:
+            continue
+
+        # Check each line (row, column, zone) for conflicts
         for line_mask in WIN_MASKS:
-            # Check if both players have this shape in this line
             if (player0_pieces & line_mask) and (player1_pieces & line_mask):
                 return ValidationResult.ILLEGAL_PLACEMENT
 
     return ValidationResult.OK
 
 
-def _validate_no_overlaps(state: State) -> ValidationResult:
+@lru_cache(maxsize=1024)
+def _validate_no_overlaps(bb: Bitboard) -> ValidationResult:
     """
     Validate that no position has multiple pieces.
 
     Args:
-        state: The game state to validate
+        bb: The bitboard tuple to validate
 
     Returns:
         ValidationResult.OK if valid, ValidationResult.PIECE_OVERLAP otherwise
     """
-    # Check that no two bitboards have overlapping bits
+    # Optimized: use reduce-like approach to check overlaps
     all_positions = 0
-    for bb in state.bb:
-        if all_positions & bb:  # Overlap detected
+    for bb_value in bb:
+        if all_positions & bb_value:
             return ValidationResult.PIECE_OVERLAP
-        all_positions |= bb
+        all_positions |= bb_value
 
     return ValidationResult.OK
 
