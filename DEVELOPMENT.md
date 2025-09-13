@@ -4,7 +4,7 @@ This document provides instructions for setting up a local development environme
 
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Git
 
 ## Setting Up the Development Environment

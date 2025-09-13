@@ -5,13 +5,14 @@ This library provides the foundational components for building Quantik game engi
 Monte Carlo simulations, and AI analysis tools.
 """
 
-from .core import State, VERSION, FLAG_CANON, D4, permute16, ALL_SHAPE_PERMS
+from .core import State, VERSION, FLAG_CANON, D4, permute16, ALL_SHAPE_PERMS, Bitboard
 
 __version__ = "0.1.0"
 __author__ = "Mauro Berlanda"
 
 __all__ = [
     "State",
+    "Bitboard",
     "VERSION",
     "FLAG_CANON",
     "D4",

@@ -48,7 +48,7 @@ def test_pack_unpack_empty():
 def test_qfen_roundtrip_examples():
     examples = [
         ".A../..b./.c../...D",
-        ".... / .... / .... / ....",
+        "..../..../..../....",  # Empty board (normalized, no spaces)
         "AbCd/aBcD/..../....",
         "A.../B.../C.../D...",
         "..a./.b../c.../...d",
@@ -56,6 +56,7 @@ def test_qfen_roundtrip_examples():
     for q in examples:
         s = State.from_qfen(q)
         assert State.from_qfen(s.to_qfen()) == s
+        assert s.to_qfen() == q
 
 
 def test_canonical_invariance_under_symmetry_examples():
@@ -174,14 +175,6 @@ def test_canonical_stability(s):
     assert k1 == k2
 
 
-def test_cbor_roundtrip():
-    pytest.importorskip("cbor2")  # Skip test if cbor2 not available
-    s = State.from_qfen(".A../..b./.c../...D")
-    blob = s.to_cbor(canon=False, mc=7, meta={"id": "X"})
-    s2 = State.from_cbor(blob)
-    assert s2 == s
-
-
 def test_golden_empty():
     s = State.empty()
     # canonical key: 0x01 0x02 + 16 zero bytes
@@ -208,15 +201,6 @@ def test_canonical_single_piece_stability():
         assert canonical1 == canonical2
 
 
-# Optional: quick CBOR payload shape
-def test_cbor_payload_shape():
-    pytest.importorskip("cbor2")  # Skip test if cbor2 not available
-    s = State.empty()
-    blob = s.to_cbor(canon=True)
-    s2 = State.from_cbor(blob)
-    assert s2 == s
-
-
 def test_unpack_error_cases():
     """Test error conditions in State.unpack() for better coverage."""
     # Test buffer too small
@@ -240,16 +224,21 @@ def test_qfen_error_cases():
         State.from_qfen("A../B.../C.../D...")  # Wrong part lengths
 
 
-def test_cbor_error_cases():
-    """Test CBOR error conditions for better coverage."""
-    cbor2 = pytest.importorskip("cbor2")
+def test_state_bitboard_validation():
+    """Test that State validates bitboard data has exactly 8 elements."""
+    # Test with too few bitboards
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State((1, 2, 3, 4, 5, 6))  # Only 6 elements instead of 8
 
-    # Test unsupported version
-    invalid_data = cbor2.dumps({"v": 99, "canon": False, "bb": b"\x00" * 16})
-    with pytest.raises(ValueError, match="Unsupported CBOR version"):
-        State.from_cbor(invalid_data)
+    # Test with too many bitboards
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State((1, 2, 3, 4, 5, 6, 7, 8, 9, 10))  # 10 elements instead of 8
 
-    # Test invalid bb field
-    invalid_bb = cbor2.dumps({"v": VERSION, "canon": False, "bb": b"\x00" * 10})
-    with pytest.raises(ValueError, match="CBOR field 'bb' must be 16 bytes"):
-        State.from_cbor(invalid_bb)
+    # Test with empty tuple
+    with pytest.raises(ValueError, match="Invalid bitboard data"):
+        State(())  # 0 elements instead of 8
+
+    # Test that valid 8-element tuple works
+    valid_state = State((0, 1, 2, 3, 4, 5, 6, 7))
+    assert len(valid_state.bb) == 8
+    assert valid_state.bb == (0, 1, 2, 3, 4, 5, 6, 7)

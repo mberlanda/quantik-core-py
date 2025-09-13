@@ -1,8 +1,17 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Callable, Any
+from typing import List, Tuple, Optional, Dict, Callable, Any, Literal
 import itertools
 import struct
 
+
+# --- type aliases ------------------------------------------------------------
+# Bitboard: 8 uint16 values representing player pieces by color and shape
+# Layout: [C0S0, C0S1, C0S2, C0S3, C1S0, C1S1, C1S2, C1S3]
+# where C = color (0=player0, 1=player1), S = shape (0=A, 1=B, 2=C, 3=D)
+Bitboard = Tuple[int, int, int, int, int, int, int, int]
+
+# PlayerId: either 0 or 1
+PlayerId = Literal[0, 1]
 
 # --- versioning/flags --------------------------------------------------------
 VERSION = 1
@@ -84,11 +93,17 @@ ALL_SHAPE_PERMS = list(itertools.permutations(range(4)))  # 24 tuples
 @dataclass(frozen=True)
 class State:
     # bitboards in order C0S0..C0S3, C1S0..C1S3 (each uint16)
-    bb: Tuple[int, int, int, int, int, int, int, int]
+    bb: Bitboard
+
+    def __post_init__(self) -> None:
+        # Validate that bb has exactly 8 elements for type safety
+        if len(self.bb) != 8:
+            raise ValueError("Invalid bitboard data")
 
     @staticmethod
     def empty() -> "State":
-        return State((0, 0, 0, 0, 0, 0, 0, 0))
+        empty_bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
+        return State(empty_bb)
 
     # ----- binary core (18 bytes: B B 8H) ------------------------------------
     def pack(self, flags: int = 0) -> bytes:
@@ -101,10 +116,8 @@ class State:
         ver, flags, *rest = struct.unpack("<BB8H", data[:18])
         if ver != VERSION:
             raise ValueError(f"Unsupported version {ver}")
-        bb = tuple(int(x) & 0xFFFF for x in rest)
-        # Ensure bb has exactly 8 elements for type safety
-        if len(bb) != 8:
-            raise ValueError("Invalid bitboard data")
+        bb: Bitboard = tuple(int(x) & 0xFFFF for x in rest)  # type: ignore
+
         return State(bb)
 
     # ----- human-friendly (QFEN) ---------------------------------------------
@@ -127,7 +140,81 @@ class State:
         return "/".join(grid)
 
     @staticmethod
-    def from_qfen(qfen: str) -> "State":
+    def from_qfen(qfen: str, validate: bool = False) -> "State":
+        """
+        Parse a QFEN (Quantik FEN) string into a State object.
+
+        QFEN Format: 4 slash-separated ranks representing rows from top to bottom.
+
+        4x4 Grid Layout:
+        ┌─────┬─────┬─────┬─────┐
+        │  0  │  1  │  2  │  3  │  ← Rank 1: positions 0-3
+        ├─────┼─────┼─────┼─────┤
+        │  4  │  5  │  6  │  7  │  ← Rank 2: positions 4-7
+        ├─────┼─────┼─────┼─────┤
+        │  8  │  9  │ 10  │ 11  │  ← Rank 3: positions 8-11
+        ├─────┼─────┼─────┼─────┤
+        │ 12  │ 13  │ 14  │ 15  │  ← Rank 4: positions 12-15
+        └─────┴─────┴─────┴─────┘
+
+        Shape Notation:
+        • A, B, C, D = Player 0 pieces (uppercase)
+        • a, b, c, d = Player 1 pieces (lowercase)
+        • . = Empty square
+
+        Examples:
+
+        1. Starting position:
+           QFEN: "..../..../..../....."
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           └─────┴─────┴─────┴─────┘
+
+        2. Mixed position:
+           QFEN: "A.bC/..../d..B/...a"
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  A  │  .  │  b  │  C  │ ← Player 0: A,C  Player 1: b
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  d  │  .  │  .  │  B  │ ← Player 0: B    Player 1: d
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  a  │ ← Player 1: a
+           └─────┴─────┴─────┴─────┘
+
+        3. Winning position (row):
+           QFEN: "AbCd/..../..../....."
+           Visual:
+           ┌─────┬─────┬─────┬─────┐
+           │  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in row
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           ├─────┼─────┼─────┼─────┤
+           │  .  │  .  │  .  │  .  │
+           └─────┴─────┴─────┴─────┘
+
+        Args:
+            qfen: String in format "rank1/rank2/rank3/rank4" where each rank
+                  contains 4 characters representing one row of the board
+            validate: If True, validate the resulting state against Quantik rules (default: False)
+
+        Returns:
+            State object with bitboards populated according to the QFEN
+
+        Raises:
+            ValueError: If QFEN format is invalid (not 4 ranks of 4 chars each)
+                       or if validate=True and the state violates Quantik rules
+        """
         parts = [p.strip() for p in qfen.replace(" ", "").split("/")]
         if len(parts) != 4 or any(len(p) != 4 for p in parts):
             raise ValueError("QFEN must be 4 ranks of 4 chars separated by '/'")
@@ -138,13 +225,15 @@ class State:
                 ch = parts[r][c]
                 if ch == ".":
                     continue
+                if ch.upper() not in letter_to_shape:
+                    raise ValueError(
+                        f"Invalid character '{ch}' in QFEN. Must be A,B,C,D (uppercase/lowercase) or '.'"
+                    )
                 color = 0 if ch.isupper() else 1
                 s = letter_to_shape[ch.upper()]
                 bb[color * 4 + s] |= 1 << rc_to_i(r, c)
-        # Ensure bb has exactly 8 elements for type safety
-        if len(bb) != 8:
-            raise ValueError("Invalid bitboard data")
-        bb_tuple: Tuple[int, int, int, int, int, int, int, int] = (
+
+        bb_tuple: Bitboard = (
             bb[0],
             bb[1],
             bb[2],
@@ -154,7 +243,16 @@ class State:
             bb[6],
             bb[7],
         )
-        return State(bb_tuple)
+        state = State(bb_tuple)
+
+        # Validate the state if requested
+        if validate:
+            # Import here to avoid circular imports
+            from .state_validator import validate_game_state
+
+            validate_game_state(state, raise_on_error=True)
+
+        return state
 
     # ----- canonicalization (uses LUT) ---------------------------------------
     def canonical_payload(self) -> bytes:
@@ -187,6 +285,7 @@ class State:
     def canonical_key(self) -> bytes:
         return bytes([VERSION, FLAG_CANON]) + self.canonical_payload()
 
+    # TODO: provide a plugin architecture for serialization registering
     # ----- CBOR wrappers (portable, self-describing) -------------------------
     # { "v":1, "canon":bool, "bb": h'16bytes', ? "mc":uint, ? "meta":{...} }
     def to_cbor(
@@ -217,8 +316,5 @@ class State:
         if not isinstance(bb, (bytes, bytearray)) or len(bb) != 16:
             raise ValueError("CBOR field 'bb' must be 16 bytes")
         vals = struct.unpack("<8H", bb)
-        bb_tuple = tuple(int(x) & 0xFFFF for x in vals)
-        # Ensure bb_tuple has exactly 8 elements for type safety
-        if len(bb_tuple) != 8:
-            raise ValueError("Invalid bitboard data")
+        bb_tuple: Bitboard = tuple(int(x) & 0xFFFF for x in vals)  # type: ignore
         return State(bb_tuple)

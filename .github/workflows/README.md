@@ -6,7 +6,7 @@ This directory contains GitHub Actions workflows for automated testing, building
 
 ### 1. `test.yml` - Comprehensive Testing
 - **Trigger**: Push to main/develop, Pull requests
-- **Matrix**: Tests across multiple OS (Ubuntu, Windows, macOS) and Python versions (3.9-3.13)
+- **Matrix**: Tests across multiple OS (Ubuntu, Windows, macOS) and Python versions (3.10-3.13)
 - **Features**:
   - Linting with flake8
   - Code formatting check with black
