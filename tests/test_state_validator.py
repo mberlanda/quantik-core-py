@@ -14,10 +14,13 @@ from quantik_core.core import State
 from quantik_core.state_validator import (
     ValidationError,
     ValidationResult,
-    validate_game_state
+    validate_game_state,
 )
 
-def _assert_game_state_validation(state: 'State', expected_player: int, expected_result: ValidationResult):
+
+def _assert_game_state_validation(
+    state: "State", expected_player: int, expected_result: ValidationResult
+):
     player, result = validate_game_state(state)
     assert player == expected_player
     assert result == expected_result
@@ -44,11 +47,15 @@ class TestGameStateValidation:
         """Test various invalid game states."""
         # Too many pieces of same shape
         state = State.from_qfen("AAA./..../..../....", validate=False)
-        _assert_game_state_validation(state, None, ValidationResult.SHAPE_COUNT_EXCEEDED)
+        _assert_game_state_validation(
+            state, None, ValidationResult.SHAPE_COUNT_EXCEEDED
+        )
 
         # Invalid turn balance
         state = State.from_qfen("abc./..../..../....", validate=False)
-        _assert_game_state_validation(state, None, ValidationResult.TURN_BALANCE_INVALID)
+        _assert_game_state_validation(
+            state, None, ValidationResult.TURN_BALANCE_INVALID
+        )
 
         # Illegal placement - same shape in same column for different players
         state = State.from_qfen("A.../a.../..../....", validate=False)
@@ -86,6 +93,7 @@ class TestPlayerTurnValidation:
         state = State.from_qfen("A.../..../..../....", validate=False)
         _assert_game_state_validation(state, 1, ValidationResult.OK)
         """Test validation of incorrect player turns."""
+
 
 class TestFromQfenValidation:
     """Test that from_qfen properly validates states when requested."""
@@ -126,6 +134,7 @@ class TestFromQfenValidation:
         """Test that invalid characters in QFEN are rejected."""
         with pytest.raises(ValueError, match="Invalid character"):
             State.from_qfen("AXX./..../..../....", validate=False)
+
 
 class TestComplexValidationScenarios:
     """Test complex validation scenarios that combine multiple rules."""
