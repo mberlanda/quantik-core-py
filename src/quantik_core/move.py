@@ -6,9 +6,10 @@ and game tree construction by defining moves and their validation.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List, Dict
 from .core import PlayerId, State
 from .state_validator import ValidationResult, _validate_game_state_single_pass
+from .constants import WIN_MASKS, MAX_PIECES_PER_SHAPE
 
 
 @dataclass(frozen=True)
@@ -108,3 +109,101 @@ def apply_move(state: State, move: Move) -> State:
     new_bb[bitboard_index] |= position_mask
     
     return State(tuple(new_bb))
+
+
+def generate_legal_moves(state: State, player_id: Optional[PlayerId] = None) -> tuple[PlayerId, Dict[int, List[Move]]]:
+    """
+    Generate all legal moves for the current player in the given state.
+    
+    This function applies all Quantik game constraints:
+    1. Maximum 2 pieces per shape per player
+    2. Cannot place same shape on same line (row/column/zone) as opponent
+    3. Position must be empty
+    4. Must be player's turn
+    
+    Args:
+        state: Current game state
+        player_id: Optional player ID to validate against current turn
+        
+    Returns:
+        Tuple of (current_player, moves_by_shape) where moves_by_shape is 
+        a dict with keys 0-3 (shapes A-D) and values as lists of legal moves
+    """
+    # First, determine whose turn it is
+    current_player, validation_result = _validate_game_state_single_pass(state.bb)
+    if validation_result != ValidationResult.OK:
+        return current_player or 0, {}  # Invalid state, no legal moves
+    
+    # If player_id is specified, validate it matches current turn
+    if player_id is not None and player_id != current_player:
+        return current_player, {}  # Wrong player, no legal moves
+    
+    moves_by_shape = {0: [], 1: [], 2: [], 3: []}  # A, B, C, D
+    
+    # Count current pieces for the player to enforce max pieces constraint
+    player_shape_counts = [
+        state.bb[current_player * 4 + shape].bit_count()
+        for shape in range(4)
+    ]
+    
+    # For each shape that the player can still place
+    for shape in range(4):
+        if player_shape_counts[shape] >= MAX_PIECES_PER_SHAPE:
+            continue  # Player already has max pieces of this shape
+        
+        # Get opponent's pieces of the same shape
+        opponent_shape_bits = state.bb[(1 - current_player) * 4 + shape]
+        
+        # For each position on the board
+        for position in range(16):
+            position_mask = 1 << position
+            
+            # Check if position is already occupied
+            if any(bb_value & position_mask for bb_value in state.bb):
+                continue
+            
+            # Check if this position conflicts with opponent's same shape on any win line
+            is_legal = True
+            for win_mask in WIN_MASKS:
+                # If this position is on a win line that has opponent's same shape, illegal
+                if (position_mask & win_mask) and (opponent_shape_bits & win_mask):
+                    is_legal = False
+                    break
+            
+            if is_legal:
+                moves_by_shape[shape].append(Move(current_player, shape, position))
+    
+    return current_player, moves_by_shape
+
+
+def generate_legal_moves_list(state: State, player_id: Optional[PlayerId] = None) -> List[Move]:
+    """
+    Generate all legal moves as a flat list (for backward compatibility).
+    
+    Args:
+        state: Current game state
+        player_id: Optional player ID to validate against current turn
+        
+    Returns:
+        List of all legal moves for the current player
+    """
+    current_player, moves_by_shape = generate_legal_moves(state, player_id)
+    
+    # Flatten the moves from all shapes into a single list
+    all_moves = []
+    for shape_moves in moves_by_shape.values():
+        all_moves.extend(shape_moves)
+    
+    return all_moves
+
+
+def count_pieces_by_player_shape(state: State) -> tuple[List[int], List[int]]:
+    """
+    Count pieces by player and shape for analysis.
+    
+    Returns:
+        Tuple of (player0_counts, player1_counts) where each is [A_count, B_count, C_count, D_count]
+    """
+    player0_counts = [state.bb[shape].bit_count() for shape in range(4)]
+    player1_counts = [state.bb[shape + 4].bit_count() for shape in range(4)]
+    return player0_counts, player1_counts
