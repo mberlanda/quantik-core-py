@@ -6,6 +6,15 @@ Monte Carlo simulations, and AI analysis tools.
 """
 
 from .core import State, VERSION, FLAG_CANON, D4, permute16, ALL_SHAPE_PERMS, Bitboard
+from .move import (
+    Move,
+    MoveValidationResult,
+    validate_move,
+    apply_move,
+    generate_legal_moves,
+    generate_legal_moves_list,
+    count_pieces_by_player_shape,
+)
 
 __version__ = "0.1.0"
 __author__ = "Mauro Berlanda"
@@ -18,4 +27,11 @@ __all__ = [
     "D4",
     "permute16",
     "ALL_SHAPE_PERMS",
+    "Move",
+    "MoveValidationResult",
+    "validate_move",
+    "apply_move",
+    "generate_legal_moves",
+    "generate_legal_moves_list",
+    "count_pieces_by_player_shape",
 ]

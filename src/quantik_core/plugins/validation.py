@@ -6,9 +6,10 @@ state validation system.
 """
 
 from enum import IntEnum
-from ..core import State
+from functools import lru_cache
+from typing import Tuple
+from ..core import Bitboard, State
 from .endgame import has_winning_line
-from ..state_validator import count_pieces_by_shape
 
 
 class WinStatus(IntEnum):
@@ -17,6 +18,29 @@ class WinStatus(IntEnum):
     NO_WIN = 0
     PLAYER_0_WINS = 1
     PLAYER_1_WINS = 2
+
+
+@lru_cache(maxsize=1024)
+def _count_pieces_by_shape(bb: Bitboard) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    """
+    Count pieces for each shape for each player.
+
+    Returns:
+        Tuple of (player0_counts, player1_counts) where each is a tuple of 4 ints
+        representing count of shapes A, B, C, D respectively.
+    """
+    # Use tuple comprehension for better memory efficiency
+    player0_counts = tuple(bb[shape].bit_count() for shape in range(4))
+    player1_counts = tuple(bb[4 + shape].bit_count() for shape in range(4))
+
+    return (player0_counts, player1_counts)
+
+
+def count_pieces_by_shape(
+    state: State,
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    """Public interface for counting pieces by shape."""
+    return _count_pieces_by_shape(state.bb)
 
 
 def check_game_winner(state: State) -> WinStatus:
