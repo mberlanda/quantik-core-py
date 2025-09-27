@@ -26,11 +26,11 @@ pytest tests/ -v --cov=quantik_core
 # Check code formatting with black
 black --diff .
 
-# Run flake8 linting (excluding git ignored files)
-flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=.git,__pycache__,.venv,.tox,dist,build,*.egg-info
+# Run flake8 linting (critical errors only)
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-# Run flake8 linting (full check)
-flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=.git,__pycache__,.venv,.tox,dist,build,*.egg-info
+# Run flake8 linting (full check with warnings)
+flake8 . --count --exit-zero --statistics
 
 # Run mypy type checking
 mypy src/quantik_core/
