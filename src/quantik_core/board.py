@@ -14,9 +14,9 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Iterator, cast
 from enum import IntEnum
 
-from .core import State, PlayerId
+from .core import State
 from .move import Move, apply_move, validate_move
-from .constants import MAX_PIECES_PER_SHAPE
+from .commons import MAX_PIECES_PER_SHAPE, PlayerId
 from .plugins.validation import WinStatus, check_game_winner
 from .state_validator import validate_game_state
 
