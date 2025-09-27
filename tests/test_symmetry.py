@@ -17,9 +17,12 @@ from quantik_core import (
     SymmetryHandler,
     SymmetryTransform,
     Bitboard,
+    State,
     ALL_SHAPE_PERMS,
 )
 
+def bb_to_qfen(bb: Bitboard) -> str:
+    return State(bb).to_qfen()
 
 class TestSymmetryTransform:
     """Test SymmetryTransform class."""
@@ -125,6 +128,8 @@ class TestSymmetryOperations:
         # Create a simple bitboard with one piece in each quadrant
         bb: Bitboard = (1, 0, 0, 0, 0, 32, 0, 0)  # P0 shape0 at pos0, P1 shape1 at pos5
 
+        assert bb_to_qfen(bb) == 'A.../.b../..../....'
+
         # Identity transform
         identity = SymmetryTransform(
             d4_index=0, color_swap=False, shape_perm=(0, 1, 2, 3)
@@ -143,6 +148,7 @@ class TestSymmetryOperations:
         # Expected: P0 shape0 at rotated pos0, P1 shape1 at rotated pos5
         expected: Bitboard = (pos0_rot90, 0, 0, 0, 0, pos5_rot90, 0, 0)
         assert result == expected
+        assert bb_to_qfen(result) == '...A/..b./..../....'
 
         # Color swap
         color_swap = SymmetryTransform(
@@ -151,6 +157,7 @@ class TestSymmetryOperations:
         result = SymmetryHandler.apply_symmetry(bb, color_swap)
         expected = (0, 32, 0, 0, 1, 0, 0, 0)
         assert result == expected
+        assert bb_to_qfen(result) == 'a.../.B../..../....'
 
         # Shape permutation
         shape_perm = SymmetryTransform(
@@ -160,6 +167,7 @@ class TestSymmetryOperations:
         # P0 shape0 -> shape1, P1 shape1 -> shape0
         expected = (0, 1, 0, 0, 32, 0, 0, 0)
         assert result == expected
+        assert bb_to_qfen(result) == 'B.../.a../..../....'
 
         # Combined transformation - for complex transformations, we'll just check the result is different
         combined = SymmetryTransform(
@@ -167,6 +175,7 @@ class TestSymmetryOperations:
         )
         result = SymmetryHandler.apply_symmetry(bb, combined)
         assert result != bb  # Should be different from original
+        assert bb_to_qfen(result) == '...b/..A./..../....'
 
         # We can also verify that undoing the transformation restores the original
         inverse = combined.inverse()
