@@ -318,3 +318,16 @@ class State:
         vals = struct.unpack("<8H", bb)
         bb_tuple: Bitboard = tuple(int(x) & 0xFFFF for x in vals)  # type: ignore
         return State(bb_tuple)
+
+    def get_occupied_bb(self) -> int:
+        """
+        Get a bitboard representing all occupied positions on the board.
+
+        Returns:
+            A 16-bit integer where each set bit represents an occupied position
+        """
+        # OR together all bitboards to get occupied positions
+        occupied = 0
+        for i in range(8):  # All 8 bitboards (both players, all shapes)
+            occupied |= self.bb[i]
+        return occupied

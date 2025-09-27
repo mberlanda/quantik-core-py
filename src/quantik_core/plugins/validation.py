@@ -49,6 +49,9 @@ def check_game_winner(state: State) -> WinStatus:
 
     Uses the endgame utility to detect if there's a winning line, then infers
     the winner based on turn balance (who made the last move).
+    There are some edge cases that may need to be handled such as:
+    ABCD/..../cd../..ab => anaylising this state will return player 1 wins
+    because both players have 4 pieces, but actually player 0 made the winning move
 
     Args:
         state: The game state to check for win conditions
@@ -67,13 +70,9 @@ def check_game_winner(state: State) -> WinStatus:
     if total0 > total1:
         # Player 0 has more pieces, so they made the winning move
         return WinStatus.PLAYER_0_WINS
-    elif total1 > total0:
+    else:
         # Player 1 has more pieces, so they made the winning move
         return WinStatus.PLAYER_1_WINS
-    else:
-        # Equal pieces - this means the game ended on Player 0's turn
-        # (since Player 0 goes first)
-        return WinStatus.PLAYER_0_WINS
 
 
 def is_game_over(state: State) -> bool:

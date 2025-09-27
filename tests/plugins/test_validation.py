@@ -39,19 +39,19 @@ class TestGameWinnerDetection:
         """Test Player 0 wins when pieces are equal (they made the winning move)."""
         # Both players have 2 pieces - Player 0 wins by default
         state = State.from_qfen("AbCd/..../..../....")
-        assert check_game_winner(state) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(state) == WinStatus.PLAYER_1_WINS
         assert is_game_over(state)
 
     def test_mixed_win_combinations(self):
         """Test various mixed player winning combinations."""
         # Row win with different combinations
-        state = State.from_qfen("aBcD/a.../..../....")
+        state = State.from_qfen("aBcD/..../..../....")
         assert check_game_winner(state) == WinStatus.PLAYER_1_WINS
 
         # Column win
         state = State.from_qfen("A.../b.../C.../d...")
-        assert check_game_winner(state) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(state) == WinStatus.PLAYER_1_WINS
 
         # Zone win
         state = State.from_qfen("Ab../Cd../..../....")
-        assert check_game_winner(state) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(state) == WinStatus.PLAYER_1_WINS
