@@ -251,15 +251,24 @@ class QuantikBoard:
         player = player or self._current_player
         inventory = self._inventories[player]
 
+        # Get occupied positions once to avoid repeated checks
+        occupied_bb = self._state.get_occupied_bb()
+
         # Only consider moves with pieces we have in inventory
         for shape in range(4):
             if not inventory.has_shape(shape):
                 continue
 
+            # Pre-filter empty positions to avoid creating invalid moves
             for position in range(16):
+                # Skip occupied positions immediately
+                if (occupied_bb >> position) & 1:
+                    continue
+
+                # Create move only after basic filtering
                 move = Move(player=player, shape=shape, position=position)
 
-                # Check if move is valid using existing validation
+                # Full validation still needed for game rules
                 result = validate_move(self._state, move)
                 if result.is_valid:
                     yield move
