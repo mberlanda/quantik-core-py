@@ -5,7 +5,9 @@ This library provides the foundational components for building Quantik game engi
 Monte Carlo simulations, and AI analysis tools.
 """
 
-from .core import State, VERSION, FLAG_CANON, D4, permute16, ALL_SHAPE_PERMS, Bitboard
+from .commons import VERSION, FLAG_CANON, Bitboard, PlayerId
+from .core import State, D4, permute16, ALL_SHAPE_PERMS
+from .symmetry import SymmetryHandler, SymmetryTransform
 from .move import (
     Move,
     MoveValidationResult,
@@ -28,6 +30,7 @@ __author__ = "Mauro Berlanda"
 __all__ = [
     "State",
     "Bitboard",
+    "PlayerId",
     "VERSION",
     "FLAG_CANON",
     "D4",
@@ -44,4 +47,6 @@ __all__ = [
     "PlayerInventory",
     "GameResult",
     "MoveRecord",
+    "SymmetryHandler",
+    "SymmetryTransform",
 ]

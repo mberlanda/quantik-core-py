@@ -7,9 +7,9 @@ and game tree construction by defining moves and their validation.
 
 from dataclasses import dataclass
 from typing import Optional, List, Dict
-from .core import PlayerId, State
+from .commons import PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
+from .core import State
 from .state_validator import ValidationResult, _validate_game_state_single_pass
-from .constants import WIN_MASKS, MAX_PIECES_PER_SHAPE
 
 
 @dataclass(frozen=True)

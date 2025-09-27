@@ -1,24 +1,12 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Callable, Any, Literal
-import itertools
+from typing import List, Tuple, Optional, Dict, Any
 import struct
+from .commons import VERSION, Bitboard
+from .symmetry import SymmetryHandler
 
 
-# --- type aliases ------------------------------------------------------------
-# Bitboard: 8 uint16 values representing player pieces by color and shape
-# Layout: [C0S0, C0S1, C0S2, C0S3, C1S0, C1S1, C1S2, C1S3]
-# where C = color (0=player0, 1=player1), S = shape (0=A, 1=B, 2=C, 3=D)
-Bitboard = Tuple[int, int, int, int, int, int, int, int]
-
-# PlayerId: either 0 or 1
-PlayerId = Literal[0, 1]
-
-# --- versioning/flags --------------------------------------------------------
-VERSION = 1
-FLAG_CANON = 1 << 1  # bit1
-
-
-# --- board indexing ----------------------------------------------------------
+# --- Legacy functions for backwards compatibility ----------------------------
+# These will be used by SymmetryHandler but kept here for API compatibility
 def rc_to_i(r: int, c: int) -> int:
     return r * 4 + c
 
@@ -27,67 +15,32 @@ def i_to_rc(i: int) -> Tuple[int, int]:
     return divmod(i, 4)
 
 
-def build_perm(fn: Callable[[int, int], Tuple[int, int]]) -> List[int]:
-    m = [0] * 16
-    for i in range(16):
-        r, c = i_to_rc(i)
-        r2, c2 = fn(r, c)
-        m[i] = rc_to_i(r2, c2)
-    return m
-
-
-# 8 D4 symmetries
-D4 = [
-    ("id", build_perm(lambda r, c: (r, c))),
-    ("rot90", build_perm(lambda r, c: (c, 3 - r))),
-    ("rot180", build_perm(lambda r, c: (3 - r, 3 - c))),
-    ("rot270", build_perm(lambda r, c: (3 - c, r))),
-    ("reflV", build_perm(lambda r, c: (r, 3 - c))),
-    ("reflH", build_perm(lambda r, c: (3 - r, c))),
-    ("reflD", build_perm(lambda r, c: (c, r))),
-    ("reflAD", build_perm(lambda r, c: (3 - c, 3 - r))),
-]
-
-
-# --- precomputed LUT: 8 × 65,536 --------------------------------------------
-# perm16[S][mask] -> transformed 16-bit mask
-def _build_perm16_lut() -> List[List[int]]:
-    tables: List[List[int]] = []
-    for _, mapping in D4:
-        t = [0] * 65536
-        for x in range(65536):
-            y = 0
-            # scatter bits by mapping[i] in tight loop
-            m = x
-            i = 0
-            while m:
-                if m & 1:
-                    y |= 1 << mapping[i]
-                i += 1
-                m >>= 1
-            # finish remaining zeros if any
-            while i < 16:
-                # (no-op; just advance)
-                i += 1
-            t[x] = y
-        tables.append(t)
-    return tables
-
-
-_perm16 = _build_perm16_lut()  # ~1.0 MB RAM, fast and worth it
-
-
-# Convenience function for external use
+# Backward compatibility exports
+# These are now delegating to SymmetryHandler but kept for API compatibility
 def permute16(mask: int, mapping: List[int]) -> int:
-    """Apply a 16-element permutation to a 16-bit mask."""
-    result = 0
-    for i in range(16):
-        if (mask >> i) & 1:
-            result |= 1 << mapping[i]
-    return result
+    """
+    Apply a 16-element permutation to a 16-bit mask.
+
+    This is a compatibility function that delegates to SymmetryHandler.
+    Use SymmetryHandler.permute16() for new code.
+    """
+    # Find which D4 mapping this is
+    try:
+        d4_index = SymmetryHandler.D4_MAPPINGS.index(mapping)
+        return SymmetryHandler.permute16(mask, d4_index)
+    except ValueError:
+        # If not a predefined D4 mapping, use the slow path
+        result = 0
+        for i in range(16):
+            if (mask >> i) & 1:
+                result |= 1 << mapping[i]
+        return result
 
 
-ALL_SHAPE_PERMS = list(itertools.permutations(range(4)))  # 24 tuples
+# Expose SymmetryHandler constants for backwards compatibility
+# but in the original format for API compatibility
+D4 = [(name, SymmetryHandler.build_perm(fn)) for name, fn in SymmetryHandler.D4]
+ALL_SHAPE_PERMS = SymmetryHandler.ALL_SHAPE_PERMS
 
 
 @dataclass(frozen=True)
@@ -254,36 +207,26 @@ class State:
 
         return state
 
-    # ----- canonicalization (uses LUT) ---------------------------------------
+    # ----- canonicalization (delegated to SymmetryHandler) ------------------
     def canonical_payload(self) -> bytes:
-        best: Optional[bytes] = None
-        B = [[self.bb[c * 4 + s] for s in range(4)] for c in range(2)]
-        for s_idx, _ in enumerate(D4):
-            lut = _perm16[s_idx]
-            # geometry
-            G0 = [lut[B[0][s]] for s in range(4)]
-            G1 = [lut[B[1][s]] for s in range(4)]
-            for color_swap in (0, 1):
-                C0, C1 = (G0, G1) if color_swap == 0 else (G1, G0)
-                for perm in ALL_SHAPE_PERMS:
-                    flat = [
-                        C0[perm[0]],
-                        C0[perm[1]],
-                        C0[perm[2]],
-                        C0[perm[3]],
-                        C1[perm[0]],
-                        C1[perm[1]],
-                        C1[perm[2]],
-                        C1[perm[3]],
-                    ]
-                    candidate = struct.pack("<8H", *flat)
-                    if best is None or candidate < best:
-                        best = candidate
-        assert best is not None  # We always find at least one candidate
-        return best  # 16 bytes
+        """
+        Get the canonical payload for this state.
+
+        The canonical form is the lexicographically smallest among all symmetric variants.
+
+        Returns:
+            16-byte canonical payload
+        """
+        return SymmetryHandler.get_canonical_payload(self.bb)
 
     def canonical_key(self) -> bytes:
-        return bytes([VERSION, FLAG_CANON]) + self.canonical_payload()
+        """
+        Get the canonical key for this state.
+
+        Returns:
+            18-byte canonical key (version + flag + payload)
+        """
+        return SymmetryHandler.get_canonical_key(self.bb)
 
     # TODO: provide a plugin architecture for serialization registering
     # ----- CBOR wrappers (portable, self-describing) -------------------------

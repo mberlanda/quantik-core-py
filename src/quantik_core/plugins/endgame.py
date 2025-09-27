@@ -1,5 +1,5 @@
-from ..core import Bitboard, State
-from ..constants import WIN_MASKS
+from ..commons import Bitboard, WIN_MASKS
+from ..core import State
 
 
 def _has_winning_line(bb: Bitboard) -> bool:

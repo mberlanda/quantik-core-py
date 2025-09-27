@@ -18,7 +18,7 @@ from quantik_core import (
     Move,
     State,
 )
-from quantik_core.constants import MAX_PIECES_PER_SHAPE
+from quantik_core.commons import MAX_PIECES_PER_SHAPE
 
 
 # STALEMATE_QFEN "A..C/bbd./CD.A/.adB" used for testing
