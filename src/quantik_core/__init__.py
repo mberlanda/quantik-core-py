@@ -15,6 +15,12 @@ from .move import (
     generate_legal_moves_list,
     count_pieces_by_player_shape,
 )
+from .board import (
+    QuantikBoard,
+    PlayerInventory,
+    GameResult,
+    MoveRecord,
+)
 
 __version__ = "0.1.0"
 __author__ = "Mauro Berlanda"
@@ -34,4 +40,8 @@ __all__ = [
     "generate_legal_moves",
     "generate_legal_moves_list",
     "count_pieces_by_player_shape",
+    "QuantikBoard",
+    "PlayerInventory",
+    "GameResult",
+    "MoveRecord",
 ]
