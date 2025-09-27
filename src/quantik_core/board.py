@@ -215,7 +215,12 @@ class QuantikBoard:
     def has_legal_moves(self, player: Optional[PlayerId] = None) -> bool:
         """Check if player has any legal moves."""
         player = player or self._current_player
-        return len(list(self.generate_legal_moves(player))) > 0
+        # Use next() with a default to avoid generating the full list
+        try:
+            next(self.generate_legal_moves(player))
+            return True
+        except StopIteration:
+            return False
 
     def is_move_legal(self, move: Move) -> bool:
         """Check if a move is legal in current position."""
@@ -296,12 +301,17 @@ class QuantikBoard:
         # Apply move to state
         self._state = apply_move(self._state, move)
 
-        # Update inventory
-        new_inventories = list(self._inventories)
-        new_inventories[move.player] = self._inventories[move.player].use_shape(
-            move.shape
-        )
-        self._inventories = (new_inventories[0], new_inventories[1])
+        # Update inventory directly without creating a list
+        if move.player == 0:
+            self._inventories = (
+                self._inventories[0].use_shape(move.shape),
+                self._inventories[1],
+            )
+        else:
+            self._inventories = (
+                self._inventories[0],
+                self._inventories[1].use_shape(move.shape),
+            )
 
         # Update current player
         self._current_player = cast(PlayerId, 1 - self._current_player)

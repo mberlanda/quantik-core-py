@@ -47,13 +47,13 @@ class TestPlayerInventory:
 
     def test_invalid_inventory(self):
         """Test invalid inventory values."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid piece count"):
             PlayerInventory(shape_a=-1)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid piece count"):
             PlayerInventory(shape_b=MAX_PIECES_PER_SHAPE + 1)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Inconsistent piece count for player"):
             state = State.empty()
             empty_inventories = (
                 PlayerInventory(0, 0, 0, 0),
@@ -86,6 +86,9 @@ class TestPlayerInventory:
         assert new_inv.shape_c == 0
         assert new_inv.shape_d == 1
 
+        with pytest.raises(ValueError, match="No remaining pieces of shape"):
+            new_inv.use_shape(2)
+
     def test_add_shape(self):
         """Test adding pieces back to inventory."""
         inv = PlayerInventory(shape_a=1, shape_b=2, shape_c=0, shape_d=1)
@@ -112,6 +115,7 @@ class TestQuantikBoard:
         assert board.current_player == 0
         assert board.move_count == 0
         assert board.last_move is None
+        assert board.state == State.empty()
 
         # Check full inventories
         inv0, inv1 = board.player_inventories
