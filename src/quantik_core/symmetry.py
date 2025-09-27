@@ -9,12 +9,16 @@ It implements efficient methods for:
 - Translating moves between different symmetry orientations
 """
 
-from typing import Dict, List, Tuple, Callable, Any, Union
+from typing import Dict, List, Tuple, Callable, Union, TYPE_CHECKING
 from dataclasses import dataclass
 from enum import IntEnum
 import struct
 import itertools
 from .commons import VERSION, FLAG_CANON, Bitboard
+from .qfen import bb_from_qfen, bb_to_qfen
+
+if TYPE_CHECKING:
+    from .move import Move
 
 # Type aliases for symmetry operations
 D4Mapping = List[int]  # 16-element list mapping positions under symmetry
@@ -362,8 +366,8 @@ class SymmetryHandler:
 
     @classmethod
     def apply_symmetry_to_move(
-        cls, move: Any, transform: SymmetryTransform  # Avoid circular import
-    ) -> Any:
+        cls, move: "Move", transform: SymmetryTransform  # Type hint for Move
+    ) -> "Move":
         """
         Apply a symmetry transformation to a move.
 
@@ -376,6 +380,9 @@ class SymmetryHandler:
         Returns:
             New Move object with transformed attributes
         """
+        # Import here to avoid issues during module initialization
+        from .move import Move
+
         # Extract move components
         player = move.player
         shape = move.shape
@@ -392,13 +399,10 @@ class SymmetryHandler:
         # 2. Apply color swap if needed
         new_player = player
         if transform.color_swap:
-            new_player = 1 - player  # Toggle between 0 and 1
+            new_player = 1 - player  # type: ignore # Toggle between 0 and 1
 
         # 3. Apply shape permutation
         new_shape = transform.shape_perm.index(shape)
-
-        # Import here to avoid circular imports
-        from .move import Move
 
         # Create and return new move
         return Move(player=new_player, shape=new_shape, position=new_pos)
@@ -414,13 +418,10 @@ class SymmetryHandler:
         Returns:
             Canonical QFEN string
         """
-        # Import here to avoid circular imports
-        from .core import State
 
-        # Convert to State, get canonical bitboard, convert back to QFEN
-        state = State.from_qfen(qfen)
-        canonical_bb, _ = cls.find_canonical_form(state.bb)
-        return State(canonical_bb).to_qfen()
+        bb = bb_from_qfen(qfen)
+        canonical_bb, _ = cls.find_canonical_form(bb)
+        return bb_to_qfen(canonical_bb)
 
 
 # Initialize class structures on module load

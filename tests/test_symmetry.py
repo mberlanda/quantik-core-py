@@ -17,15 +17,12 @@ from quantik_core import (
     SymmetryHandler,
     SymmetryTransform,
     Bitboard,
-    State,
     ALL_SHAPE_PERMS,
+    bb_from_qfen,
+    bb_to_qfen,
 )
 
 from quantik_core.symmetry import D4Index
-
-
-def bb_to_qfen(bb: Bitboard) -> str:
-    return State(bb).to_qfen()
 
 
 class TestSymmetryTransform:
@@ -265,7 +262,7 @@ class TestCanonicalForms:
         for qfen in test_qfens:
             # Get the canonical form
             canonical = SymmetryHandler.get_qfen_canonical_form(qfen)
-            state = State.from_qfen(qfen)
+            bb = bb_from_qfen(qfen)
 
             # Apply a few symmetry transformations
             variations = []
@@ -273,8 +270,8 @@ class TestCanonicalForms:
                 transform = SymmetryTransform(
                     d4_index=d4_idx, color_swap=False, shape_perm=(0, 1, 2, 3)
                 )
-                transformed_bb = SymmetryHandler.apply_symmetry(state.bb, transform)
-                variations.append(State(transformed_bb).to_qfen())
+                transformed_bb = SymmetryHandler.apply_symmetry(bb, transform)
+                variations.append(bb_to_qfen(transformed_bb))
 
             # All variations should map to the same canonical form
             for var in variations:

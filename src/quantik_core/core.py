@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional, Dict, Any
 import struct
 from .commons import VERSION, Bitboard
 from .symmetry import SymmetryHandler
+from .qfen import bb_to_qfen, bb_from_qfen
 
 
 # --- Legacy functions for backwards compatibility ----------------------------
@@ -77,20 +78,13 @@ class State:
     SHAPE_LETTERS = "ABCD"
 
     def to_qfen(self) -> str:
-        grid = []
-        for r in range(4):
-            row = []
-            for c in range(4):
-                i = rc_to_i(r, c)
-                ch = "."
-                for color in (0, 1):
-                    for s in range(4):
-                        if (self.bb[color * 4 + s] >> i) & 1:
-                            letter = State.SHAPE_LETTERS[s]
-                            ch = letter if color == 0 else letter.lower()
-                row.append(ch)
-            grid.append("".join(row))
-        return "/".join(grid)
+        """
+        Convert the state to QFEN string representation.
+
+        Returns:
+            QFEN string representation of the board state
+        """
+        return bb_to_qfen(self.bb)
 
     @staticmethod
     def from_qfen(qfen: str, validate: bool = False) -> "State":
@@ -168,44 +162,8 @@ class State:
             ValueError: If QFEN format is invalid (not 4 ranks of 4 chars each)
                        or if validate=True and the state violates Quantik rules
         """
-        parts = [p.strip() for p in qfen.replace(" ", "").split("/")]
-        if len(parts) != 4 or any(len(p) != 4 for p in parts):
-            raise ValueError("QFEN must be 4 ranks of 4 chars separated by '/'")
-        bb = [0] * 8
-        letter_to_shape = {ch: i for i, ch in enumerate(State.SHAPE_LETTERS)}
-        for r in range(4):
-            for c in range(4):
-                ch = parts[r][c]
-                if ch == ".":
-                    continue
-                if ch.upper() not in letter_to_shape:
-                    raise ValueError(
-                        f"Invalid character '{ch}' in QFEN. Must be A,B,C,D (uppercase/lowercase) or '.'"
-                    )
-                color = 0 if ch.isupper() else 1
-                s = letter_to_shape[ch.upper()]
-                bb[color * 4 + s] |= 1 << rc_to_i(r, c)
-
-        bb_tuple: Bitboard = (
-            bb[0],
-            bb[1],
-            bb[2],
-            bb[3],
-            bb[4],
-            bb[5],
-            bb[6],
-            bb[7],
-        )
-        state = State(bb_tuple)
-
-        # Validate the state if requested
-        if validate:
-            # Import here to avoid circular imports
-            from .state_validator import validate_game_state
-
-            validate_game_state(state, raise_on_error=True)
-
-        return state
+        bb = bb_from_qfen(qfen, validate)
+        return State(bb)
 
     # ----- canonicalization (delegated to SymmetryHandler) ------------------
     def canonical_payload(self) -> bytes:

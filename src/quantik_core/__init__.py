@@ -8,6 +8,7 @@ Monte Carlo simulations, and AI analysis tools.
 from .commons import VERSION, FLAG_CANON, Bitboard, PlayerId
 from .core import State, D4, permute16, ALL_SHAPE_PERMS
 from .symmetry import SymmetryHandler, SymmetryTransform
+from .qfen import bb_to_qfen, bb_from_qfen, get_qfen_canonical_form
 from .move import (
     Move,
     MoveValidationResult,
@@ -36,6 +37,9 @@ __all__ = [
     "D4",
     "permute16",
     "ALL_SHAPE_PERMS",
+    "bb_to_qfen",
+    "bb_from_qfen",
+    "get_qfen_canonical_form",
     "Move",
     "MoveValidationResult",
     "validate_move",
