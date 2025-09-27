@@ -9,15 +9,30 @@ It implements efficient methods for:
 - Translating moves between different symmetry orientations
 """
 
-from typing import List, Tuple, Callable, Any
+from typing import Dict, List, Tuple, Callable, Any, Union
 from dataclasses import dataclass
+from enum import IntEnum
 import struct
 import itertools
 from .commons import VERSION, FLAG_CANON, Bitboard
 
 # Type aliases for symmetry operations
 D4Mapping = List[int]  # 16-element list mapping positions under symmetry
-D4Index = int  # Index into D4 list (0-7)
+
+
+class D4Index(IntEnum):
+    ID = 0
+    ROT90 = 1
+    ROT180 = 2
+    ROT270 = 3
+    REFLV = 4
+    REFLH = 5
+    REFLD = 6
+    REFLAD = 7
+
+
+D4IndexLike = Union[D4Index, int]
+
 ShapePerm = Tuple[int, ...]  # Permutation of shapes 0-3
 ColorSwap = bool  # Whether to swap player colors
 
@@ -30,7 +45,7 @@ class SymmetryTransform:
     Combines a D4 spatial symmetry, optional color swap, and shape permutation.
     """
 
-    d4_index: D4Index  # Index into D4 list (0-7)
+    d4_index: D4IndexLike  # Index into D4 list (0-7)
     color_swap: ColorSwap  # Whether to swap player colors
     shape_perm: ShapePerm  # Permutation of shapes 0-3
 
@@ -93,15 +108,15 @@ class SymmetryHandler:
     ALL_SHAPE_PERMS = list(itertools.permutations(range(4)))
 
     # Pre-compute and cache the D4 inverse mappings for fast lookup
-    _D4_INVERSES = {
-        0: 0,  # identity
-        1: 3,  # rot90 <-> rot270
-        2: 2,  # rot180 <-> rot180
-        3: 1,  # rot270 <-> rot90
-        4: 4,  # reflV <-> reflV
-        5: 5,  # reflH <-> reflH
-        6: 6,  # reflD <-> reflD
-        7: 7,  # reflAD <-> reflAD
+    _D4_INVERSES: Dict[D4IndexLike, D4IndexLike] = {
+        D4Index.ID: D4Index.ID,  # identity
+        D4Index.ROT90: D4Index.ROT270,  # rot90 <-> rot270
+        D4Index.ROT180: D4Index.ROT180,  # rot180 <-> rot180
+        D4Index.ROT270: D4Index.ROT90,  # rot270 <-> rot90
+        D4Index.REFLV: D4Index.REFLV,  # reflV <-> reflV
+        D4Index.REFLH: D4Index.REFLH,  # reflH <-> reflH
+        D4Index.REFLD: D4Index.REFLD,  # reflD <-> reflD
+        D4Index.REFLAD: D4Index.REFLAD,  # reflAD <-> reflAD
     }
 
     @staticmethod
@@ -132,7 +147,7 @@ class SymmetryHandler:
         return divmod(i, 4)
 
     @classmethod
-    def get_d4_inverse(cls, d4_index: D4Index) -> D4Index:
+    def get_d4_inverse(cls, d4_index: D4IndexLike) -> D4IndexLike:
         """Get the inverse D4 transformation index."""
         return cls._D4_INVERSES[d4_index]
 
@@ -204,7 +219,7 @@ class SymmetryHandler:
         cls._PERM16_LUT = cls._build_perm16_lut()
 
     @classmethod
-    def permute16(cls, mask: int, d4_index: D4Index) -> int:
+    def permute16(cls, mask: int, d4_index: D4IndexLike) -> int:
         """
         Apply a D4 permutation to a 16-bit mask using the lookup table.
 

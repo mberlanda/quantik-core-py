@@ -21,8 +21,12 @@ from quantik_core import (
     ALL_SHAPE_PERMS,
 )
 
+from quantik_core.symmetry import D4Index
+
+
 def bb_to_qfen(bb: Bitboard) -> str:
     return State(bb).to_qfen()
+
 
 class TestSymmetryTransform:
     """Test SymmetryTransform class."""
@@ -58,13 +62,13 @@ class TestSymmetryTransform:
         """Test that applying a transform and then its inverse yields identity."""
         transforms = [
             SymmetryTransform(
-                d4_index=0, color_swap=False, shape_perm=(0, 1, 2, 3)
+                d4_index=D4Index.ID, color_swap=False, shape_perm=(0, 1, 2, 3)
             ),  # identity
             SymmetryTransform(
-                d4_index=1, color_swap=False, shape_perm=(0, 1, 2, 3)
+                d4_index=D4Index.ROT90, color_swap=False, shape_perm=(0, 1, 2, 3)
             ),  # rot90
             SymmetryTransform(
-                d4_index=4, color_swap=True, shape_perm=(1, 0, 3, 2)
+                d4_index=D4Index.REFLV, color_swap=True, shape_perm=(1, 0, 3, 2)
             ),  # reflV + color swap + perm
         ]
 
@@ -128,11 +132,11 @@ class TestSymmetryOperations:
         # Create a simple bitboard with one piece in each quadrant
         bb: Bitboard = (1, 0, 0, 0, 0, 32, 0, 0)  # P0 shape0 at pos0, P1 shape1 at pos5
 
-        assert bb_to_qfen(bb) == 'A.../.b../..../....'
+        assert bb_to_qfen(bb) == "A.../.b../..../...."
 
         # Identity transform
         identity = SymmetryTransform(
-            d4_index=0, color_swap=False, shape_perm=(0, 1, 2, 3)
+            d4_index=D4Index.ID, color_swap=False, shape_perm=(0, 1, 2, 3)
         )
         result = SymmetryHandler.apply_symmetry(bb, identity)
         assert result == bb
@@ -142,40 +146,42 @@ class TestSymmetryOperations:
         pos5_rot90 = SymmetryHandler.permute16(32, 1)  # Pos 5 after 90° rotation
 
         # 90° rotation
-        rot90 = SymmetryTransform(d4_index=1, color_swap=False, shape_perm=(0, 1, 2, 3))
+        rot90 = SymmetryTransform(
+            d4_index=D4Index.ROT90, color_swap=False, shape_perm=(0, 1, 2, 3)
+        )
         result = SymmetryHandler.apply_symmetry(bb, rot90)
 
         # Expected: P0 shape0 at rotated pos0, P1 shape1 at rotated pos5
         expected: Bitboard = (pos0_rot90, 0, 0, 0, 0, pos5_rot90, 0, 0)
         assert result == expected
-        assert bb_to_qfen(result) == '...A/..b./..../....'
+        assert bb_to_qfen(result) == "...A/..b./..../...."
 
         # Color swap
         color_swap = SymmetryTransform(
-            d4_index=0, color_swap=True, shape_perm=(0, 1, 2, 3)
+            d4_index=D4Index.ID, color_swap=True, shape_perm=(0, 1, 2, 3)
         )
         result = SymmetryHandler.apply_symmetry(bb, color_swap)
         expected = (0, 32, 0, 0, 1, 0, 0, 0)
         assert result == expected
-        assert bb_to_qfen(result) == 'a.../.B../..../....'
+        assert bb_to_qfen(result) == "a.../.B../..../...."
 
         # Shape permutation
         shape_perm = SymmetryTransform(
-            d4_index=0, color_swap=False, shape_perm=(1, 0, 3, 2)
+            d4_index=D4Index.ID, color_swap=False, shape_perm=(1, 0, 3, 2)
         )
         result = SymmetryHandler.apply_symmetry(bb, shape_perm)
         # P0 shape0 -> shape1, P1 shape1 -> shape0
         expected = (0, 1, 0, 0, 32, 0, 0, 0)
         assert result == expected
-        assert bb_to_qfen(result) == 'B.../.a../..../....'
+        assert bb_to_qfen(result) == "B.../.a../..../...."
 
         # Combined transformation - for complex transformations, we'll just check the result is different
         combined = SymmetryTransform(
-            d4_index=1, color_swap=True, shape_perm=(1, 0, 3, 2)
+            d4_index=D4Index.ROT90, color_swap=True, shape_perm=(1, 0, 3, 2)
         )
         result = SymmetryHandler.apply_symmetry(bb, combined)
         assert result != bb  # Should be different from original
-        assert bb_to_qfen(result) == '...b/..A./..../....'
+        assert bb_to_qfen(result) == "...b/..A./..../...."
 
         # We can also verify that undoing the transformation restores the original
         inverse = combined.inverse()
@@ -189,7 +195,7 @@ class TestCanonicalForms:
     def test_empty_board_canonical(self):
         """Test canonical form of empty board."""
         empty_bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
-        canonical_bb, transform = SymmetryHandler.find_canonical_form(empty_bb)
+        canonical_bb, _ = SymmetryHandler.find_canonical_form(empty_bb)
         assert canonical_bb == empty_bb
 
     def test_single_piece_canonical(self):
@@ -259,10 +265,6 @@ class TestCanonicalForms:
         for qfen in test_qfens:
             # Get the canonical form
             canonical = SymmetryHandler.get_qfen_canonical_form(qfen)
-
-            # Create some variations by applying different symmetries
-            from quantik_core import State
-
             state = State.from_qfen(qfen)
 
             # Apply a few symmetry transformations
@@ -292,7 +294,7 @@ class TestMoveSymmetry:
 
         # Apply identity transform
         identity = SymmetryTransform(
-            d4_index=0, color_swap=False, shape_perm=(0, 1, 2, 3)
+            d4_index=D4Index.ID, color_swap=False, shape_perm=(0, 1, 2, 3)
         )
         result = SymmetryHandler.apply_symmetry_to_move(move, identity)
         assert result.player == move.player
@@ -300,7 +302,9 @@ class TestMoveSymmetry:
         assert result.position == move.position
 
         # Apply 90° rotation
-        rot90 = SymmetryTransform(d4_index=1, color_swap=False, shape_perm=(0, 1, 2, 3))
+        rot90 = SymmetryTransform(
+            d4_index=D4Index.ROT90, color_swap=False, shape_perm=(0, 1, 2, 3)
+        )
         result = SymmetryHandler.apply_symmetry_to_move(move, rot90)
         assert result.player == move.player
         assert result.shape == move.shape
@@ -308,7 +312,7 @@ class TestMoveSymmetry:
 
         # Apply color swap
         color_swap = SymmetryTransform(
-            d4_index=0, color_swap=True, shape_perm=(0, 1, 2, 3)
+            d4_index=D4Index.ID, color_swap=True, shape_perm=(0, 1, 2, 3)
         )
         result = SymmetryHandler.apply_symmetry_to_move(move, color_swap)
         assert result.player == 1  # Player 0 becomes player 1
@@ -317,7 +321,7 @@ class TestMoveSymmetry:
 
         # Apply shape permutation
         shape_perm = SymmetryTransform(
-            d4_index=0, color_swap=False, shape_perm=(1, 0, 3, 2)
+            d4_index=D4Index.ID, color_swap=False, shape_perm=(1, 0, 3, 2)
         )
         result = SymmetryHandler.apply_symmetry_to_move(move, shape_perm)
         assert result.player == move.player
@@ -330,7 +334,7 @@ class TestMoveSymmetry:
 
         # Define a complex transformation
         transform = SymmetryTransform(
-            d4_index=4, color_swap=True, shape_perm=(3, 1, 0, 2)
+            d4_index=D4Index.REFLV, color_swap=True, shape_perm=(3, 1, 0, 2)
         )
 
         # Apply transform
