@@ -3,7 +3,7 @@
 A script to demonstrate symmetry reduction in Quantik.
 """
 
-from typing import TextIO, Optional, Tuple
+from typing import TextIO, Optional, Tuple, Dict, Set, List
 import os
 import textwrap
 import random
@@ -93,7 +93,7 @@ def board_to_markdown(bb: Bitboard, title: str = None) -> str:
     return "\n".join(result)
 
 
-def write_introduction(writer, empty):
+def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
     """Write the introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
 
@@ -110,7 +110,9 @@ def write_introduction(writer, empty):
     writer.write(board_to_markdown(empty, "Empty Board"))
 
 
-def write_first_move_section(writer, empty, canonical_positions):
+def write_first_move_section(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
     """Write the section about first move canonicalization."""
     writer.heading(2, "First Move Canonicalization")
     writer.writeln(
@@ -140,7 +142,9 @@ def write_first_move_section(writer, empty, canonical_positions):
     writer.writeln("```")
 
 
-def compute_position_mappings(empty, canonical_positions):
+def compute_position_mappings(
+    empty: Bitboard, canonical_positions: Set[int]
+) -> Tuple[Dict[int, int], Dict[int, List[int]]]:
     """Compute the mapping of all positions to their canonical equivalents."""
     position_mapping = {}
     canonical_representatives = {pos: [] for pos in canonical_positions}
@@ -165,7 +169,9 @@ def compute_position_mappings(empty, canonical_positions):
     return position_mapping, canonical_representatives
 
 
-def write_position_mappings(writer, canonical_representatives):
+def write_position_mappings(
+    writer: MarkdownWriter, canonical_representatives: Dict[int, List[int]]
+) -> None:
     """Write the position mappings visualization."""
     # Show the mapping results
     writer.writeln("\n### Position Mappings to Canonical Forms:")
@@ -193,8 +199,10 @@ def write_position_mappings(writer, canonical_representatives):
 
 
 def write_canonical_mapping_visualization(
-    writer, position_mapping, canonical_positions
-):
+    writer: MarkdownWriter,
+    position_mapping: Dict[int, int],
+    canonical_positions: Set[int],
+) -> None:
     """Write the visualization of canonical position mapping."""
     writer.writeln("\n### Visualization of Canonical Position Mapping:")
     writer.writeln("This grid shows where each position maps to in canonical form:")
@@ -230,7 +238,9 @@ def write_canonical_mapping_visualization(
     writer.writeln(f"* **Reduction factor:** {16 / len(canonical_positions):.2f}x")
 
 
-def write_example_canonical_forms(writer, empty, position_mapping):
+def write_example_canonical_forms(
+    writer: MarkdownWriter, empty: Bitboard, position_mapping: Dict[int, int]
+) -> None:
     """Write example canonical forms for selected positions."""
     # Show example canonical forms
     writer.heading(2, "Example Canonical Forms")
@@ -252,7 +262,9 @@ def write_example_canonical_forms(writer, empty, position_mapping):
         writer.writeln(f"Maps to canonical position {pos_coords}")
 
 
-def write_second_third_moves(writer, empty, canonical_positions):
+def write_second_third_moves(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
     """Write the section demonstrating second and third move canonicalization."""
     writer.heading(2, "Second and Third Move Canonicalization")
 
@@ -310,7 +322,7 @@ def write_second_third_moves(writer, empty, canonical_positions):
                     writer.write(board_to_markdown(canonical_bb3, "Canonical form"))
 
 
-def write_determinism_test(writer):
+def write_determinism_test(writer: MarkdownWriter) -> None:
     """Write the determinism testing section."""
     # Add discussion on determinism of canonical representation
     writer.heading(2, "Is Canonical Representation Deterministic?")
@@ -404,7 +416,7 @@ def write_determinism_test(writer):
     )
 
 
-def write_conclusion(writer):
+def write_conclusion(writer: MarkdownWriter) -> None:
     """Write the conclusion section."""
     writer.heading(2, "CONCLUSION")
     writer.writeln(
@@ -436,7 +448,7 @@ def write_conclusion(writer):
     )
 
 
-def main():
+def main() -> None:
     """Generate the markdown file demonstrating symmetry reduction."""
     # Set seed for reproducibility of random examples
     random.seed(42)
