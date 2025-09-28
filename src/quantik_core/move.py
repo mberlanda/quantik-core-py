@@ -6,7 +6,7 @@ and game tree construction by defining moves and their validation.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, cast
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
@@ -81,13 +81,13 @@ def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult:
             return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
     # Create new state with the move applied
-    new_bb = list(bb)
+    lst_bb = list(bb)
     bitboard_index = move.shape if move.player == 0 else move.shape + 4
-    new_bb[bitboard_index] |= position_mask
+    lst_bb[bitboard_index] |= position_mask
 
     # Validate the new bitboard representation
     # TypeError: unhashable type: 'list'
-    new_bb = tuple(new_bb)
+    new_bb: Bitboard = cast(Bitboard, tuple(lst_bb))
     _, new_validation_result = _validate_game_state_single_pass(new_bb)
 
     if new_validation_result != ValidationResult.OK:
@@ -114,7 +114,7 @@ def apply_move(bb: Bitboard, move: Move) -> Bitboard:
     bitboard_index = move.shape if move.player == 0 else move.shape + 4
     new_bb[bitboard_index] |= position_mask
 
-    return tuple(new_bb)  # type: ignore[arg-type]
+    return cast(Bitboard, tuple(new_bb))
 
 
 def generate_legal_moves(
