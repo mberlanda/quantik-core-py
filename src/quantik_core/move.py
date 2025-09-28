@@ -1,5 +1,5 @@
 """
-Move representation and validation for Quantik game states.
+Move representation and validation for Quantik game bbs.
 
 This module provides the foundation for game state iteration, move generation,
 and game tree construction by defining moves and their validation.
@@ -7,8 +7,7 @@ and game tree construction by defining moves and their validation.
 
 from dataclasses import dataclass
 from typing import Optional, List, Dict
-from .commons import PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
-from .core import State
+from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 
@@ -44,31 +43,31 @@ class MoveValidationResult:
         self,
         is_valid: bool,
         error: Optional[ValidationResult] = None,
-        new_state: Optional[State] = None,
+        new_bb: Optional[Bitboard] = None,
     ):
         self.is_valid = is_valid
         self.error = error
-        self.new_state = new_state
+        self.new_bb = new_bb
 
 
-def validate_move(state: State, move: Move) -> MoveValidationResult:
+def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult:
     """
     Validate if a move can be applied to the given state.
 
     This function checks:
     1. If it's the player's turn
     2. If the position is empty
-    3. If the resulting state would be valid
+    3. If the resulting bitboard would be valid
 
     Args:
-        state: Current game state
+        bb: Current game bitboard
         move: Move to validate
 
     Returns:
         MoveValidationResult with validation outcome and potentially new state
     """
     # Check if it's the player's turn
-    current_player, validation_result = _validate_game_state_single_pass(state.bb)
+    current_player, validation_result = _validate_game_state_single_pass(bb)
     if validation_result != ValidationResult.OK:
         return MoveValidationResult(False, validation_result)
 
@@ -77,48 +76,49 @@ def validate_move(state: State, move: Move) -> MoveValidationResult:
 
     # Check if position is empty
     position_mask = 1 << move.position
-    for bb_value in state.bb:
+    for bb_value in bb:
         if bb_value & position_mask:
             return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
     # Create new state with the move applied
-    new_bb = list(state.bb)
+    new_bb = list(bb)
     bitboard_index = move.shape if move.player == 0 else move.shape + 4
     new_bb[bitboard_index] |= position_mask
 
-    # Validate the new state
-    new_state = State(tuple(new_bb))  # type: ignore[arg-type]
-    _, new_validation_result = _validate_game_state_single_pass(new_state.bb)
+    # Validate the new bitboard representation
+    # TypeError: unhashable type: 'list'
+    new_bb = tuple(new_bb)
+    _, new_validation_result = _validate_game_state_single_pass(new_bb)
 
     if new_validation_result != ValidationResult.OK:
         return MoveValidationResult(False, new_validation_result)
 
-    return MoveValidationResult(True, None, new_state)
+    return MoveValidationResult(True, None, new_bb)
 
 
-def apply_move(state: State, move: Move) -> State:
+def apply_move(bb: Bitboard, move: Move) -> Bitboard:
     """
-    Apply a move to a state, returning the new state.
+    Apply a move to a bb, returning the new bb.
 
     This function assumes the move is valid. Use validate_move() first if unsure.
 
     Args:
-        state: Current game state
+        bb: Current game Bitboard
         move: Move to apply
 
     Returns:
         New state with the move applied
     """
-    new_bb = list(state.bb)
+    new_bb = list(bb) # TODO: check if I can do it without list conversion
     position_mask = 1 << move.position
     bitboard_index = move.shape if move.player == 0 else move.shape + 4
     new_bb[bitboard_index] |= position_mask
 
-    return State(tuple(new_bb))  # type: ignore[arg-type]
+    return tuple(new_bb)  # type: ignore[arg-type]
 
 
 def generate_legal_moves(
-    state: State, player_id: Optional[PlayerId] = None
+    bb: Bitboard, player_id: Optional[PlayerId] = None
 ) -> tuple[PlayerId, Dict[int, List[Move]]]:
     """
     Generate all legal moves for the current player in the given state.
@@ -138,7 +138,7 @@ def generate_legal_moves(
         a dict with keys 0-3 (shapes A-D) and values as lists of legal moves
     """
     # First, determine whose turn it is
-    current_player, validation_result = _validate_game_state_single_pass(state.bb)
+    current_player, validation_result = _validate_game_state_single_pass(bb)
     if validation_result != ValidationResult.OK or current_player is None:
         return 0, {}  # Invalid state, no legal moves
 
@@ -150,7 +150,7 @@ def generate_legal_moves(
 
     # Count current pieces for the player to enforce max pieces constraint
     player_shape_counts = [
-        state.bb[current_player * 4 + shape].bit_count() for shape in range(4)
+        bb[current_player * 4 + shape].bit_count() for shape in range(4)
     ]
 
     # For each shape that the player can still place
@@ -159,14 +159,14 @@ def generate_legal_moves(
             continue  # Player already has max pieces of this shape
 
         # Get opponent's pieces of the same shape
-        opponent_shape_bits = state.bb[(1 - current_player) * 4 + shape]
+        opponent_shape_bits = bb[(1 - current_player) * 4 + shape]
 
         # For each position on the board
         for position in range(16):
             position_mask = 1 << position
 
             # Check if position is already occupied
-            if any(bb_value & position_mask for bb_value in state.bb):
+            if any(bb_value & position_mask for bb_value in bb):
                 continue
 
             # Check if this position conflicts with opponent's same shape on any win line
@@ -184,19 +184,19 @@ def generate_legal_moves(
 
 
 def generate_legal_moves_list(
-    state: State, player_id: Optional[PlayerId] = None
+    bb: Bitboard, player_id: Optional[PlayerId] = None
 ) -> List[Move]:
     """
     Generate all legal moves as a flat list (for backward compatibility).
 
     Args:
-        state: Current game state
+        bb: Current game state bitboard
         player_id: Optional player ID to validate against current turn
 
     Returns:
         List of all legal moves for the current player
     """
-    current_player, moves_by_shape = generate_legal_moves(state, player_id)
+    _, moves_by_shape = generate_legal_moves(bb, player_id)
 
     # Flatten the moves from all shapes into a single list
     all_moves = []
@@ -206,13 +206,13 @@ def generate_legal_moves_list(
     return all_moves
 
 
-def count_pieces_by_player_shape(state: State) -> tuple[List[int], List[int]]:
+def count_pieces_by_player_shape(bb: Bitboard) -> tuple[List[int], List[int]]:
     """
     Count pieces by player and shape for analysis.
 
     Returns:
         Tuple of (player0_counts, player1_counts) where each is [A_count, B_count, C_count, D_count]
     """
-    player0_counts = [state.bb[shape].bit_count() for shape in range(4)]
-    player1_counts = [state.bb[shape + 4].bit_count() for shape in range(4)]
+    player0_counts = [bb[shape].bit_count() for shape in range(4)]
+    player1_counts = [bb[shape + 4].bit_count() for shape in range(4)]
     return player0_counts, player1_counts
