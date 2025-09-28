@@ -63,6 +63,7 @@ Examples:
    │  .  │  .  │  .  │  .  │
    └─────┴─────┴─────┴─────┘
 """
+
 from .commons import Bitboard, ValidationError
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 

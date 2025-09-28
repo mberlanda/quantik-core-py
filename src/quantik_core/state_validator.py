@@ -1,7 +1,13 @@
 from enum import IntEnum
 from functools import lru_cache
 from typing import Tuple, Optional
-from quantik_core.commons import MAX_PIECES_PER_SHAPE, WIN_MASKS, Bitboard, PlayerId, ValidationError
+from quantik_core.commons import (
+    MAX_PIECES_PER_SHAPE,
+    WIN_MASKS,
+    Bitboard,
+    PlayerId,
+    ValidationError,
+)
 
 ShapesMap = Tuple[int, int, int, int]  # Counts of shapes A, B, C, D
 

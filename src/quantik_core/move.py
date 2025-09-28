@@ -109,7 +109,7 @@ def apply_move(bb: Bitboard, move: Move) -> Bitboard:
     Returns:
         New state with the move applied
     """
-    new_bb = list(bb) # TODO: check if I can do it without list conversion
+    new_bb = list(bb)  # TODO: check if I can do it without list conversion
     position_mask = 1 << move.position
     bitboard_index = move.shape if move.player == 0 else move.shape + 4
     new_bb[bitboard_index] |= position_mask

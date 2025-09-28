@@ -14,7 +14,9 @@ def apply_symmetry(bb8, d4_map, color_swap, shape_perm):
     # split [2][4]
     b = [[bb8[c * 4 + s] for s in range(4)] for c in range(2)]
     # geometry
-    g = [[SymmetryHandler.permute16(b[c][s], d4_map) for s in range(4)] for c in range(2)]
+    g = [
+        [SymmetryHandler.permute16(b[c][s], d4_map) for s in range(4)] for c in range(2)
+    ]
     # color swap
     if color_swap:
         g[0], g[1] = g[1], g[0]

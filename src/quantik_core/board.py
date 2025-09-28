@@ -310,7 +310,7 @@ class QuantikBoard:
         # Apply move to state
         new_bb = apply_move(self._state.bb, move)
         self._state = State(new_bb)
-    
+
         # Update inventory directly without creating a list
         if move.player == 0:
             self._inventories = (

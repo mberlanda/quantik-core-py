@@ -16,6 +16,7 @@ from quantik_core.qfen import bb_from_qfen
 
 EMPTY_BOARD_QFEN = "..../..../..../...."
 
+
 class TestMove:
     """Test Move dataclass."""
 
@@ -338,7 +339,7 @@ class TestCountPiecesByPlayerShape:
     def test_empty_board_count(self):
         """Test counting on empty board."""
         bb = bb_from_qfen(EMPTY_BOARD_QFEN, validate=True)
-        player0_counts, player1_counts = count_pieces_by_player_shape(bb    )
+        player0_counts, player1_counts = count_pieces_by_player_shape(bb)
 
         assert player0_counts == [0, 0, 0, 0]
         assert player1_counts == [0, 0, 0, 0]
