@@ -180,12 +180,8 @@ def compute_canonical_first_move_positions(empty: Bitboard) -> Set[int]:
     return canonical_positions
 
 
-def write_symmetry_reduction_table(
-    writer: MarkdownWriter, bb: Bitboard, move_depth: str
-) -> None:
-    """Write table showing legal moves vs unique canonical states."""
-    writer.writeln(f"\n### {move_depth} Move Symmetry Analysis")
-
+def compute_move_statistics(bb: Bitboard) -> Tuple[int, int, float, float]:
+    """Compute statistics for a given board state."""
     # Get all legal moves
     _, moves_by_shape = generate_legal_moves(bb)
     legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
@@ -200,14 +196,57 @@ def write_symmetry_reduction_table(
         if unique_canonical_states > 0
         else 0
     )
+    space_savings = (
+        (total_legal_moves - unique_canonical_states) / total_legal_moves * 100
+        if total_legal_moves > 0
+        else 0
+    )
 
-    writer.writeln("| Metric | Value |")
-    writer.writeln("|--------|-------|")
-    writer.writeln(f"| Total Legal Moves | {total_legal_moves} |")
-    writer.writeln(f"| Unique Canonical States | {unique_canonical_states} |")
-    writer.writeln(f"| Reduction Factor | {reduction_factor:.2f}x |")
+    return total_legal_moves, unique_canonical_states, reduction_factor, space_savings
+
+
+def write_comprehensive_symmetry_table(
+    writer: MarkdownWriter, empty: Bitboard, max_moves: int = 16
+) -> None:
+    """Write comprehensive table showing symmetry reduction across multiple moves."""
+    writer.writeln("\n### Comprehensive Symmetry Reduction Analysis")
     writer.writeln(
-        f"| Space Savings | {((total_legal_moves - unique_canonical_states) / total_legal_moves * 100):.1f}% |"
+        "| Move | Total Legal Moves | Unique Canonical States | Reduction Factor | Space Savings |"
+    )
+    writer.writeln(
+        "|------|-------------------|-------------------------|------------------|---------------|"
+    )
+
+    # Start with empty board
+    current_bb = empty
+    move_sequence = []
+
+    for move_num in range(1, max_moves + 1):
+        # Get statistics for current position
+        total_legal, unique_canonical, reduction_factor, space_savings = (
+            compute_move_statistics(current_bb)
+        )
+
+        if total_legal == 0:
+            # No more legal moves, game ended
+            break
+
+        # Write table row
+        writer.writeln(
+            f"| {move_num} | {total_legal} | {unique_canonical} | {reduction_factor:.2f}x | {space_savings:.1f}% |"
+        )
+
+        # Pick a random legal move to continue the sequence
+        sample_moves = get_sample_moves(current_bb, 1)
+        if not sample_moves:
+            break
+
+        move = sample_moves[0]
+        current_bb = apply_move(current_bb, move)
+        move_sequence.append(move)
+
+    writer.writeln(
+        f"\n*Analysis based on a random game sequence of {len(move_sequence)} moves.*"
     )
 
 
@@ -519,27 +558,8 @@ def write_dynamic_symmetry_reduction(
         )
     )
 
-    # First move analysis
-    write_symmetry_reduction_table(writer, empty, "First")
-
-    # Second move analysis - pick a canonical first move
-    if canonical_positions:
-        first_canonical_pos = min(canonical_positions)
-        first_move = Move(player=0, shape=0, position=first_canonical_pos)
-        bb_after_first = apply_move(empty, first_move)
-        write_symmetry_reduction_table(writer, bb_after_first, "Second")
-
-        # Third move analysis - pick a second move
-        sample_second_moves = get_sample_moves(bb_after_first, 1)
-        if sample_second_moves:
-            bb_after_second = apply_move(bb_after_first, sample_second_moves[0])
-            write_symmetry_reduction_table(writer, bb_after_second, "Third")
-
-            # Fourth move analysis
-            sample_third_moves = get_sample_moves(bb_after_second, 1)
-            if sample_third_moves:
-                bb_after_third = apply_move(bb_after_second, sample_third_moves[0])
-                write_symmetry_reduction_table(writer, bb_after_third, "Fourth")
+    # Write comprehensive symmetry reduction table up to 16th move
+    write_comprehensive_symmetry_table(writer, empty, 16)
 
     writer.writeln(
         textwrap.dedent(
