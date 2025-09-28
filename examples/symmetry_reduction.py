@@ -143,6 +143,74 @@ def populate_mapping_grid(
         grid[r][c] = value_map.get(mapped_value, default)
 
 
+def compute_unique_canonical_positions(bb: Bitboard) -> Set[Tuple[int, ...]]:
+    """Compute all unique canonical positions from legal moves on given state."""
+    canonical_states = set()
+
+    # Get all legal moves from current state
+    _, moves_by_shape = generate_legal_moves(bb)
+    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
+
+    for move in legal_moves:
+        new_bb = apply_move(bb, move)
+        canonical_bb, _ = SymmetryHandler.find_canonical_form(new_bb)
+        # Use tuple of bitboard values as hashable key (ignore transformation for uniqueness)
+        canonical_key = tuple(canonical_bb)
+        canonical_states.add(canonical_key)
+
+    return canonical_states
+
+
+def compute_canonical_first_move_positions(empty: Bitboard) -> Set[int]:
+    """Compute all unique canonical positions for first moves by player 0."""
+    canonical_positions = set()
+
+    # Try all possible first moves (4 shapes × 16 positions)
+    for shape in range(4):
+        for pos in range(16):
+            move = Move(player=0, shape=shape, position=pos)
+            bb = apply_move(empty, move)
+            canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
+
+            # Find where the piece ended up in the canonical form
+            canonical_pos = find_piece_position_in_canonical(canonical_bb)
+            if canonical_pos != -1:
+                canonical_positions.add(canonical_pos)
+
+    return canonical_positions
+
+
+def write_symmetry_reduction_table(
+    writer: MarkdownWriter, bb: Bitboard, move_depth: str
+) -> None:
+    """Write table showing legal moves vs unique canonical states."""
+    writer.writeln(f"\n### {move_depth} Move Symmetry Analysis")
+
+    # Get all legal moves
+    _, moves_by_shape = generate_legal_moves(bb)
+    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
+
+    # Compute unique canonical positions
+    canonical_states = compute_unique_canonical_positions(bb)
+
+    total_legal_moves = len(legal_moves)
+    unique_canonical_states = len(canonical_states)
+    reduction_factor = (
+        total_legal_moves / unique_canonical_states
+        if unique_canonical_states > 0
+        else 0
+    )
+
+    writer.writeln("| Metric | Value |")
+    writer.writeln("|--------|-------|")
+    writer.writeln(f"| Total Legal Moves | {total_legal_moves} |")
+    writer.writeln(f"| Unique Canonical States | {unique_canonical_states} |")
+    writer.writeln(f"| Reduction Factor | {reduction_factor:.2f}x |")
+    writer.writeln(
+        f"| Space Savings | {((total_legal_moves - unique_canonical_states) / total_legal_moves * 100):.1f}% |"
+    )
+
+
 def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
     """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
@@ -436,6 +504,58 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
     )
 
 
+def write_dynamic_symmetry_reduction(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
+    """Write dynamic symmetry analysis section."""
+    writer.heading(2, "Dynamic Symmetry Reduction Analysis")
+    writer.writeln(
+        textwrap.dedent(
+            """
+        Let's analyze how symmetry reduction works dynamically by examining the reduction
+        at different move depths. This shows how the game tree complexity is reduced
+        at each level through canonical representation.
+        """
+        )
+    )
+
+    # First move analysis
+    write_symmetry_reduction_table(writer, empty, "First")
+
+    # Second move analysis - pick a canonical first move
+    if canonical_positions:
+        first_canonical_pos = min(canonical_positions)
+        first_move = Move(player=0, shape=0, position=first_canonical_pos)
+        bb_after_first = apply_move(empty, first_move)
+        write_symmetry_reduction_table(writer, bb_after_first, "Second")
+
+        # Third move analysis - pick a second move
+        sample_second_moves = get_sample_moves(bb_after_first, 1)
+        if sample_second_moves:
+            bb_after_second = apply_move(bb_after_first, sample_second_moves[0])
+            write_symmetry_reduction_table(writer, bb_after_second, "Third")
+
+            # Fourth move analysis
+            sample_third_moves = get_sample_moves(bb_after_second, 1)
+            if sample_third_moves:
+                bb_after_third = apply_move(bb_after_second, sample_third_moves[0])
+                write_symmetry_reduction_table(writer, bb_after_third, "Fourth")
+
+    writer.writeln(
+        textwrap.dedent(
+            """
+        ### Key Insights
+
+        This dynamic analysis demonstrates:
+        - **Progressive reduction**: Each move level shows different reduction factors
+        - **Symmetry preservation**: Even as the game progresses, symmetries continue to reduce complexity
+        - **Computational savings**: The space savings percentage shows the efficiency gained
+        - **Search optimization**: These reductions directly translate to smaller search trees
+        """
+        )
+    )
+
+
 def write_conclusion(writer: MarkdownWriter) -> None:
     """Write conclusion section."""
     writer.heading(2, "CONCLUSION")
@@ -482,8 +602,8 @@ def main() -> None:
         # Initialize the empty state
         empty = bb_from_qfen("..../..../..../....")
 
-        # Define our canonical positions based on debugging
-        canonical_positions = {8, 9, 12}  # (2,0), (2,1), (3,0)
+        # Compute canonical positions for all first moves
+        canonical_positions = compute_canonical_first_move_positions(empty)
 
         # Write introduction
         write_introduction(writer, empty)
@@ -503,6 +623,9 @@ def main() -> None:
         write_canonical_mapping_visualization(
             writer, position_mapping, canonical_positions
         )
+
+        # Dynamic symmetry analysis section
+        write_dynamic_symmetry_reduction(writer, empty, canonical_positions)
 
         # Write example canonical forms
         write_example_canonical_forms(writer, empty, position_mapping)
