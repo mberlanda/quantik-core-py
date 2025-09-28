@@ -5,8 +5,9 @@ This module tests the dedicated QFEN conversion functions that handle
 conversion between bitboards and QFEN strings without circular imports.
 """
 
-from quantik_core.qfen import bb_to_qfen, bb_from_qfen, get_qfen_canonical_form
+from quantik_core.qfen import bb_to_qfen, bb_from_qfen
 from quantik_core.core import State
+from quantik_core.symmetry import SymmetryHandler
 import pytest
 
 
@@ -63,12 +64,12 @@ class TestQFENModule:
         """Test canonical form generation."""
         # Test that canonical form function works
         qfen = "A.../..../..../...."
-        canonical = get_qfen_canonical_form(qfen)
+        canonical = SymmetryHandler.get_qfen_canonical_form(qfen)
         assert isinstance(canonical, str)
         assert "/" in canonical  # Should be valid QFEN format
 
         # Canonical form should be reproducible
-        canonical2 = get_qfen_canonical_form(qfen)
+        canonical2 = SymmetryHandler.get_qfen_canonical_form(qfen)
         assert canonical == canonical2
 
     def test_invalid_qfen_handling(self):

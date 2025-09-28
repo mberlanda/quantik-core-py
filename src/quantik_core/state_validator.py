@@ -2,7 +2,6 @@ from enum import IntEnum
 from functools import lru_cache
 from typing import Tuple, Optional
 from quantik_core.commons import MAX_PIECES_PER_SHAPE, WIN_MASKS, Bitboard, PlayerId
-from quantik_core.core import State
 
 ShapesMap = Tuple[int, int, int, int]  # Counts of shapes A, B, C, D
 
@@ -166,7 +165,7 @@ def _validate_game_state_single_pass(
 
 
 def validate_game_state(
-    state: State, raise_on_error: bool = False
+    bb: Bitboard, raise_on_error: bool = False
 ) -> Tuple[Optional[PlayerId], ValidationResult]:
     """
     Validate the game state for legality.
@@ -183,7 +182,7 @@ def validate_game_state(
     Returns:
         ValidationResult indicating the validation outcome
     """
-    player, result = _validate_game_state_single_pass(state.bb)
+    player, result = _validate_game_state_single_pass(bb)
     if not raise_on_error:
         return player, result
 

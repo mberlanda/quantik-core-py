@@ -9,16 +9,14 @@ It implements efficient methods for:
 - Translating moves between different symmetry orientations
 """
 
-from typing import Dict, List, Tuple, Callable, Union, TYPE_CHECKING
+from typing import Dict, List, Tuple, Callable, Union
 from dataclasses import dataclass
 from enum import IntEnum
 import struct
 import itertools
 from .commons import VERSION, FLAG_CANON, Bitboard
 from .qfen import bb_from_qfen, bb_to_qfen
-
-if TYPE_CHECKING:
-    from .move import Move
+from .move import Move
 
 # Type aliases for symmetry operations
 D4Mapping = List[int]  # 16-element list mapping positions under symmetry
@@ -380,8 +378,6 @@ class SymmetryHandler:
         Returns:
             New Move object with transformed attributes
         """
-        # Import here to avoid issues during module initialization
-        from .move import Move
 
         # Extract move components
         player = move.player

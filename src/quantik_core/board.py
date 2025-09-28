@@ -117,7 +117,7 @@ class QuantikBoard:
             self._inventories = inventories
 
         self._move_history: List[MoveRecord] = []
-        current_player_id, _ = validate_game_state(self._state, raise_on_error=True)
+        current_player_id, _ = validate_game_state(self._state.bb, raise_on_error=True)
         if current_player_id is None:
             # If validation fails but we're not raising on error, default to player 0
             current_player_id = 0

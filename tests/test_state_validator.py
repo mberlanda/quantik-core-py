@@ -21,7 +21,7 @@ from quantik_core.state_validator import (
 def _assert_game_state_validation(
     state: "State", expected_player: int, expected_result: ValidationResult
 ):
-    player, result = validate_game_state(state)
+    player, result = validate_game_state(state.bb)
     assert player == expected_player
     assert result == expected_result
 

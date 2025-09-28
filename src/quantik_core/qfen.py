@@ -63,9 +63,8 @@ Examples:
    │  .  │  .  │  .  │  .  │
    └─────┴─────┴─────┴─────┘
 """
-
 from .commons import Bitboard
-
+from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 # Shape letters for QFEN notation
 SHAPE_LETTERS = "ABCD"
@@ -160,28 +159,8 @@ def bb_from_qfen(qfen: str, validate: bool = False) -> Bitboard:
 
     # Validate the state if requested
     if validate:
-        # Import here to avoid circular imports
-        from .core import State
-        from .state_validator import validate_game_state
-
-        state = State(bb_tuple)
-        validate_game_state(state, raise_on_error=True)
+        _, result = _validate_game_state_single_pass(bb_tuple)
+        if result != ValidationResult.OK:
+            raise ValueError(f"Invalid qfen: {qfen}. {str(result)}")
 
     return bb_tuple
-
-
-def get_qfen_canonical_form(qfen: str) -> str:
-    """
-    Get the canonical QFEN among all symmetric variants.
-
-    Args:
-        qfen: QFEN string
-
-    Returns:
-        Canonical QFEN string
-    """
-    from .symmetry import SymmetryHandler
-
-    bb = bb_from_qfen(qfen)
-    canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
-    return bb_to_qfen(canonical_bb)
