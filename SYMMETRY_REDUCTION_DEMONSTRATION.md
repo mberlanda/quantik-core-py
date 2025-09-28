@@ -112,34 +112,38 @@ Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)
 
 Let's analyze how symmetry reduction works dynamically by examining the reduction
 at different move depths. This shows how the game tree complexity is reduced
-at each level through canonical representation.
+at each level through canonical representation, including winning positions analysis.
 
+Computing comprehensive game tree analysis...
+## Depth-wise Analysis
+| Depth | Total Legal Moves | Unique Canonical | P0 Wins | P1 Wins | Ongoing | Reduction Factor | Space Savings |
+|-------|-------------------|------------------|---------|---------|---------|------------------|---------------|
+|     1 |                64 |                3 |       0 |       0 |      64 |           21.33x |         95.3% |
+|     2 |             3,392 |               51 |       0 |       0 |   3,392 |           66.51x |         98.5% |
+|     3 |           167,552 |              726 |       0 |       0 | 167,552 |          230.79x |         99.6% |
+|     4 |         6,776,960 |           10,946 |       0 |   6,912 | 6,770,048 |          619.13x |         99.8% |
+|     5 |       231,883,776 |          105,632 | 1,050,624 |       0 | 230,833,152 |         2195.20x |        100.0% |
 
-### Comprehensive Symmetry Reduction Analysis
-| Move | Total Legal Moves | Unique Canonical States | Reduction Factor | Space Savings |
-|------|-------------------|-------------------------|------------------|---------------|
-| 1 | 64 | 3 | 21.33x | 95.3% |
-| 2 | 53 | 21 | 2.52x | 60.4% |
-| 3 | 49 | 21 | 2.33x | 57.1% |
-| 4 | 41 | 28 | 1.46x | 31.7% |
-| 5 | 36 | 36 | 1.00x | 0.0% |
-| 6 | 28 | 28 | 1.00x | 0.0% |
-| 7 | 28 | 28 | 1.00x | 0.0% |
-| 8 | 12 | 12 | 1.00x | 0.0% |
-| 9 | 13 | 13 | 1.00x | 0.0% |
-| 10 | 8 | 8 | 1.00x | 0.0% |
-| 11 | 2 | 2 | 1.00x | 0.0% |
-| 12 | 2 | 2 | 1.00x | 0.0% |
-
-*Analysis based on a random game sequence of 12 moves.*
+## Cumulative Analysis
+| Metric | Value |
+|--------|--------|
+| Total Legal Moves | 238,831,744 |
+| Unique Canonical States | 117,358 |
+| Player 0 Wins | 1,050,624 |
+| Player 1 Wins | 6,912 |
+| Ongoing Games | 237,774,208 |
+| Overall Reduction Factor | 2035.07x |
+| Overall Space Savings | 100.0% |
 
 ### Key Insights
 
 This dynamic analysis demonstrates:
 - **Progressive reduction**: Each move level shows different reduction factors
 - **Symmetry preservation**: Even as the game progresses, symmetries continue to reduce complexity
+- **Winning analysis**: Clear breakdown of which player wins from different game states
 - **Computational savings**: The space savings percentage shows the efficiency gained
 - **Search optimization**: These reductions directly translate to smaller search trees
+- **Complete game analysis**: All legal games are computed showing the full game tree complexity
 
 
 ## Example Canonical Forms
@@ -162,7 +166,7 @@ This dynamic analysis demonstrates:
     0   1   2   3  
 ```
 
-### Canonical Form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 3, 0))
+### Canonical Form SymmetryTransform(d4_index=3, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -172,7 +176,7 @@ This dynamic analysis demonstrates:
   ├───┼───┼───┼───┤
 2 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-3 │ d │ . │ . │ . │
+3 │ D │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -195,7 +199,7 @@ Maps to canonical position (3,0)
     0   1   2   3  
 ```
 
-### Canonical Form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 3, 0))
+### Canonical Form SymmetryTransform(d4_index=3, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -203,7 +207,7 @@ Maps to canonical position (3,0)
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ d │ . │ . │
+2 │ . │ D │ . │ . │
   ├───┼───┼───┼───┤
 3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
@@ -228,7 +232,7 @@ Maps to canonical position (2,1)
     0   1   2   3  
 ```
 
-### Canonical Form SymmetryTransform(d4_index=1, color_swap=True, shape_perm=(1, 2, 3, 0))
+### Canonical Form SymmetryTransform(d4_index=1, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -238,7 +242,7 @@ Maps to canonical position (2,1)
   ├───┼───┼───┼───┤
 2 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-3 │ d │ . │ . │ . │
+3 │ D │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -265,6 +269,105 @@ Maps to canonical position (3,0)
 ```
 
 #### Second Move Example 1
+Move: Player 1, Shape 3 at position (0,2)
+
+### After second move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ d │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ A │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ c │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ D │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+##### Third Move Example After Above
+Move: Player 0, Shape 3 at position (3,1)
+
+### After third move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ d │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ A │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ D │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 0, 3))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ d │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ C │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ D │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+#### Second Move Example 2
+Move: Player 1, Shape 0 at position (3,3)
+
+### After second move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ A │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ . │ . │ a │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ D │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ . │ . │ d │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+#### Second Move Example 3
 Move: Player 1, Shape 0 at position (0,2)
 
 ### After second move
@@ -289,105 +392,6 @@ Move: Player 1, Shape 0 at position (0,2)
 0 │ . │ . │ d │ . │
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-##### Third Move Example After Above
-Move: Player 0, Shape 1 at position (2,1)
-
-### After third move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ a │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ A │ B │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=6, color_swap=True, shape_perm=(2, 3, 1, 0))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ d │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ c │ . │
-  ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-#### Second Move Example 2
-Move: Player 1, Shape 0 at position (1,3)
-
-### After second move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ a │
-  ├───┼───┼───┼───┤
-2 │ A │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ d │
-  ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-#### Second Move Example 3
-Move: Player 1, Shape 1 at position (1,1)
-
-### After second move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ b │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ A │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ c │ . │ . │
   ├───┼───┼───┼───┤
 2 │ D │ . │ . │ . │
   ├───┼───┼───┼───┤
@@ -414,7 +418,7 @@ Move: Player 1, Shape 1 at position (1,1)
 ```
 
 #### Second Move Example 1
-Move: Player 1, Shape 2 at position (2,2)
+Move: Player 1, Shape 1 at position (2,2)
 
 ### After second move
 
@@ -424,14 +428,14 @@ Move: Player 1, Shape 2 at position (2,2)
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ A │ c │ . │
+2 │ . │ A │ b │ . │
   ├───┼───┼───┼───┤
 3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
-### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 3, 2, 0))
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -447,7 +451,7 @@ Move: Player 1, Shape 2 at position (2,2)
 ```
 
 ##### Third Move Example After Above
-Move: Player 0, Shape 2 at position (3,1)
+Move: Player 0, Shape 0 at position (2,0)
 
 ### After third move
 
@@ -457,14 +461,14 @@ Move: Player 0, Shape 2 at position (3,1)
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ A │ c │ . │
+2 │ A │ A │ b │ . │
   ├───┼───┼───┼───┤
-3 │ . │ C │ . │ . │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
-### Canonical form SymmetryTransform(d4_index=4, color_swap=True, shape_perm=(1, 3, 0, 2))
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -472,23 +476,23 @@ Move: Player 0, Shape 2 at position (3,1)
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ D │ c │ . │
+2 │ D │ D │ c │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ d │ . │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
 #### Second Move Example 2
-Move: Player 1, Shape 3 at position (0,0)
+Move: Player 1, Shape 1 at position (1,3)
 
 ### After second move
 
 ```
   ┌───┬───┬───┬───┐
-0 │ d │ . │ . │ . │
+0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
+1 │ . │ . │ . │ b │
   ├───┼───┼───┼───┤
 2 │ . │ A │ . │ . │
   ├───┼───┼───┼───┤
@@ -497,31 +501,31 @@ Move: Player 1, Shape 3 at position (0,0)
     0   1   2   3  
 ```
 
-### Canonical form SymmetryTransform(d4_index=7, color_swap=False, shape_perm=(1, 2, 3, 0))
+### Canonical form SymmetryTransform(d4_index=7, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
+0 │ . │ . │ c │ . │
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 2 │ . │ D │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ c │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
 #### Second Move Example 3
-Move: Player 1, Shape 0 at position (0,2)
+Move: Player 1, Shape 1 at position (1,2)
 
 ### After second move
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ a │ . │
+0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
+1 │ . │ . │ b │ . │
   ├───┼───┼───┼───┤
 2 │ . │ A │ . │ . │
   ├───┼───┼───┼───┤
@@ -530,15 +534,15 @@ Move: Player 1, Shape 0 at position (0,2)
     0   1   2   3  
 ```
 
-### Canonical form SymmetryTransform(d4_index=6, color_swap=True, shape_perm=(1, 2, 3, 0))
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ d │ . │
+1 │ . │ . │ c │ . │
   ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
+2 │ . │ D │ . │ . │
   ├───┼───┼───┼───┤
 3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
@@ -563,7 +567,7 @@ Move: Player 1, Shape 0 at position (0,2)
 ```
 
 #### Second Move Example 1
-Move: Player 1, Shape 1 at position (1,0)
+Move: Player 1, Shape 3 at position (2,1)
 
 ### After second move
 
@@ -571,108 +575,9 @@ Move: Player 1, Shape 1 at position (1,0)
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ b │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ A │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=5, color_swap=True, shape_perm=(2, 3, 0, 1))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ c │ . │ . │ . │
-  ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-##### Third Move Example After Above
-Move: Player 0, Shape 3 at position (2,1)
-
-### After third move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ b │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ . │ D │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ A │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=5, color_swap=True, shape_perm=(2, 0, 3, 1))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ b │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ c │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-#### Second Move Example 2
-Move: Player 1, Shape 3 at position (1,3)
-
-### After second move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ d │
-  ├───┼───┼───┼───┤
-2 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ A │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(1, 2, 0, 3))
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ c │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
-  ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
-  └───┴───┴───┴───┘
-    0   1   2   3  
-```
-
-#### Second Move Example 3
-Move: Player 1, Shape 3 at position (0,3)
-
-### After second move
-
-```
-  ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ d │
-  ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
-  ├───┼───┼───┼───┤
-2 │ . │ . │ . │ . │
+2 │ . │ d │ . │ . │
   ├───┼───┼───┼───┤
 3 │ A │ . │ . │ . │
   └───┴───┴───┴───┘
@@ -683,11 +588,110 @@ Move: Player 1, Shape 3 at position (0,3)
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ c │
+0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
+2 │ . │ c │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ D │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+##### Third Move Example After Above
+Move: Player 0, Shape 3 at position (1,3)
+
+### After third move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ D │
+  ├───┼───┼───┼───┤
+2 │ . │ d │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ A │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=2, color_swap=False, shape_perm=(1, 2, 3, 0))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ D │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ c │ . │
+  ├───┼───┼───┼───┤
+2 │ C │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ . │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+#### Second Move Example 2
+Move: Player 1, Shape 0 at position (2,2)
+
+### After second move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ . │ . │ a │ . │
+  ├───┼───┼───┼───┤
+3 │ A │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ . │ . │ d │ . │
+  ├───┼───┼───┼───┤
+3 │ D │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+#### Second Move Example 3
+Move: Player 1, Shape 3 at position (1,1)
+
+### After second move
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ d │ . │ . │
+  ├───┼───┼───┼───┤
 2 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+3 │ A │ . │ . │ . │
+  └───┴───┴───┴───┘
+    0   1   2   3  
+```
+
+### Canonical form SymmetryTransform(d4_index=7, color_swap=False, shape_perm=(1, 2, 3, 0))
+
+```
+  ┌───┬───┬───┬───┐
+0 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+1 │ . │ . │ . │ . │
+  ├───┼───┼───┼───┤
+2 │ . │ . │ c │ . │
   ├───┼───┼───┼───┤
 3 │ D │ . │ . │ . │
   └───┴───┴───┴───┘
@@ -734,39 +738,39 @@ how that state was reached. Let's verify this property:
     0   1   2   3  
 ```
 
-### Canonical Form of State 1 - SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(3, 0, 2, 1))
+### Canonical Form of State 1 - SymmetryTransform(d4_index=1, color_swap=False, shape_perm=(3, 1, 2, 0))
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
+0 │ . │ . │ . │ D │
   ├───┼───┼───┼───┤
-1 │ . │ . │ c │ . │
+1 │ . │ . │ b │ . │
   ├───┼───┼───┼───┤
-2 │ . │ D │ . │ . │
+2 │ . │ C │ . │ . │
   ├───┼───┼───┼───┤
-3 │ b │ . │ . │ . │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
-### Canonical Form of State 2 - SymmetryTransform(d4_index=1, color_swap=True, shape_perm=(3, 0, 2, 1))
+### Canonical Form of State 2 - SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(3, 1, 2, 0))
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
+0 │ . │ . │ . │ D │
   ├───┼───┼───┼───┤
-1 │ . │ c │ . │ . │
+1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
+2 │ . │ C │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ b │
+3 │ . │ . │ b │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
 **Result:** The canonical representation is NOT deterministic! This is a serious issue that needs to be fixed.
-Canonical QFEN 1: `..../..c./.D../b...`
-Canonical QFEN 2: `..../.c../D.../...b`
+Canonical QFEN 1: `...D/..b./.C../....`
+Canonical QFEN 2: `...D/..../.C../..b.`
 
 ### Implications for Game Search
 

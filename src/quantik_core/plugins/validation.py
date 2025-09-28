@@ -9,7 +9,7 @@ from enum import IntEnum
 from functools import lru_cache
 from typing import Tuple
 from ..core import Bitboard, State
-from .endgame import has_winning_line
+from .endgame import bb_has_winning_line
 
 
 class WinStatus(IntEnum):
@@ -36,6 +36,23 @@ def _count_pieces_by_shape(bb: Bitboard) -> Tuple[Tuple[int, ...], Tuple[int, ..
     return (player0_counts, player1_counts)
 
 
+def bb_check_game_winner(bb: Bitboard) -> WinStatus:
+    """
+    Check if the game has been won and determine the winner.
+    """
+    if not bb_has_winning_line(bb):
+        return WinStatus.NO_WIN
+
+    player0_counts, player1_counts = _count_pieces_by_shape(bb)
+    total0 = sum(player0_counts)
+    total1 = sum(player1_counts)
+
+    if total0 > total1:
+        return WinStatus.PLAYER_0_WINS
+    else:
+        return WinStatus.PLAYER_1_WINS
+
+
 def count_pieces_by_shape(
     state: State,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
@@ -59,20 +76,7 @@ def check_game_winner(state: State) -> WinStatus:
     Returns:
         WinStatus indicating the game result (NO_WIN, PLAYER_0_WINS, PLAYER_1_WINS)
     """
-    if not has_winning_line(state):
-        return WinStatus.NO_WIN
-
-    # There's a winning line, determine who won based on turn balance
-    player0_counts, player1_counts = count_pieces_by_shape(state)
-    total0 = sum(player0_counts)
-    total1 = sum(player1_counts)
-
-    if total0 > total1:
-        # Player 0 has more pieces, so they made the winning move
-        return WinStatus.PLAYER_0_WINS
-    else:
-        # Player 1 has more pieces, so they made the winning move
-        return WinStatus.PLAYER_1_WINS
+    return bb_check_game_winner(state.bb)
 
 
 def is_game_over(state: State) -> bool:

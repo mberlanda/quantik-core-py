@@ -11,6 +11,7 @@ import random
 from quantik_core import Move, apply_move, SymmetryHandler, generate_legal_moves
 from quantik_core.commons import Bitboard
 from quantik_core.qfen import bb_from_qfen, bb_to_qfen
+from quantik_core.game_stats import SymmetryTable
 
 # Random seed for deterministic sampling
 RANDOM_SEED = 42
@@ -180,76 +181,6 @@ def compute_canonical_first_move_positions(empty: Bitboard) -> Set[int]:
     return canonical_positions
 
 
-def compute_move_statistics(bb: Bitboard) -> Tuple[int, int, float, float]:
-    """Compute statistics for a given board state."""
-    # Get all legal moves
-    _, moves_by_shape = generate_legal_moves(bb)
-    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
-
-    # Compute unique canonical positions
-    canonical_states = compute_unique_canonical_positions(bb)
-
-    total_legal_moves = len(legal_moves)
-    unique_canonical_states = len(canonical_states)
-    reduction_factor = (
-        total_legal_moves / unique_canonical_states
-        if unique_canonical_states > 0
-        else 0
-    )
-    space_savings = (
-        (total_legal_moves - unique_canonical_states) / total_legal_moves * 100
-        if total_legal_moves > 0
-        else 0
-    )
-
-    return total_legal_moves, unique_canonical_states, reduction_factor, space_savings
-
-
-def write_comprehensive_symmetry_table(
-    writer: MarkdownWriter, empty: Bitboard, max_moves: int = 16
-) -> None:
-    """Write comprehensive table showing symmetry reduction across multiple moves."""
-    writer.writeln("\n### Comprehensive Symmetry Reduction Analysis")
-    writer.writeln(
-        "| Move | Total Legal Moves | Unique Canonical States | Reduction Factor | Space Savings |"
-    )
-    writer.writeln(
-        "|------|-------------------|-------------------------|------------------|---------------|"
-    )
-
-    # Start with empty board
-    current_bb = empty
-    move_sequence = []
-
-    for move_num in range(1, max_moves + 1):
-        # Get statistics for current position
-        total_legal, unique_canonical, reduction_factor, space_savings = (
-            compute_move_statistics(current_bb)
-        )
-
-        if total_legal == 0:
-            # No more legal moves, game ended
-            break
-
-        # Write table row
-        writer.writeln(
-            f"| {move_num} | {total_legal} | {unique_canonical} | {reduction_factor:.2f}x | {space_savings:.1f}% |"
-        )
-
-        # Pick a random legal move to continue the sequence
-        sample_moves = get_sample_moves(current_bb, 1)
-        if not sample_moves:
-            break
-
-        move = sample_moves[0]
-        current_bb = apply_move(current_bb, move)
-        move_sequence.append(move)
-
-    writer.writeln(
-        f"\n*Analysis based on a random game sequence of {len(move_sequence)} moves.*"
-    )
-
-
 def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
     """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
@@ -283,19 +214,6 @@ def write_first_move_section(
         """
         )
     )
-
-    # Show these canonical positions
-    writer.writeln("\n### Canonical First Move Positions:")
-
-    # Create grid data for canonical positions
-    canonical_grid = [
-        ["   ", "   ", "   ", "   "],
-        ["   ", "   ", "   ", "   "],
-        [" 8 ", " 9 ", "   ", "   "],
-        [" 12", "   ", "   ", "   "],
-    ]
-
-    writer.draw_ascii_grid(canonical_grid)
 
 
 def compute_position_mappings(
@@ -546,20 +464,23 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
 def write_dynamic_symmetry_reduction(
     writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
 ) -> None:
-    """Write dynamic symmetry analysis section."""
+    """Write dynamic symmetry analysis section using comprehensive game tree analysis."""
     writer.heading(2, "Dynamic Symmetry Reduction Analysis")
     writer.writeln(
         textwrap.dedent(
             """
         Let's analyze how symmetry reduction works dynamically by examining the reduction
         at different move depths. This shows how the game tree complexity is reduced
-        at each level through canonical representation.
+        at each level through canonical representation, including winning positions analysis.
         """
         )
     )
 
-    # Write comprehensive symmetry reduction table up to 16th move
-    write_comprehensive_symmetry_table(writer, empty, 16)
+    # Perform comprehensive game tree analysis
+    writer.writeln("Computing comprehensive game tree analysis...")
+    symmetry_table = SymmetryTable()
+    symmetry_table.analyze_game_tree(max_depth=5)
+    writer.writeln(symmetry_table.generate_table())
 
     writer.writeln(
         textwrap.dedent(
@@ -569,8 +490,10 @@ def write_dynamic_symmetry_reduction(
         This dynamic analysis demonstrates:
         - **Progressive reduction**: Each move level shows different reduction factors
         - **Symmetry preservation**: Even as the game progresses, symmetries continue to reduce complexity
+        - **Winning analysis**: Clear breakdown of which player wins from different game states
         - **Computational savings**: The space savings percentage shows the efficiency gained
         - **Search optimization**: These reductions directly translate to smaller search trees
+        - **Complete game analysis**: All legal games are computed showing the full game tree complexity
         """
         )
     )
@@ -608,15 +531,10 @@ def write_conclusion(writer: MarkdownWriter) -> None:
     )
 
 
-def main() -> None:
+def write_symmetry_table(output_file: str) -> None:
     """Generate markdown file demonstrating symmetry reduction."""
     # Set seed for reproducibility of random examples
     random.seed(RANDOM_SEED)
-
-    output_file = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "SYMMETRY_REDUCTION_DEMONSTRATION.md",
-    )
 
     with MarkdownWriter(output_file) as writer:
         # Initialize the empty state
@@ -660,6 +578,15 @@ def main() -> None:
         write_conclusion(writer)
 
         print(f"Successfully wrote demonstration to {output_file}")
+
+
+def main() -> None:
+    """Main entry point."""
+    output_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "SYMMETRY_REDUCTION_DEMONSTRATION.md",
+    )
+    write_symmetry_table(output_file)
 
 
 if __name__ == "__main__":

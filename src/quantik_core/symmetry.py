@@ -272,7 +272,9 @@ class SymmetryHandler:
         )
 
     @classmethod
-    def find_canonical_form(cls, bb: Bitboard) -> Tuple[Bitboard, SymmetryTransform]:
+    def find_canonical_form(
+        cls, bb: Bitboard, color_swap: bool = False
+    ) -> Tuple[Bitboard, SymmetryTransform]:
         """
         Find the canonical form of a bitboard and the transform that produces it.
 
@@ -291,6 +293,7 @@ class SymmetryHandler:
         best_bb = None
         best_transform = None
         best_payload = None
+        color_swap_options = [False, True] if color_swap else [False]
 
         # Split into [2][4] array by color and shape
         B = [[bb[c * 4 + s] for s in range(4)] for c in range(2)]
@@ -302,7 +305,7 @@ class SymmetryHandler:
             G1 = [cls.permute16(B[1][s], d4_idx) for s in range(4)]
 
             # Try both color assignments
-            for color_swap in (False, True):
+            for color_swap in color_swap_options:
                 C0, C1 = (G0, G1) if not color_swap else (G1, G0)
 
                 # Try all shape permutations
