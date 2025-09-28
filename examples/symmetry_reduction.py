@@ -283,7 +283,7 @@ def write_second_third_moves(writer, empty, canonical_positions):
             canonical_qfen = SymmetryHandler.get_qfen_canonical_form(second_state_qfen)
             canonical_state = State.from_qfen(canonical_qfen)
 
-            writer.writeln(f"\n#### Second Move Example {move_idx+1}")
+            writer.writeln(f"\n#### Second Move Example {move_idx + 1}")
             writer.writeln(
                 f"Move: Player {second_move.player}, Shape {second_move.shape} at "
                 f"position {position_to_coords(second_move.position)}"
@@ -637,7 +637,7 @@ def main():
                 )
                 canonical_state = State.from_qfen(canonical_qfen)
 
-                writer.writeln(f"\n#### Second Move Example {move_idx+1}")
+                writer.writeln(f"\n#### Second Move Example {move_idx + 1}")
                 writer.writeln(
                     f"Move: Player {second_move.player}, Shape {second_move.shape} at "
                     f"position {position_to_coords(second_move.position)}"
