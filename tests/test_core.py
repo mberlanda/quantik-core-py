@@ -2,7 +2,7 @@ import struct
 import pytest
 from hypothesis import given, strategies as st
 
-from quantik_core import State, D4, permute16, ALL_SHAPE_PERMS, VERSION, FLAG_CANON
+from quantik_core import State, VERSION, FLAG_CANON, SymmetryHandler
 
 # ---------- Helpers ----------
 
@@ -14,7 +14,7 @@ def apply_symmetry(bb8, d4_map, color_swap, shape_perm):
     # split [2][4]
     b = [[bb8[c * 4 + s] for s in range(4)] for c in range(2)]
     # geometry
-    g = [[permute16(b[c][s], d4_map) for s in range(4)] for c in range(2)]
+    g = [[SymmetryHandler.permute16(b[c][s], d4_map) for s in range(4)] for c in range(2)]
     # color swap
     if color_swap:
         g[0], g[1] = g[1], g[0]
@@ -65,9 +65,9 @@ def test_canonical_invariance_under_symmetry_examples():
     base = State.from_qfen(q)
     base_key = base.canonical_key()
     bb8 = base.bb
-    for _, m in D4:
+    for _, m in SymmetryHandler.D4:
         for cs in (False, True):
-            for sp in ALL_SHAPE_PERMS:
+            for sp in SymmetryHandler.ALL_SHAPE_PERMS:
                 tbb8 = apply_symmetry(bb8, m, cs, sp)
                 ts = State(tbb8)
                 assert ts.canonical_key() == base_key
@@ -155,9 +155,9 @@ def test_canonical_is_min_over_symmetry_orbit(s):
     # The canonical payload must equal the min over the full symmetry orbit
     base = s.bb
     payloads = []
-    for _, m in D4:
+    for _, m in SymmetryHandler.D4:
         for cs in (False, True):
-            for sp in ALL_SHAPE_PERMS:
+            for sp in SymmetryHandler.ALL_SHAPE_PERMS:
                 tbb8 = apply_symmetry(base, m, cs, sp)
                 payloads.append(payload(tbb8))
     expected = min(payloads)

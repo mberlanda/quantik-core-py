@@ -1,47 +1,9 @@
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Any
+from typing import Optional, Dict, Any
 import struct
 from .commons import VERSION, Bitboard
 from .symmetry import SymmetryHandler
 from .qfen import bb_to_qfen, bb_from_qfen
-
-
-# --- Legacy functions for backwards compatibility ----------------------------
-# These will be used by SymmetryHandler but kept here for API compatibility
-def rc_to_i(r: int, c: int) -> int:
-    return r * 4 + c
-
-
-def i_to_rc(i: int) -> Tuple[int, int]:
-    return divmod(i, 4)
-
-
-# Backward compatibility exports
-# These are now delegating to SymmetryHandler but kept for API compatibility
-def permute16(mask: int, mapping: List[int]) -> int:
-    """
-    Apply a 16-element permutation to a 16-bit mask.
-
-    This is a compatibility function that delegates to SymmetryHandler.
-    Use SymmetryHandler.permute16() for new code.
-    """
-    # Find which D4 mapping this is
-    try:
-        d4_index = SymmetryHandler.D4_MAPPINGS.index(mapping)
-        return SymmetryHandler.permute16(mask, d4_index)
-    except ValueError:
-        # If not a predefined D4 mapping, use the slow path
-        result = 0
-        for i in range(16):
-            if (mask >> i) & 1:
-                result |= 1 << mapping[i]
-        return result
-
-
-# Expose SymmetryHandler constants for backwards compatibility
-# but in the original format for API compatibility
-D4 = [(name, SymmetryHandler.build_perm(fn)) for name, fn in SymmetryHandler.D4]
-ALL_SHAPE_PERMS = SymmetryHandler.ALL_SHAPE_PERMS
 
 
 @dataclass(frozen=True)

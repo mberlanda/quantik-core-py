@@ -17,7 +17,6 @@ from quantik_core import (
     SymmetryHandler,
     SymmetryTransform,
     Bitboard,
-    ALL_SHAPE_PERMS,
     bb_from_qfen,
     bb_to_qfen,
 )
@@ -237,11 +236,11 @@ class TestCanonicalForms:
         # Try various symmetry transformations
         for d4_idx in range(8):
             for color_swap in (False, True):
-                for perm_idx in range(min(5, len(ALL_SHAPE_PERMS))):  # Test a few perms
+                for perm_idx in range(min(5, len(SymmetryHandler.ALL_SHAPE_PERMS))):  # Test a few perms
                     transform = SymmetryTransform(
                         d4_index=d4_idx,
                         color_swap=color_swap,
-                        shape_perm=ALL_SHAPE_PERMS[perm_idx],
+                        shape_perm=SymmetryHandler.ALL_SHAPE_PERMS[perm_idx],
                     )
                     transformed_bb = SymmetryHandler.apply_symmetry(bb, transform)
                     canonical2, _ = SymmetryHandler.find_canonical_form(transformed_bb)
