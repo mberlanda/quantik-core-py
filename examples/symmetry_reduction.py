@@ -52,6 +52,24 @@ def position_to_coords(pos: int) -> str:
     return f"({row},{col})"
 
 
+def find_piece_position_in_canonical(canonical_bb: Bitboard) -> int:
+    """Find the position of a piece in the canonical board representation.
+
+    Args:
+        canonical_bb: The canonical bitboard representation
+
+    Returns:
+        The position index where a piece is found, or -1 if no piece is found
+    """
+    # Check all shapes for both players
+    for player in range(2):
+        for shape in range(4):
+            for i in range(16):
+                if (canonical_bb[player * 4 + shape] >> i) & 1:
+                    return i
+    return -1
+
+
 def board_to_markdown(bb: Bitboard, title: str = None) -> str:
     """Convert a Quantik board to a markdown-formatted string."""
     qfen = bb_to_qfen(bb)
@@ -135,21 +153,7 @@ def compute_position_mappings(empty, canonical_positions):
         canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
 
         # Find where the piece ended up in the canonical form
-        canonical_pos = -1
-        found = False
-
-        # Check all shapes for both players
-        for player in range(2):
-            for shape in range(4):
-                for i in range(16):
-                    if (canonical_bb[player * 4 + shape] >> i) & 1:
-                        canonical_pos = i
-                        found = True
-                        break
-                if found:
-                    break
-            if found:
-                break
+        canonical_pos = find_piece_position_in_canonical(canonical_bb)
 
         # Store the mapping
         position_mapping[pos] = canonical_pos
@@ -490,21 +494,7 @@ def main():
             canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
 
             # Find where the piece ended up in the canonical form
-            canonical_pos = -1
-            found = False
-
-            # Check all shapes for both players
-            for player in range(2):
-                for shape in range(4):
-                    for i in range(16):
-                        if (canonical_bb[player * 4 + shape] >> i) & 1:
-                            canonical_pos = i
-                            found = True
-                            break
-                    if found:
-                        break
-                if found:
-                    break
+            canonical_pos = find_piece_position_in_canonical(canonical_bb)
 
             # Store the mapping
             position_mapping[pos] = canonical_pos
