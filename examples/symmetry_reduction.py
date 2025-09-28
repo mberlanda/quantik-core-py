@@ -14,43 +14,39 @@ from quantik_core.qfen import bb_from_qfen, bb_to_qfen
 
 
 class MarkdownWriter:
-    """Utility class to write markdown content to a file."""
+    """Utility class to write markdown content."""
 
     def __init__(self, file_path: str):
-        """Initialize with the output file path."""
+        """Initialize with output file path."""
         self.file_path = file_path
         self.file: Optional[TextIO] = None
 
     def __enter__(self):
-        """Open the file when entering the context."""
+        """Open file when entering context."""
         self.file = open(self.file_path, "w", encoding="utf-8")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Close the file when exiting the context."""
+        """Close file when exiting context."""
         if self.file:
             self.file.close()
             self.file = None
 
     def write(self, text: str):
-        """Write text to the file."""
+        """Write text to file."""
         if self.file:
             self.file.write(text)
 
     def writeln(self, text: str = ""):
-        """Write text followed by a newline."""
+        """Write text with newline."""
         self.write(text + "\n")
 
     def heading(self, level: int, text: str):
-        """Write a markdown heading."""
+        """Write markdown heading."""
         self.writeln("\n" + "#" * level + " " + text + "\n")
 
     def draw_ascii_grid(self, grid_data: List[List[str]]) -> None:
-        """Draw a 4x4 ASCII grid with the provided data.
-
-        Args:
-            grid_data: 4x4 list of strings representing the grid content
-        """
+        """Draw 4x4 ASCII grid with provided data."""
         self.writeln("```")
         self.writeln("┌───┬───┬───┬───┐")
         for r in range(4):
@@ -68,14 +64,7 @@ def position_to_coords(pos: int) -> str:
 
 
 def find_piece_position_in_canonical(canonical_bb: Bitboard) -> int:
-    """Find the position of a piece in the canonical board representation.
-
-    Args:
-        canonical_bb: The canonical bitboard representation
-
-    Returns:
-        The position index where a piece is found, or -1 if no piece is found
-    """
+    """Find position of a piece in canonical board representation."""
     # Check all shapes for both players
     for player in range(2):
         for shape in range(4):
@@ -86,7 +75,7 @@ def find_piece_position_in_canonical(canonical_bb: Bitboard) -> int:
 
 
 def board_to_markdown(bb: Bitboard, title: str = None) -> str:
-    """Convert a Quantik board to a markdown-formatted string."""
+    """Convert Quantik board to markdown string."""
     qfen = bb_to_qfen(bb)
     rows = qfen.split("/")
 
@@ -109,7 +98,7 @@ def board_to_markdown(bb: Bitboard, title: str = None) -> str:
 
 
 def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
-    """Write the introduction section."""
+    """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
 
     writer.writeln(
@@ -128,7 +117,7 @@ def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
 def write_first_move_section(
     writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
 ) -> None:
-    """Write the section about first move canonicalization."""
+    """Write first move canonicalization section."""
     writer.heading(2, "First Move Canonicalization")
     writer.writeln(
         textwrap.dedent(
@@ -159,7 +148,7 @@ def write_first_move_section(
 def compute_position_mappings(
     empty: Bitboard, canonical_positions: Set[int]
 ) -> Tuple[Dict[int, int], Dict[int, List[int]]]:
-    """Compute the mapping of all positions to their canonical equivalents."""
+    """Compute mapping of positions to canonical equivalents."""
     position_mapping = {}
     canonical_representatives = {pos: [] for pos in canonical_positions}
 
@@ -186,7 +175,7 @@ def compute_position_mappings(
 def write_position_mappings(
     writer: MarkdownWriter, canonical_representatives: Dict[int, List[int]]
 ) -> None:
-    """Write the position mappings visualization."""
+    """Write position mappings visualization."""
     # Show the mapping results
     writer.writeln("\n### Position Mappings to Canonical Forms:")
     for canon_pos, equiv_positions in canonical_representatives.items():
@@ -210,7 +199,7 @@ def write_canonical_mapping_visualization(
     position_mapping: Dict[int, int],
     canonical_positions: Set[int],
 ) -> None:
-    """Write the visualization of canonical position mapping."""
+    """Write canonical position mapping visualization."""
     writer.writeln("\n### Visualization of Canonical Position Mapping:")
     writer.writeln("This grid shows where each position maps to in canonical form:")
 
@@ -265,7 +254,7 @@ def write_example_canonical_forms(
 def write_second_third_moves(
     writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
 ) -> None:
-    """Write the section demonstrating second and third move canonicalization."""
+    """Write second and third move canonicalization section."""
     writer.heading(2, "Second and Third Move Canonicalization")
 
     # For each canonical first position, show second move examples
@@ -323,7 +312,7 @@ def write_second_third_moves(
 
 
 def write_determinism_test(writer: MarkdownWriter) -> None:
-    """Write the determinism testing section."""
+    """Write determinism testing section."""
     # Add discussion on determinism of canonical representation
     writer.heading(2, "Is Canonical Representation Deterministic?")
     writer.writeln(
@@ -341,7 +330,7 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
 
     # Define two different paths to equivalent positions
     def create_test_states() -> Tuple[Bitboard, Bitboard]:
-        """Create two equivalent states through different move sequences."""
+        """Create two equivalent states via different move sequences."""
         bb_1 = bb_from_qfen("..../..../..../....")
         bb_2 = bb_from_qfen("..../..../..../....")
 
@@ -417,7 +406,7 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
 
 
 def write_conclusion(writer: MarkdownWriter) -> None:
-    """Write the conclusion section."""
+    """Write conclusion section."""
     writer.heading(2, "CONCLUSION")
     writer.writeln(
         textwrap.dedent(
@@ -449,7 +438,7 @@ def write_conclusion(writer: MarkdownWriter) -> None:
 
 
 def main() -> None:
-    """Generate the markdown file demonstrating symmetry reduction."""
+    """Generate markdown file demonstrating symmetry reduction."""
     # Set seed for reproducibility of random examples
     random.seed(42)
 
