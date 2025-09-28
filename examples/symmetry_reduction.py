@@ -12,6 +12,10 @@ from quantik_core import Move, apply_move, SymmetryHandler, generate_legal_moves
 from quantik_core.commons import Bitboard
 from quantik_core.qfen import bb_from_qfen, bb_to_qfen
 
+# Random seed for deterministic sampling
+RANDOM_SEED = 42
+random.seed(RANDOM_SEED)
+
 
 class MarkdownWriter:
     """Utility class to write markdown content."""
@@ -95,6 +99,21 @@ def board_to_markdown(bb: Bitboard, title: str = None) -> str:
     result.append("```\n")
 
     return "\n".join(result)
+
+
+def get_sample_moves(bb: Bitboard, count: int) -> List[Move]:
+    """Get sample of legal moves with deterministic sampling."""
+    _, moves_by_shape = generate_legal_moves(bb)
+    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
+
+    if not legal_moves:
+        return []
+
+    # Use sample if we want fewer moves than available, otherwise return all
+    if count >= len(legal_moves):
+        return legal_moves
+    else:
+        return random.sample(legal_moves, count)
 
 
 def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
@@ -268,14 +287,8 @@ def write_second_third_moves(
         )
         writer.write(board_to_markdown(bb_1, "Position after first move"))
 
-        # Get legal second moves
-        _, moves_by_shape = generate_legal_moves(bb_1)
-        legal_moves = [
-            move for move_list in moves_by_shape.values() for move in move_list
-        ]
-
         # Choose a few representative second moves
-        second_move_examples = random.sample(legal_moves, min(3, len(legal_moves)))
+        second_move_examples = get_sample_moves(bb_1, 3)
 
         for move_idx, second_move in enumerate(second_move_examples):
             bb_2 = apply_move(bb_1, second_move)
@@ -292,13 +305,10 @@ def write_second_third_moves(
             # For the first example, also show a third move
             if move_idx == 0:
                 writer.writeln("\n##### Third Move Example After Above")
-                current_player, moves_by_shape = generate_legal_moves(bb_2)
-                legal_third_moves = [
-                    move for move_list in moves_by_shape.values() for move in move_list
-                ]
+                legal_third_moves = get_sample_moves(bb_2, 1)
 
                 if legal_third_moves:
-                    third_move = random.choice(legal_third_moves)
+                    third_move = legal_third_moves[0]
                     bb_3 = apply_move(bb_2, third_move)
                     canonical_bb3, trans3 = SymmetryHandler.find_canonical_form(bb_3)
 
@@ -308,7 +318,9 @@ def write_second_third_moves(
                     )
                     writer.writeln(f"{move_text} at position {pos_coords}")
                     writer.write(board_to_markdown(bb_3, "After third move"))
-                    writer.write(board_to_markdown(canonical_bb3, "Canonical form"))
+                    writer.write(
+                        board_to_markdown(canonical_bb3, f"Canonical form {trans3}")
+                    )
 
 
 def write_determinism_test(writer: MarkdownWriter) -> None:
@@ -441,7 +453,7 @@ def write_conclusion(writer: MarkdownWriter) -> None:
 def main() -> None:
     """Generate markdown file demonstrating symmetry reduction."""
     # Set seed for reproducibility of random examples
-    random.seed(42)
+    random.seed(RANDOM_SEED)
 
     output_file = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),

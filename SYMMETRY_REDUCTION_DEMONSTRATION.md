@@ -280,7 +280,7 @@ Move: Player 0, Shape 3 at position (3,1)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=6, color_swap=True, shape_perm=(1, 2, 0, 3))
 
 ```
   ┌───┬───┬───┬───┐
@@ -429,7 +429,7 @@ Move: Player 0, Shape 0 at position (2,0)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=4, color_swap=True, shape_perm=(2, 3, 0, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -578,7 +578,7 @@ Move: Player 0, Shape 3 at position (1,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=7, color_swap=True, shape_perm=(1, 2, 0, 3))
 
 ```
   ┌───┬───┬───┬───┐
