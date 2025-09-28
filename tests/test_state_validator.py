@@ -21,7 +21,7 @@ from quantik_core.state_validator import (
 def _assert_game_state_validation(
     state: "State", expected_player: int, expected_result: ValidationResult
 ):
-    player, result = validate_game_state(state)
+    player, result = validate_game_state(state.bb)
     assert player == expected_player
     assert result == expected_result
 
@@ -72,12 +72,12 @@ class TestGameStateValidation:
         """Test that validation can raise exceptions when requested."""
         # Valid state should not raise
         state = State.from_qfen("A.../..../..../....", validate=False)
-        validate_game_state(state, raise_on_error=True)  # Should not raise
+        validate_game_state(state.bb, raise_on_error=True)  # Should not raise
 
         # Invalid state should raise
         state = State.from_qfen("AAA./..../..../....", validate=False)
         with pytest.raises(ValidationError):
-            validate_game_state(state, raise_on_error=True)
+            validate_game_state(state.bb, raise_on_error=True)
 
 
 class TestPlayerTurnValidation:
@@ -177,4 +177,4 @@ class TestComplexValidationScenarios:
         _assert_game_state_validation(state, None, ValidationResult.PIECE_OVERLAP)
 
         with pytest.raises(ValidationError):
-            validate_game_state(state, raise_on_error=True)
+            validate_game_state(state.bb, raise_on_error=True)

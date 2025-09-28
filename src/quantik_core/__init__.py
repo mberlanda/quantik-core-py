@@ -6,8 +6,9 @@ Monte Carlo simulations, and AI analysis tools.
 """
 
 from .commons import VERSION, FLAG_CANON, Bitboard, PlayerId
-from .core import State, D4, permute16, ALL_SHAPE_PERMS
+from .core import State
 from .symmetry import SymmetryHandler, SymmetryTransform
+from .qfen import bb_to_qfen, bb_from_qfen
 from .move import (
     Move,
     MoveValidationResult,
@@ -33,9 +34,9 @@ __all__ = [
     "PlayerId",
     "VERSION",
     "FLAG_CANON",
-    "D4",
-    "permute16",
-    "ALL_SHAPE_PERMS",
+    "bb_to_qfen",
+    "bb_from_qfen",
+    "get_qfen_canonical_form",
     "Move",
     "MoveValidationResult",
     "validate_move",

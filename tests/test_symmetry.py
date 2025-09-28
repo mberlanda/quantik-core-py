@@ -17,15 +17,11 @@ from quantik_core import (
     SymmetryHandler,
     SymmetryTransform,
     Bitboard,
-    State,
-    ALL_SHAPE_PERMS,
+    bb_from_qfen,
+    bb_to_qfen,
 )
 
 from quantik_core.symmetry import D4Index
-
-
-def bb_to_qfen(bb: Bitboard) -> str:
-    return State(bb).to_qfen()
 
 
 class TestSymmetryTransform:
@@ -228,8 +224,9 @@ class TestCanonicalForms:
         # Test center piece
         center_bb: Bitboard = (0, 0, 0, 4096, 0, 0, 0, 0)  # P0 shape3 at pos12
         canonical_bb, transform = SymmetryHandler.find_canonical_form(center_bb)
-        expected = (0, 0, 0, 0, 0, 0, 0, 4096)  # Maps to a specific center position
+        expected = (0, 0, 0, 4096, 0, 0, 0, 0)  # Maps to a specific center position
         assert canonical_bb == expected
+        assert transform.color_swap is False
 
     def test_canonical_form_invariance(self):
         """Test that symmetric positions map to the same canonical form."""
@@ -239,12 +236,14 @@ class TestCanonicalForms:
 
         # Try various symmetry transformations
         for d4_idx in range(8):
-            for color_swap in (False, True):
-                for perm_idx in range(min(5, len(ALL_SHAPE_PERMS))):  # Test a few perms
+            for color_swap in [False]:  # Color swap can lead to invalid turn balance
+                for perm_idx in range(
+                    min(5, len(SymmetryHandler.ALL_SHAPE_PERMS))
+                ):  # Test a few perms
                     transform = SymmetryTransform(
                         d4_index=d4_idx,
                         color_swap=color_swap,
-                        shape_perm=ALL_SHAPE_PERMS[perm_idx],
+                        shape_perm=SymmetryHandler.ALL_SHAPE_PERMS[perm_idx],
                     )
                     transformed_bb = SymmetryHandler.apply_symmetry(bb, transform)
                     canonical2, _ = SymmetryHandler.find_canonical_form(transformed_bb)
@@ -265,7 +264,7 @@ class TestCanonicalForms:
         for qfen in test_qfens:
             # Get the canonical form
             canonical = SymmetryHandler.get_qfen_canonical_form(qfen)
-            state = State.from_qfen(qfen)
+            bb = bb_from_qfen(qfen)
 
             # Apply a few symmetry transformations
             variations = []
@@ -273,8 +272,8 @@ class TestCanonicalForms:
                 transform = SymmetryTransform(
                     d4_index=d4_idx, color_swap=False, shape_perm=(0, 1, 2, 3)
                 )
-                transformed_bb = SymmetryHandler.apply_symmetry(state.bb, transform)
-                variations.append(State(transformed_bb).to_qfen())
+                transformed_bb = SymmetryHandler.apply_symmetry(bb, transform)
+                variations.append(bb_to_qfen(transformed_bb))
 
             # All variations should map to the same canonical form
             for var in variations:

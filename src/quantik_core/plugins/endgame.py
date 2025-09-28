@@ -2,7 +2,7 @@ from ..commons import Bitboard, WIN_MASKS
 from ..core import State
 
 
-def _has_winning_line(bb: Bitboard) -> bool:
+def bb_has_winning_line(bb: Bitboard) -> bool:
     """
     Check if there is a winning line (row, column, or 2×2 zone) with all four
     different shapes (A, B, C, D).
@@ -38,4 +38,4 @@ def _has_winning_line(bb: Bitboard) -> bool:
 
 
 def has_winning_line(state: State) -> bool:
-    return _has_winning_line(state.bb)
+    return bb_has_winning_line(state.bb)

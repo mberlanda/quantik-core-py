@@ -3,6 +3,8 @@
 max-line-length = 127
 max-complexity = 10
 exclude = .git,__pycache__,.venv,.tox,dist,build,*.egg-info
+# Linters conflicting with Black formatting
+ignore = E203,W503,W504
 
 # Additional project-specific settings
 per-file-ignores =

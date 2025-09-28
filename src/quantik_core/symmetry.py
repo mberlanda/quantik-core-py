@@ -9,12 +9,14 @@ It implements efficient methods for:
 - Translating moves between different symmetry orientations
 """
 
-from typing import Dict, List, Tuple, Callable, Any, Union
+from typing import Dict, List, Tuple, Callable, Union
 from dataclasses import dataclass
 from enum import IntEnum
 import struct
 import itertools
 from .commons import VERSION, FLAG_CANON, Bitboard
+from .qfen import bb_from_qfen, bb_to_qfen
+from .move import Move
 
 # Type aliases for symmetry operations
 D4Mapping = List[int]  # 16-element list mapping positions under symmetry
@@ -270,7 +272,9 @@ class SymmetryHandler:
         )
 
     @classmethod
-    def find_canonical_form(cls, bb: Bitboard) -> Tuple[Bitboard, SymmetryTransform]:
+    def find_canonical_form(
+        cls, bb: Bitboard, color_swap: bool = False
+    ) -> Tuple[Bitboard, SymmetryTransform]:
         """
         Find the canonical form of a bitboard and the transform that produces it.
 
@@ -289,6 +293,7 @@ class SymmetryHandler:
         best_bb = None
         best_transform = None
         best_payload = None
+        color_swap_options = [False, True] if color_swap else [False]
 
         # Split into [2][4] array by color and shape
         B = [[bb[c * 4 + s] for s in range(4)] for c in range(2)]
@@ -300,7 +305,7 @@ class SymmetryHandler:
             G1 = [cls.permute16(B[1][s], d4_idx) for s in range(4)]
 
             # Try both color assignments
-            for color_swap in (False, True):
+            for color_swap in color_swap_options:
                 C0, C1 = (G0, G1) if not color_swap else (G1, G0)
 
                 # Try all shape permutations
@@ -362,8 +367,8 @@ class SymmetryHandler:
 
     @classmethod
     def apply_symmetry_to_move(
-        cls, move: Any, transform: SymmetryTransform  # Avoid circular import
-    ) -> Any:
+        cls, move: "Move", transform: SymmetryTransform  # Type hint for Move
+    ) -> "Move":
         """
         Apply a symmetry transformation to a move.
 
@@ -376,6 +381,7 @@ class SymmetryHandler:
         Returns:
             New Move object with transformed attributes
         """
+
         # Extract move components
         player = move.player
         shape = move.shape
@@ -392,13 +398,10 @@ class SymmetryHandler:
         # 2. Apply color swap if needed
         new_player = player
         if transform.color_swap:
-            new_player = 1 - player  # Toggle between 0 and 1
+            new_player = 1 - player  # type: ignore # Toggle between 0 and 1
 
         # 3. Apply shape permutation
         new_shape = transform.shape_perm.index(shape)
-
-        # Import here to avoid circular imports
-        from .move import Move
 
         # Create and return new move
         return Move(player=new_player, shape=new_shape, position=new_pos)
@@ -414,13 +417,10 @@ class SymmetryHandler:
         Returns:
             Canonical QFEN string
         """
-        # Import here to avoid circular imports
-        from .core import State
 
-        # Convert to State, get canonical bitboard, convert back to QFEN
-        state = State.from_qfen(qfen)
-        canonical_bb, _ = cls.find_canonical_form(state.bb)
-        return State(canonical_bb).to_qfen()
+        bb = bb_from_qfen(qfen)
+        canonical_bb, _ = cls.find_canonical_form(bb)
+        return bb_to_qfen(canonical_bb)
 
 
 # Initialize class structures on module load

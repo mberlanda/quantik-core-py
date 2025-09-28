@@ -3,56 +3,85 @@
 A script to demonstrate symmetry reduction in Quantik.
 """
 
-from typing import TextIO, Optional, Tuple
+from typing import TextIO, Optional, Tuple, Dict, Set, List
 import os
 import textwrap
 import random
 
-from quantik_core import State, Move, apply_move, SymmetryHandler, generate_legal_moves
+from quantik_core import Move, apply_move, SymmetryHandler, generate_legal_moves
+from quantik_core.commons import Bitboard
+from quantik_core.qfen import bb_from_qfen, bb_to_qfen
+from quantik_core.game_stats import SymmetryTable
+
+# Random seed for deterministic sampling
+RANDOM_SEED = 42
+random.seed(RANDOM_SEED)
 
 
 class MarkdownWriter:
-    """Utility class to write markdown content to a file."""
+    """Utility class to write markdown content."""
 
     def __init__(self, file_path: str):
-        """Initialize with the output file path."""
+        """Initialize with output file path."""
         self.file_path = file_path
         self.file: Optional[TextIO] = None
 
     def __enter__(self):
-        """Open the file when entering the context."""
+        """Open file when entering context."""
         self.file = open(self.file_path, "w", encoding="utf-8")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Close the file when exiting the context."""
+        """Close file when exiting context."""
         if self.file:
             self.file.close()
             self.file = None
 
     def write(self, text: str):
-        """Write text to the file."""
+        """Write text to file."""
         if self.file:
             self.file.write(text)
 
     def writeln(self, text: str = ""):
-        """Write text followed by a newline."""
+        """Write text with newline."""
         self.write(text + "\n")
 
     def heading(self, level: int, text: str):
-        """Write a markdown heading."""
+        """Write markdown heading."""
         self.writeln("\n" + "#" * level + " " + text + "\n")
+
+    def draw_ascii_grid(self, grid_data: List[List[str]]) -> None:
+        """Draw 4x4 ASCII grid with provided data."""
+        self.writeln("```")
+        self.writeln("┌───┬───┬───┬───┐")
+        for r in range(4):
+            self.writeln(f"│ {' │ '.join(grid_data[r])} │")
+            if r < 3:
+                self.writeln("├───┼───┼───┼───┤")
+        self.writeln("└───┴───┴───┴───┘")
+        self.writeln("```")
 
 
 def position_to_coords(pos: int) -> str:
     """Convert a position index to human-readable coordinates."""
-    row, col = divmod(pos, 4)
+    row, col = SymmetryHandler.i_to_rc(pos)
     return f"({row},{col})"
 
 
-def board_to_markdown(state: State, title: str = None) -> str:
-    """Convert a Quantik board to a markdown-formatted string."""
-    qfen = state.to_qfen()
+def find_piece_position_in_canonical(canonical_bb: Bitboard) -> int:
+    """Find position of a piece in canonical board representation."""
+    # Check all shapes for both players
+    for player in range(2):
+        for shape in range(4):
+            for i in range(16):
+                if (canonical_bb[player * 4 + shape] >> i) & 1:
+                    return i
+    return -1
+
+
+def board_to_markdown(bb: Bitboard, title: str = None) -> str:
+    """Convert Quantik board to markdown string."""
+    qfen = bb_to_qfen(bb)
     rows = qfen.split("/")
 
     result = []
@@ -73,8 +102,87 @@ def board_to_markdown(state: State, title: str = None) -> str:
     return "\n".join(result)
 
 
-def write_introduction(writer, empty):
-    """Write the introduction section."""
+def get_sample_moves(bb: Bitboard, count: int) -> List[Move]:
+    """Get sample of legal moves with deterministic sampling."""
+    _, moves_by_shape = generate_legal_moves(bb)
+    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
+
+    if not legal_moves:
+        return []
+
+    # Use sample if we want fewer moves than available, otherwise return all
+    if count >= len(legal_moves):
+        return legal_moves
+    else:
+        return random.sample(legal_moves, count)
+
+
+def create_position_grid(fill_char: str = "·") -> List[List[str]]:
+    """Create empty 4x4 grid."""
+    return [[fill_char for _ in range(4)] for _ in range(4)]
+
+
+def populate_position_grid(
+    grid: List[List[str]], positions: List[int], marker: str
+) -> None:
+    """Populate grid with markers at specified positions."""
+    for pos in positions:
+        r, c = divmod(pos, 4)
+        grid[r][c] = marker
+
+
+def populate_mapping_grid(
+    grid: List[List[str]],
+    position_mapping: Dict[int, int],
+    value_map: Dict[int, str],
+    default: str = "?",
+) -> None:
+    """Populate grid with mapped values for all positions."""
+    for pos in range(16):
+        mapped_value = position_mapping[pos]
+        r, c = divmod(pos, 4)
+        grid[r][c] = value_map.get(mapped_value, default)
+
+
+def compute_unique_canonical_positions(bb: Bitboard) -> Set[Tuple[int, ...]]:
+    """Compute all unique canonical positions from legal moves on given state."""
+    canonical_states = set()
+
+    # Get all legal moves from current state
+    _, moves_by_shape = generate_legal_moves(bb)
+    legal_moves = [move for move_list in moves_by_shape.values() for move in move_list]
+
+    for move in legal_moves:
+        new_bb = apply_move(bb, move)
+        canonical_bb, _ = SymmetryHandler.find_canonical_form(new_bb)
+        # Use tuple of bitboard values as hashable key (ignore transformation for uniqueness)
+        canonical_key = tuple(canonical_bb)
+        canonical_states.add(canonical_key)
+
+    return canonical_states
+
+
+def compute_canonical_first_move_positions(empty: Bitboard) -> Set[int]:
+    """Compute all unique canonical positions for first moves by player 0."""
+    canonical_positions = set()
+
+    # Try all possible first moves (4 shapes × 16 positions)
+    for shape in range(4):
+        for pos in range(16):
+            move = Move(player=0, shape=shape, position=pos)
+            bb = apply_move(empty, move)
+            canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
+
+            # Find where the piece ended up in the canonical form
+            canonical_pos = find_piece_position_in_canonical(canonical_bb)
+            if canonical_pos != -1:
+                canonical_positions.add(canonical_pos)
+
+    return canonical_positions
+
+
+def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
+    """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
 
     writer.writeln(
@@ -90,8 +198,10 @@ def write_introduction(writer, empty):
     writer.write(board_to_markdown(empty, "Empty Board"))
 
 
-def write_first_move_section(writer, empty, canonical_positions):
-    """Write the section about first move canonicalization."""
+def write_first_move_section(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
+    """Write first move canonicalization section."""
     writer.heading(2, "First Move Canonicalization")
     writer.writeln(
         textwrap.dedent(
@@ -105,23 +215,11 @@ def write_first_move_section(writer, empty, canonical_positions):
         )
     )
 
-    # Show these canonical positions
-    writer.writeln("\n### Canonical First Move Positions:")
-    writer.writeln("```")
-    writer.writeln("┌───┬───┬───┬───┐")
-    writer.writeln("│   │   │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│   │   │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│ 8 │ 9 │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│ 12│   │   │   │")
-    writer.writeln("└───┴───┴───┴───┘")
-    writer.writeln("```")
 
-
-def compute_position_mappings(empty, canonical_positions):
-    """Compute the mapping of all positions to their canonical equivalents."""
+def compute_position_mappings(
+    empty: Bitboard, canonical_positions: Set[int]
+) -> Tuple[Dict[int, int], Dict[int, List[int]]]:
+    """Compute mapping of positions to canonical equivalents."""
     position_mapping = {}
     canonical_representatives = {pos: [] for pos in canonical_positions}
 
@@ -129,29 +227,11 @@ def compute_position_mappings(empty, canonical_positions):
     for pos in range(16):
         # Create a state with shape A at that position
         move = Move(player=0, shape=0, position=pos)
-        state = apply_move(empty, move)
-
-        # Find its canonical form
-        state_qfen = state.to_qfen()
-        canonical_qfen = SymmetryHandler.get_qfen_canonical_form(state_qfen)
-        canonical_state = State.from_qfen(canonical_qfen)
+        bb = apply_move(empty, move)
+        canonical_bb, _ = SymmetryHandler.find_canonical_form(bb)
 
         # Find where the piece ended up in the canonical form
-        canonical_pos = -1
-        found = False
-
-        # Check all shapes for both players
-        for player in range(2):
-            for shape in range(4):
-                for i in range(16):
-                    if (canonical_state.bb[player * 4 + shape] >> i) & 1:
-                        canonical_pos = i
-                        found = True
-                        break
-                if found:
-                    break
-            if found:
-                break
+        canonical_pos = find_piece_position_in_canonical(canonical_bb)
 
         # Store the mapping
         position_mapping[pos] = canonical_pos
@@ -163,8 +243,10 @@ def compute_position_mappings(empty, canonical_positions):
     return position_mapping, canonical_representatives
 
 
-def write_position_mappings(writer, canonical_representatives):
-    """Write the position mappings visualization."""
+def write_position_mappings(
+    writer: MarkdownWriter, canonical_representatives: Dict[int, List[int]]
+) -> None:
+    """Write position mappings visualization."""
     # Show the mapping results
     writer.writeln("\n### Position Mappings to Canonical Forms:")
     for canon_pos, equiv_positions in canonical_representatives.items():
@@ -173,54 +255,33 @@ def write_position_mappings(writer, canonical_representatives):
         )
 
         # Create a visual 4x4 grid showing equivalent positions
-        grid = [["·" for _ in range(4)] for _ in range(4)]
-        for pos in equiv_positions:
-            r, c = divmod(pos, 4)
-            grid[r][c] = "●"
+        grid = create_position_grid()
+        populate_position_grid(grid, equiv_positions, "●")
 
-        writer.writeln("```")
-        writer.writeln("┌───┬───┬───┬───┐")
-        for r in range(4):
-            writer.writeln(f"│ {' │ '.join(grid[r])} │")
-            if r < 3:
-                writer.writeln("├───┼───┼───┼───┤")
-        writer.writeln("└───┴───┴───┴───┘")
-        writer.writeln("```")
+        writer.draw_ascii_grid(grid)
 
         writer.writeln(f"Total: {len(equiv_positions)} positions")
 
 
 def write_canonical_mapping_visualization(
-    writer, position_mapping, canonical_positions
-):
-    """Write the visualization of canonical position mapping."""
+    writer: MarkdownWriter,
+    position_mapping: Dict[int, int],
+    canonical_positions: Set[int],
+) -> None:
+    """Write canonical position mapping visualization."""
     writer.writeln("\n### Visualization of Canonical Position Mapping:")
     writer.writeln("This grid shows where each position maps to in canonical form:")
 
     # Create a visual 4x4 grid showing the canonical mapping for each position
-    mapping_grid = [["·" for _ in range(4)] for _ in range(4)]
+    mapping_grid = create_position_grid()
 
     # Define mapping letters for clarity
     canonical_letters = {8: "A", 9: "B", 12: "C"}
 
     # Fill in the grid with mapping information
-    for pos in range(16):
-        canonical_pos = position_mapping[pos]
-        r, c = divmod(pos, 4)
-        # Map canonical positions to letters for display
-        if canonical_pos in canonical_letters:
-            mapping_grid[r][c] = canonical_letters[canonical_pos]
-        else:
-            mapping_grid[r][c] = "?"
+    populate_mapping_grid(mapping_grid, position_mapping, canonical_letters)
 
-    writer.writeln("```")
-    writer.writeln("┌───┬───┬───┬───┐")
-    for r in range(4):
-        writer.writeln(f"│ {' │ '.join(mapping_grid[r])} │")
-        if r < 3:
-            writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("└───┴───┴───┴───┘")
-    writer.writeln("```")
+    writer.draw_ascii_grid(mapping_grid)
     writer.writeln("Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)")
 
     writer.writeln("\n### Total unique first moves after symmetry reduction:")
@@ -228,7 +289,9 @@ def write_canonical_mapping_visualization(
     writer.writeln(f"* **Reduction factor:** {16 / len(canonical_positions):.2f}x")
 
 
-def write_example_canonical_forms(writer, empty, position_mapping):
+def write_example_canonical_forms(
+    writer: MarkdownWriter, empty: Bitboard, position_mapping: Dict[int, int]
+) -> None:
     """Write example canonical forms for selected positions."""
     # Show example canonical forms
     writer.heading(2, "Example Canonical Forms")
@@ -239,87 +302,72 @@ def write_example_canonical_forms(writer, empty, position_mapping):
     for pos in example_positions:
         # Create a state with shape A at that position
         move = Move(player=0, shape=0, position=pos)
-        state = apply_move(empty, move)
-        state_qfen = state.to_qfen()
-        canonical_qfen = SymmetryHandler.get_qfen_canonical_form(state_qfen)
+        bb = apply_move(empty, move)
+        canonical_bb, trans = SymmetryHandler.find_canonical_form(bb)
 
         # Get the original and canonical states
         writer.writeln(f"\n### Position {position_to_coords(pos)}")
-        writer.write(board_to_markdown(state, "Original Position"))
-        writer.write(
-            board_to_markdown(State.from_qfen(canonical_qfen), "Canonical Form")
-        )
+        writer.write(board_to_markdown(bb, "Original Position"))
+        writer.write(board_to_markdown(canonical_bb, f"Canonical Form {trans}"))
         pos_coords = position_to_coords(position_mapping[pos])
         writer.writeln(f"Maps to canonical position {pos_coords}")
 
 
-def write_second_third_moves(writer, empty, canonical_positions):
-    """Write the section demonstrating second and third move canonicalization."""
+def write_second_third_moves(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
+    """Write second and third move canonicalization section."""
     writer.heading(2, "Second and Third Move Canonicalization")
 
     # For each canonical first position, show second move examples
     for canon_pos in sorted(canonical_positions):
         # Create a state with the first move
         first_move = Move(player=0, shape=0, position=canon_pos)
-        first_state = apply_move(empty, first_move)
+        bb_1 = apply_move(empty, first_move)
 
         writer.writeln(
             f"\n### Second Move After First Move at {position_to_coords(canon_pos)}"
         )
-        writer.write(board_to_markdown(first_state, "Position after first move"))
-
-        # Get legal second moves
-        current_player, moves_by_shape = generate_legal_moves(first_state)
-        legal_moves = []
-        for shape, moves in moves_by_shape.items():
-            legal_moves.extend(moves)
+        writer.write(board_to_markdown(bb_1, "Position after first move"))
 
         # Choose a few representative second moves
-        second_move_examples = random.sample(legal_moves, min(3, len(legal_moves)))
+        second_move_examples = get_sample_moves(bb_1, 3)
 
         for move_idx, second_move in enumerate(second_move_examples):
-            second_state = apply_move(first_state, second_move)
-            second_state_qfen = second_state.to_qfen()
-            canonical_qfen = SymmetryHandler.get_qfen_canonical_form(second_state_qfen)
-            canonical_state = State.from_qfen(canonical_qfen)
+            bb_2 = apply_move(bb_1, second_move)
+            canonical_bb2, trans2 = SymmetryHandler.find_canonical_form(bb_2)
 
-            writer.writeln(f"\n#### Second Move Example {move_idx+1}")
+            writer.writeln(f"\n#### Second Move Example {move_idx + 1}")
             writer.writeln(
                 f"Move: Player {second_move.player}, Shape {second_move.shape} at "
                 f"position {position_to_coords(second_move.position)}"
             )
-            writer.write(board_to_markdown(second_state, "After second move"))
-            writer.write(board_to_markdown(canonical_state, "Canonical form"))
+            writer.write(board_to_markdown(bb_2, "After second move"))
+            writer.write(board_to_markdown(canonical_bb2, f"Canonical form {trans2}"))
 
             # For the first example, also show a third move
             if move_idx == 0:
                 writer.writeln("\n##### Third Move Example After Above")
-                current_player, moves_by_shape = generate_legal_moves(second_state)
-                legal_third_moves = []
-                for shape, moves in moves_by_shape.items():
-                    legal_third_moves.extend(moves)
+                legal_third_moves = get_sample_moves(bb_2, 1)
+
                 if legal_third_moves:
-                    third_move = random.choice(legal_third_moves)
-                    third_state = apply_move(second_state, third_move)
-                    third_state_qfen = third_state.to_qfen()
-                    third_canonical_qfen = SymmetryHandler.get_qfen_canonical_form(
-                        third_state_qfen
-                    )
-                    third_canonical_state = State.from_qfen(third_canonical_qfen)
+                    third_move = legal_third_moves[0]
+                    bb_3 = apply_move(bb_2, third_move)
+                    canonical_bb3, trans3 = SymmetryHandler.find_canonical_form(bb_3)
 
                     pos_coords = position_to_coords(third_move.position)
                     move_text = (
                         f"Move: Player {third_move.player}, Shape {third_move.shape}"
                     )
                     writer.writeln(f"{move_text} at position {pos_coords}")
-                    writer.write(board_to_markdown(third_state, "After third move"))
+                    writer.write(board_to_markdown(bb_3, "After third move"))
                     writer.write(
-                        board_to_markdown(third_canonical_state, "Canonical form")
+                        board_to_markdown(canonical_bb3, f"Canonical form {trans3}")
                     )
 
 
-def write_determinism_test(writer):
-    """Write the determinism testing section."""
+def write_determinism_test(writer: MarkdownWriter) -> None:
+    """Write determinism testing section."""
     # Add discussion on determinism of canonical representation
     writer.heading(2, "Is Canonical Representation Deterministic?")
     writer.writeln(
@@ -336,10 +384,9 @@ def write_determinism_test(writer):
     writer.writeln("\n### Testing Determinism")
 
     # Define two different paths to equivalent positions
-    def create_test_states() -> Tuple[State, State]:
-        """Create two equivalent states through different move sequences."""
-        state1 = State.empty()
-        state2 = State.empty()
+    def create_test_states() -> Tuple[Bitboard, Bitboard]:
+        """Create two equivalent states via different move sequences."""
+        empty = bb_from_qfen("..../..../..../....")
 
         # Path 1: Moves at positions 0, 5, 10
         moves1 = [
@@ -355,41 +402,44 @@ def write_determinism_test(writer):
             Move(player=0, shape=2, position=9),
         ]
 
+        bb_1 = empty
         for move in moves1:
-            state1 = apply_move(state1, move)
+            bb_1 = apply_move(bb_1, move)
 
+        bb_2 = empty
         for move in moves2:
-            state2 = apply_move(state2, move)
+            bb_2 = apply_move(bb_2, move)
 
-        return state1, state2
+        return bb_1, bb_2
 
-    state1, state2 = create_test_states()
+    bb_1, bb_2 = create_test_states()
 
-    writer.write(board_to_markdown(state1, "State 1"))
-    writer.write(board_to_markdown(state2, "State 2"))
+    writer.write(board_to_markdown(bb_1, "State 1"))
+    writer.write(board_to_markdown(bb_2, "State 2"))
 
-    canonical_qfen1 = SymmetryHandler.get_qfen_canonical_form(state1.to_qfen())
-    canonical_qfen2 = SymmetryHandler.get_qfen_canonical_form(state2.to_qfen())
+    canonical_bb1, trans1 = SymmetryHandler.find_canonical_form(bb_1)
+    canonical_bb2, trans2 = SymmetryHandler.find_canonical_form(bb_2)
 
-    canonical_state1 = State.from_qfen(canonical_qfen1)
-    canonical_state2 = State.from_qfen(canonical_qfen2)
+    writer.write(
+        board_to_markdown(canonical_bb1, f"Canonical Form of State 1 - {trans1}")
+    )
+    writer.write(
+        board_to_markdown(canonical_bb2, f"Canonical Form of State 2 - {trans2}")
+    )
 
-    writer.write(board_to_markdown(canonical_state1, "Canonical Form of State 1"))
-    writer.write(board_to_markdown(canonical_state2, "Canonical Form of State 2"))
-
-    if canonical_qfen1 == canonical_qfen2:
+    if canonical_bb1 == canonical_bb2:
         writer.writeln(
             "\n**Result:** The canonical representation is deterministic. "
             "Both equivalent states map to the same canonical form."
         )
-        writer.writeln(f"Canonical QFEN: `{canonical_qfen1}`")
+        writer.writeln(f"Canonical QFEN: `{bb_to_qfen(canonical_bb1)}`")
     else:
         writer.writeln(
             "\n**Result:** The canonical representation is NOT deterministic! "
             "This is a serious issue that needs to be fixed."
         )
-        writer.writeln(f"Canonical QFEN 1: `{canonical_qfen1}`")
-        writer.writeln(f"Canonical QFEN 2: `{canonical_qfen2}`")
+        writer.writeln(f"Canonical QFEN 1: `{bb_to_qfen(canonical_bb1)}`")
+        writer.writeln(f"Canonical QFEN 2: `{bb_to_qfen(canonical_bb2)}`")
 
     writer.writeln(
         textwrap.dedent(
@@ -411,8 +461,46 @@ def write_determinism_test(writer):
     )
 
 
-def write_conclusion(writer):
-    """Write the conclusion section."""
+def write_dynamic_symmetry_reduction(
+    writer: MarkdownWriter, empty: Bitboard, canonical_positions: Set[int]
+) -> None:
+    """Write dynamic symmetry analysis section using comprehensive game tree analysis."""
+    writer.heading(2, "Dynamic Symmetry Reduction Analysis")
+    writer.writeln(
+        textwrap.dedent(
+            """
+        Let's analyze how symmetry reduction works dynamically by examining the reduction
+        at different move depths. This shows how the game tree complexity is reduced
+        at each level through canonical representation, including winning positions analysis.
+        """
+        )
+    )
+
+    # Perform comprehensive game tree analysis
+    writer.writeln("Computing comprehensive game tree analysis...")
+    symmetry_table = SymmetryTable()
+    symmetry_table.analyze_game_tree(max_depth=5)
+    writer.writeln(symmetry_table.generate_table())
+
+    writer.writeln(
+        textwrap.dedent(
+            """
+        ### Key Insights
+
+        This dynamic analysis demonstrates:
+        - **Progressive reduction**: Each move level shows different reduction factors
+        - **Symmetry preservation**: Even as the game progresses, symmetries continue to reduce complexity
+        - **Winning analysis**: Clear breakdown of which player wins from different game states
+        - **Computational savings**: The space savings percentage shows the efficiency gained
+        - **Search optimization**: These reductions directly translate to smaller search trees
+        - **Complete game analysis**: All legal games are computed showing the full game tree complexity
+        """
+        )
+    )
+
+
+def write_conclusion(writer: MarkdownWriter) -> None:
+    """Write conclusion section."""
     writer.heading(2, "CONCLUSION")
     writer.writeln(
         textwrap.dedent(
@@ -443,22 +531,17 @@ def write_conclusion(writer):
     )
 
 
-def main():
-    """Generate the markdown file demonstrating symmetry reduction."""
+def write_symmetry_table(output_file: str) -> None:
+    """Generate markdown file demonstrating symmetry reduction."""
     # Set seed for reproducibility of random examples
-    random.seed(42)
-
-    output_file = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "SYMMETRY_REDUCTION_DEMONSTRATION.md",
-    )
+    random.seed(RANDOM_SEED)
 
     with MarkdownWriter(output_file) as writer:
         # Initialize the empty state
-        empty = State.empty()
+        empty = bb_from_qfen("..../..../..../....")
 
-        # Define our canonical positions based on debugging
-        canonical_positions = {8, 9, 12}  # (2,0), (2,1), (3,0)
+        # Compute canonical positions for all first moves
+        canonical_positions = compute_canonical_first_move_positions(empty)
 
         # Write introduction
         write_introduction(writer, empty)
@@ -479,6 +562,9 @@ def main():
             writer, position_mapping, canonical_positions
         )
 
+        # Dynamic symmetry analysis section
+        write_dynamic_symmetry_reduction(writer, empty, canonical_positions)
+
         # Write example canonical forms
         write_example_canonical_forms(writer, empty, position_mapping)
 
@@ -491,304 +577,16 @@ def main():
         # Write conclusion
         write_conclusion(writer)
 
-        # For each possible first move position
-        for pos in range(16):
-            # Create a state with shape A at that position
-            move = Move(player=0, shape=0, position=pos)
-            state = apply_move(empty, move)
-
-            # Find its canonical form
-            state_qfen = state.to_qfen()
-            canonical_qfen = SymmetryHandler.get_qfen_canonical_form(state_qfen)
-            canonical_state = State.from_qfen(canonical_qfen)
-
-            # Find where the piece ended up in the canonical form
-            canonical_pos = -1
-            found = False
-
-            # Check all shapes for both players
-            for player in range(2):
-                for shape in range(4):
-                    for i in range(16):
-                        if (canonical_state.bb[player * 4 + shape] >> i) & 1:
-                            canonical_pos = i
-                            found = True
-                            break
-                    if found:
-                        break
-                if found:
-                    break
-
-            # Store the mapping
-            position_mapping[pos] = canonical_pos
-
-            # Store the reverse mapping for our canonical positions
-            if canonical_pos in canonical_positions:
-                canonical_representatives[canonical_pos].append(pos)
-
-        # Show the mapping results
-        writer.writeln("\n### Position Mappings to Canonical Forms:")
-        for canon_pos, equiv_positions in canonical_representatives.items():
-            writer.writeln(
-                f"\n#### Positions equivalent to {position_to_coords(canon_pos)}:"
-            )
-
-            # Create a visual 4x4 grid showing equivalent positions
-            grid = [["·" for _ in range(4)] for _ in range(4)]
-            for pos in equiv_positions:
-                r, c = divmod(pos, 4)
-                grid[r][c] = "●"
-
-            writer.writeln("```")
-            writer.writeln("┌───┬───┬───┬───┐")
-            for r in range(4):
-                writer.writeln(f"│ {' │ '.join(grid[r])} │")
-                if r < 3:
-                    writer.writeln("├───┼───┼───┼───┤")
-            writer.writeln("└───┴───┴───┴───┘")
-            writer.writeln("```")
-
-            writer.writeln(f"Total: {len(equiv_positions)} positions")
-
-        # Visualization showing the mapping
-        writer.writeln("\n### Visualization of Canonical Position Mapping:")
-        writer.writeln("This grid shows where each position maps to in canonical form:")
-
-        # Create a visual 4x4 grid showing the canonical mapping for each position
-        mapping_grid = [["·" for _ in range(4)] for _ in range(4)]
-
-        # Define mapping letters for clarity
-        canonical_letters = {8: "A", 9: "B", 12: "C"}
-
-        # Fill in the grid with mapping information
-        for pos in range(16):
-            canonical_pos = position_mapping[pos]
-            r, c = divmod(pos, 4)
-            # Map canonical positions to letters for display
-            if canonical_pos in canonical_letters:
-                mapping_grid[r][c] = canonical_letters[canonical_pos]
-            else:
-                mapping_grid[r][c] = "?"
-
-        writer.writeln("```")
-        writer.writeln("┌───┬───┬───┬───┐")
-        for r in range(4):
-            writer.writeln(f"│ {' │ '.join(mapping_grid[r])} │")
-            if r < 3:
-                writer.writeln("├───┼───┼───┼───┤")
-        writer.writeln("└───┴───┴───┴───┘")
-        writer.writeln("```")
-        writer.writeln("Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)")
-
-        writer.writeln("\n### Total unique first moves after symmetry reduction:")
-        writer.writeln(f"* **Unique positions:** {len(canonical_positions)}")
-        writer.writeln(f"* **Reduction factor:** {16 / len(canonical_positions):.2f}x")
-
-        # Show example canonical forms
-        writer.heading(2, "Example Canonical Forms")
-
-        # Choose some interesting positions to show
-        example_positions = [0, 5, 15]
-
-        for pos in example_positions:
-            # Create a state with shape A at that position
-            move = Move(player=0, shape=0, position=pos)
-            state = apply_move(empty, move)
-            state_qfen = state.to_qfen()
-            canonical_qfen = SymmetryHandler.get_qfen_canonical_form(state_qfen)
-
-            # Get the original and canonical states
-            writer.writeln(f"\n### Position {position_to_coords(pos)}")
-            writer.write(board_to_markdown(state, "Original Position"))
-            writer.write(
-                board_to_markdown(State.from_qfen(canonical_qfen), "Canonical Form")
-            )
-            pos_coords = position_to_coords(position_mapping[pos])
-            writer.writeln(f"Maps to canonical position {pos_coords}")
-
-        # Add exploration of second and third moves
-        writer.heading(2, "Second and Third Move Canonicalization")
-
-        # For each canonical first position, show second move examples
-        for canon_pos in sorted(canonical_positions):
-            # Create a state with the first move
-            first_move = Move(player=0, shape=0, position=canon_pos)
-            first_state = apply_move(empty, first_move)
-
-            writer.writeln(
-                f"\n### Second Move After First Move at {position_to_coords(canon_pos)}"
-            )
-            writer.write(board_to_markdown(first_state, "Position after first move"))
-
-            # Get legal second moves
-            current_player, moves_by_shape = generate_legal_moves(first_state)
-            legal_moves = []
-            for shape, moves in moves_by_shape.items():
-                legal_moves.extend(moves)
-
-            # Choose a few representative second moves
-            second_move_examples = random.sample(legal_moves, min(3, len(legal_moves)))
-
-            for move_idx, second_move in enumerate(second_move_examples):
-                second_state = apply_move(first_state, second_move)
-                second_state_qfen = second_state.to_qfen()
-                canonical_qfen = SymmetryHandler.get_qfen_canonical_form(
-                    second_state_qfen
-                )
-                canonical_state = State.from_qfen(canonical_qfen)
-
-                writer.writeln(f"\n#### Second Move Example {move_idx+1}")
-                writer.writeln(
-                    f"Move: Player {second_move.player}, Shape {second_move.shape} at "
-                    f"position {position_to_coords(second_move.position)}"
-                )
-                writer.write(board_to_markdown(second_state, "After second move"))
-                writer.write(board_to_markdown(canonical_state, "Canonical form"))
-
-                # For the first example, also show a third move
-                if move_idx == 0:
-                    writer.writeln("\n##### Third Move Example After Above")
-                    current_player, moves_by_shape = generate_legal_moves(second_state)
-                    legal_third_moves = []
-                    for shape, moves in moves_by_shape.items():
-                        legal_third_moves.extend(moves)
-                    if legal_third_moves:
-                        third_move = random.choice(legal_third_moves)
-                        third_state = apply_move(second_state, third_move)
-                        third_state_qfen = third_state.to_qfen()
-                        third_canonical_qfen = SymmetryHandler.get_qfen_canonical_form(
-                            third_state_qfen
-                        )
-                        third_canonical_state = State.from_qfen(third_canonical_qfen)
-
-                        pos_coords = position_to_coords(third_move.position)
-                        move_text = f"Move: Player {third_move.player}, Shape {third_move.shape}"
-                        writer.writeln(f"{move_text} at position {pos_coords}")
-                        writer.write(board_to_markdown(third_state, "After third move"))
-                        writer.write(
-                            board_to_markdown(third_canonical_state, "Canonical form")
-                        )
-
-        # Add discussion on determinism of canonical representation
-        writer.heading(2, "Is Canonical Representation Deterministic?")
-        writer.writeln(
-            textwrap.dedent(
-                """
-        A critical property of any canonical representation system is determinism -
-        the same game state must always map to the same canonical form, regardless of
-        how that state was reached. Let's verify this property:
-        """
-            )
-        )
-
-        # Create two equivalent states through different move sequences
-        writer.writeln("\n### Testing Determinism")
-
-        # Define two different paths to equivalent positions
-        def create_test_states() -> Tuple[State, State]:
-            """Create two equivalent states through different move sequences."""
-            state1 = State.empty()
-            state2 = State.empty()
-
-            # Path 1: Moves at positions 0, 5, 10
-            moves1 = [
-                Move(player=0, shape=0, position=0),
-                Move(player=1, shape=1, position=5),
-                Move(player=0, shape=2, position=10),
-            ]
-
-            # Path 2: Moves at positions 3, 14, 9 (equivalent under rotation)
-            moves2 = [
-                Move(player=0, shape=0, position=3),
-                Move(player=1, shape=1, position=14),
-                Move(player=0, shape=2, position=9),
-            ]
-
-            for move in moves1:
-                state1 = apply_move(state1, move)
-
-            for move in moves2:
-                state2 = apply_move(state2, move)
-
-            return state1, state2
-
-        state1, state2 = create_test_states()
-
-        writer.write(board_to_markdown(state1, "State 1"))
-        writer.write(board_to_markdown(state2, "State 2"))
-
-        canonical_qfen1 = SymmetryHandler.get_qfen_canonical_form(state1.to_qfen())
-        canonical_qfen2 = SymmetryHandler.get_qfen_canonical_form(state2.to_qfen())
-
-        canonical_state1 = State.from_qfen(canonical_qfen1)
-        canonical_state2 = State.from_qfen(canonical_qfen2)
-
-        writer.write(board_to_markdown(canonical_state1, "Canonical Form of State 1"))
-        writer.write(board_to_markdown(canonical_state2, "Canonical Form of State 2"))
-
-        if canonical_qfen1 == canonical_qfen2:
-            writer.writeln(
-                "\n**Result:** The canonical representation is deterministic. "
-                "Both equivalent states map to the same canonical form."
-            )
-            writer.writeln(f"Canonical QFEN: `{canonical_qfen1}`")
-        else:
-            writer.writeln(
-                "\n**Result:** The canonical representation is NOT deterministic! "
-                "This is a serious issue that needs to be fixed."
-            )
-            writer.writeln(f"Canonical QFEN 1: `{canonical_qfen1}`")
-            writer.writeln(f"Canonical QFEN 2: `{canonical_qfen2}`")
-
-        writer.writeln(
-            textwrap.dedent(
-                """
-        ### Implications for Game Search
-
-        The deterministic property of our canonical representation is crucial for:
-
-        1. **Transposition Tables:** We can safely use canonical positions as keys in our
-           transposition tables, knowing that equivalent positions will always hash to the same key.
-
-        2. **Learning Algorithms:** When training reinforcement learning agents or building
-           opening books, we can properly aggregate data from equivalent positions.
-
-        3. **Consistency:** Game analysis and search will be consistent and reliable across
-           different move sequences that lead to equivalent positions.
-        """
-            )
-        )
-
-        writer.heading(2, "CONCLUSION")
-        writer.writeln(
-            textwrap.dedent(
-                """
-        We've demonstrated how symmetry handling can dramatically reduce the complexity
-        of the Quantik game search space. The main benefits are:
-
-        1. First move: From 64 possible moves to just 3 canonical positions
-        2. Entire game tree reduction by a factor of 24 (8 spatial symmetries × 3 shape permutations)
-        3. Second and third move canonicalization continues to reduce the branching factor
-
-        **IMPORTANT FINDING:** Our determinism test revealed that the current canonical
-        representation is NOT deterministic! This is a critical issue that needs to be addressed
-        before using the symmetry reduction in production, as it could lead to inconsistent behavior in:
-        - Transposition tables
-        - Opening books
-        - Learning algorithms
-
-        This indicates a potential bug in the symmetry handling implementation that should be fixed.
-
-        Once fixed, this approach will enable much more efficient game analysis, as we can:
-        - Store evaluations for canonical positions only
-        - Analyze a much smaller search space
-        - Still recover the actual moves through symmetry transformations
-        - Build reliable opening books and transposition tables
-        """
-            )
-        )
-
         print(f"Successfully wrote demonstration to {output_file}")
+
+
+def main() -> None:
+    """Main entry point."""
+    output_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "SYMMETRY_REDUCTION_DEMONSTRATION.md",
+    )
+    write_symmetry_table(output_file)
 
 
 if __name__ == "__main__":

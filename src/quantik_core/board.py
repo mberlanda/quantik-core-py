@@ -117,7 +117,7 @@ class QuantikBoard:
             self._inventories = inventories
 
         self._move_history: List[MoveRecord] = []
-        current_player_id, _ = validate_game_state(self._state, raise_on_error=True)
+        current_player_id, _ = validate_game_state(self._state.bb, raise_on_error=True)
         if current_player_id is None:
             # If validation fails but we're not raising on error, default to player 0
             current_player_id = 0
@@ -225,7 +225,7 @@ class QuantikBoard:
     def is_move_legal(self, move: Move) -> bool:
         """Check if a move is legal in current position."""
         # Check basic move validation
-        result = validate_move(self._state, move)
+        result = validate_move(self._state.bb, move)
         if not result.is_valid:
             return False
 
@@ -269,7 +269,7 @@ class QuantikBoard:
                 move = Move(player=player, shape=shape, position=position)
 
                 # Full validation still needed for game rules
-                result = validate_move(self._state, move)
+                result = validate_move(self._state.bb, move)
                 if result.is_valid:
                     yield move
 
@@ -308,7 +308,8 @@ class QuantikBoard:
         )
 
         # Apply move to state
-        self._state = apply_move(self._state, move)
+        new_bb = apply_move(self._state.bb, move)
+        self._state = State(new_bb)
 
         # Update inventory directly without creating a list
         if move.player == 0:
