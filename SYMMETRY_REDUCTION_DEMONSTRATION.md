@@ -127,7 +127,7 @@ Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)
     0   1   2   3  
 ```
 
-### Canonical Form
+### Canonical Form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -160,7 +160,7 @@ Maps to canonical position (3,0)
     0   1   2   3  
 ```
 
-### Canonical Form
+### Canonical Form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -193,7 +193,7 @@ Maps to canonical position (2,1)
     0   1   2   3  
 ```
 
-### Canonical Form
+### Canonical Form SymmetryTransform(d4_index=1, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -247,7 +247,7 @@ Move: Player 1, Shape 3 at position (0,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -313,7 +313,7 @@ Move: Player 1, Shape 0 at position (3,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -346,7 +346,7 @@ Move: Player 1, Shape 0 at position (0,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -396,7 +396,7 @@ Move: Player 1, Shape 1 at position (2,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -462,7 +462,7 @@ Move: Player 1, Shape 1 at position (1,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(2, 3, 0, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -495,7 +495,7 @@ Move: Player 1, Shape 1 at position (1,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -545,7 +545,7 @@ Move: Player 1, Shape 3 at position (2,1)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=True, shape_perm=(1, 2, 0, 3))
 
 ```
   ┌───┬───┬───┬───┐
@@ -611,7 +611,7 @@ Move: Player 1, Shape 0 at position (2,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=4, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -644,7 +644,7 @@ Move: Player 1, Shape 3 at position (1,1)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 0, 3))
 
 ```
   ┌───┬───┬───┬───┐
@@ -699,7 +699,7 @@ how that state was reached. Let's verify this property:
     0   1   2   3  
 ```
 
-### Canonical Form of State 1
+### Canonical Form of State 1 - SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(3, 0, 2, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -714,7 +714,7 @@ how that state was reached. Let's verify this property:
     0   1   2   3  
 ```
 
-### Canonical Form of State 2
+### Canonical Form of State 2 - SymmetryTransform(d4_index=1, color_swap=True, shape_perm=(3, 0, 2, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -976,7 +976,7 @@ Move: Player 1, Shape 2 at position (3,0)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 3, 2, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1009,7 +1009,7 @@ Move: Player 0, Shape 1 at position (3,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=True, shape_perm=(3, 0, 1, 2))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1042,7 +1042,7 @@ Move: Player 1, Shape 0 at position (1,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1075,7 +1075,7 @@ Move: Player 1, Shape 2 at position (3,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 3, 2, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1125,7 +1125,7 @@ Move: Player 1, Shape 0 at position (0,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=False, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1158,7 +1158,7 @@ Move: Player 0, Shape 1 at position (1,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(2, 3, 1, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1191,7 +1191,7 @@ Move: Player 1, Shape 0 at position (0,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=6, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1224,7 +1224,7 @@ Move: Player 1, Shape 0 at position (1,3)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(1, 2, 3, 0))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1274,7 +1274,7 @@ Move: Player 1, Shape 1 at position (1,2)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(2, 3, 0, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1307,7 +1307,7 @@ Move: Player 0, Shape 0 at position (0,1)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=2, color_swap=True, shape_perm=(2, 3, 0, 1))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1340,7 +1340,7 @@ Move: Player 1, Shape 2 at position (2,1)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=0, color_swap=True, shape_perm=(1, 3, 0, 2))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1373,7 +1373,7 @@ Move: Player 1, Shape 3 at position (0,0)
     0   1   2   3  
 ```
 
-### Canonical form
+### Canonical form SymmetryTransform(d4_index=3, color_swap=True, shape_perm=(1, 2, 0, 3))
 
 ```
   ┌───┬───┬───┬───┐
@@ -1402,9 +1402,9 @@ how that state was reached. Let's verify this property:
 
 ```
   ┌───┬───┬───┬───┐
-0 │ A │ . │ . │ . │
+0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ b │ . │ . │
+1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 2 │ . │ . │ C │ . │
   ├───┼───┼───┼───┤
@@ -1417,13 +1417,13 @@ how that state was reached. Let's verify this property:
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ A │
+0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 2 │ . │ C │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ b │ . │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -1434,11 +1434,11 @@ how that state was reached. Let's verify this property:
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ c │ . │
+1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ D │ . │ . │
+2 │ . │ d │ . │ . │
   ├───┼───┼───┼───┤
-3 │ b │ . │ . │ . │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -1449,18 +1449,17 @@ how that state was reached. Let's verify this property:
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ c │ . │ . │
+1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-2 │ D │ . │ . │ . │
+2 │ . │ d │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ b │
+3 │ . │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
-**Result:** The canonical representation is NOT deterministic! This is a serious issue that needs to be fixed.
-Canonical QFEN 1: `..../..c./.D../b...`
-Canonical QFEN 2: `..../.c../D.../...b`
+**Result:** The canonical representation is deterministic. Both equivalent states map to the same canonical form.
+Canonical QFEN: `..../..../.d../....`
 
 ### Implications for Game Search
 
