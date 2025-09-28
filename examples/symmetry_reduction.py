@@ -116,6 +116,33 @@ def get_sample_moves(bb: Bitboard, count: int) -> List[Move]:
         return random.sample(legal_moves, count)
 
 
+def create_position_grid(fill_char: str = "·") -> List[List[str]]:
+    """Create empty 4x4 grid."""
+    return [[fill_char for _ in range(4)] for _ in range(4)]
+
+
+def populate_position_grid(
+    grid: List[List[str]], positions: List[int], marker: str
+) -> None:
+    """Populate grid with markers at specified positions."""
+    for pos in positions:
+        r, c = divmod(pos, 4)
+        grid[r][c] = marker
+
+
+def populate_mapping_grid(
+    grid: List[List[str]],
+    position_mapping: Dict[int, int],
+    value_map: Dict[int, str],
+    default: str = "?",
+) -> None:
+    """Populate grid with mapped values for all positions."""
+    for pos in range(16):
+        mapped_value = position_mapping[pos]
+        r, c = divmod(pos, 4)
+        grid[r][c] = value_map.get(mapped_value, default)
+
+
 def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
     """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
@@ -203,10 +230,8 @@ def write_position_mappings(
         )
 
         # Create a visual 4x4 grid showing equivalent positions
-        grid = [["·" for _ in range(4)] for _ in range(4)]
-        for pos in equiv_positions:
-            r, c = divmod(pos, 4)
-            grid[r][c] = "●"
+        grid = create_position_grid()
+        populate_position_grid(grid, equiv_positions, "●")
 
         writer.draw_ascii_grid(grid)
 
@@ -223,20 +248,13 @@ def write_canonical_mapping_visualization(
     writer.writeln("This grid shows where each position maps to in canonical form:")
 
     # Create a visual 4x4 grid showing the canonical mapping for each position
-    mapping_grid = [["·" for _ in range(4)] for _ in range(4)]
+    mapping_grid = create_position_grid()
 
     # Define mapping letters for clarity
     canonical_letters = {8: "A", 9: "B", 12: "C"}
 
     # Fill in the grid with mapping information
-    for pos in range(16):
-        canonical_pos = position_mapping[pos]
-        r, c = divmod(pos, 4)
-        # Map canonical positions to letters for display
-        if canonical_pos in canonical_letters:
-            mapping_grid[r][c] = canonical_letters[canonical_pos]
-        else:
-            mapping_grid[r][c] = "?"
+    populate_mapping_grid(mapping_grid, position_mapping, canonical_letters)
 
     writer.draw_ascii_grid(mapping_grid)
     writer.writeln("Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)")
