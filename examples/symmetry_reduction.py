@@ -331,8 +331,7 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
     # Define two different paths to equivalent positions
     def create_test_states() -> Tuple[Bitboard, Bitboard]:
         """Create two equivalent states via different move sequences."""
-        bb_1 = bb_from_qfen("..../..../..../....")
-        bb_2 = bb_from_qfen("..../..../..../....")
+        empty = bb_from_qfen("..../..../..../....")
 
         # Path 1: Moves at positions 0, 5, 10
         moves1 = [
@@ -348,9 +347,11 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
             Move(player=0, shape=2, position=9),
         ]
 
+        bb_1 = empty
         for move in moves1:
             bb_1 = apply_move(bb_1, move)
 
+        bb_2 = empty
         for move in moves2:
             bb_2 = apply_move(bb_2, move)
 
@@ -644,7 +645,7 @@ def main() -> None:
         writer.writeln("\n### Testing Determinism")
 
         # Define two different paths to equivalent positions
-        def create_test_states() -> Tuple[State, State]:
+        def create_test_states() -> Tuple[Bitboard, Bitboard]:
             """Create two equivalent states through different move sequences."""
             empty = bb_from_qfen("..../..../..../....")
 
@@ -662,11 +663,13 @@ def main() -> None:
                 Move(player=0, shape=2, position=9),
             ]
 
+            bb_1 = empty
             for move in moves1:
-                bb_1 = apply_move(empty, move)
+                bb_1 = apply_move(bb_1, move)
 
+            bb_2 = empty
             for move in moves2:
-                bb_2 = apply_move(empty, move)
+                bb_2 = apply_move(bb_2, move)
 
             return bb_1, bb_2
 

@@ -1402,9 +1402,9 @@ how that state was reached. Let's verify this property:
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
+0 │ A │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
+1 │ . │ b │ . │ . │
   ├───┼───┼───┼───┤
 2 │ . │ . │ C │ . │
   ├───┼───┼───┼───┤
@@ -1417,13 +1417,13 @@ how that state was reached. Let's verify this property:
 
 ```
   ┌───┬───┬───┬───┐
-0 │ . │ . │ . │ . │
+0 │ . │ . │ . │ A │
   ├───┼───┼───┼───┤
 1 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
 2 │ . │ C │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
+3 │ . │ . │ b │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -1434,11 +1434,11 @@ how that state was reached. Let's verify this property:
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
+1 │ . │ . │ c │ . │
   ├───┼───┼───┼───┤
-2 │ . │ d │ . │ . │
+2 │ . │ D │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
+3 │ b │ . │ . │ . │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
@@ -1449,17 +1449,18 @@ how that state was reached. Let's verify this property:
   ┌───┬───┬───┬───┐
 0 │ . │ . │ . │ . │
   ├───┼───┼───┼───┤
-1 │ . │ . │ . │ . │
+1 │ . │ c │ . │ . │
   ├───┼───┼───┼───┤
-2 │ . │ d │ . │ . │
+2 │ D │ . │ . │ . │
   ├───┼───┼───┼───┤
-3 │ . │ . │ . │ . │
+3 │ . │ . │ . │ b │
   └───┴───┴───┴───┘
     0   1   2   3  
 ```
 
-**Result:** The canonical representation is deterministic. Both equivalent states map to the same canonical form.
-Canonical QFEN: `..../..../.d../....`
+**Result:** The canonical representation is NOT deterministic! This is a serious issue that needs to be fixed.
+Canonical QFEN 1: `..../..c./.D../b...`
+Canonical QFEN 2: `..../.c../D.../...b`
 
 ### Implications for Game Search
 
