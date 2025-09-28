@@ -45,6 +45,21 @@ class MarkdownWriter:
         """Write a markdown heading."""
         self.writeln("\n" + "#" * level + " " + text + "\n")
 
+    def draw_ascii_grid(self, grid_data: List[List[str]]) -> None:
+        """Draw a 4x4 ASCII grid with the provided data.
+
+        Args:
+            grid_data: 4x4 list of strings representing the grid content
+        """
+        self.writeln("```")
+        self.writeln("┌───┬───┬───┬───┐")
+        for r in range(4):
+            self.writeln(f"│ {' │ '.join(grid_data[r])} │")
+            if r < 3:
+                self.writeln("├───┼───┼───┼───┤")
+        self.writeln("└───┴───┴───┴───┘")
+        self.writeln("```")
+
 
 def position_to_coords(pos: int) -> str:
     """Convert a position index to human-readable coordinates."""
@@ -129,17 +144,16 @@ def write_first_move_section(
 
     # Show these canonical positions
     writer.writeln("\n### Canonical First Move Positions:")
-    writer.writeln("```")
-    writer.writeln("┌───┬───┬───┬───┐")
-    writer.writeln("│   │   │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│   │   │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│ 8 │ 9 │   │   │")
-    writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("│ 12│   │   │   │")
-    writer.writeln("└───┴───┴───┴───┘")
-    writer.writeln("```")
+
+    # Create grid data for canonical positions
+    canonical_grid = [
+        ["   ", "   ", "   ", "   "],
+        ["   ", "   ", "   ", "   "],
+        [" 8 ", " 9 ", "   ", "   "],
+        [" 12", "   ", "   ", "   "],
+    ]
+
+    writer.draw_ascii_grid(canonical_grid)
 
 
 def compute_position_mappings(
@@ -186,14 +200,7 @@ def write_position_mappings(
             r, c = divmod(pos, 4)
             grid[r][c] = "●"
 
-        writer.writeln("```")
-        writer.writeln("┌───┬───┬───┬───┐")
-        for r in range(4):
-            writer.writeln(f"│ {' │ '.join(grid[r])} │")
-            if r < 3:
-                writer.writeln("├───┼───┼───┼───┤")
-        writer.writeln("└───┴───┴───┴───┘")
-        writer.writeln("```")
+        writer.draw_ascii_grid(grid)
 
         writer.writeln(f"Total: {len(equiv_positions)} positions")
 
@@ -223,14 +230,7 @@ def write_canonical_mapping_visualization(
         else:
             mapping_grid[r][c] = "?"
 
-    writer.writeln("```")
-    writer.writeln("┌───┬───┬───┬───┐")
-    for r in range(4):
-        writer.writeln(f"│ {' │ '.join(mapping_grid[r])} │")
-        if r < 3:
-            writer.writeln("├───┼───┼───┼───┤")
-    writer.writeln("└───┴───┴───┴───┘")
-    writer.writeln("```")
+    writer.draw_ascii_grid(mapping_grid)
     writer.writeln("Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)")
 
     writer.writeln("\n### Total unique first moves after symmetry reduction:")
@@ -528,14 +528,7 @@ def main() -> None:
                 r, c = divmod(pos, 4)
                 grid[r][c] = "●"
 
-            writer.writeln("```")
-            writer.writeln("┌───┬───┬───┬───┐")
-            for r in range(4):
-                writer.writeln(f"│ {' │ '.join(grid[r])} │")
-                if r < 3:
-                    writer.writeln("├───┼───┼───┼───┤")
-            writer.writeln("└───┴───┴───┴───┘")
-            writer.writeln("```")
+            writer.draw_ascii_grid(grid)
 
             writer.writeln(f"Total: {len(equiv_positions)} positions")
 
@@ -559,14 +552,7 @@ def main() -> None:
             else:
                 mapping_grid[r][c] = "?"
 
-        writer.writeln("```")
-        writer.writeln("┌───┬───┬───┬───┐")
-        for r in range(4):
-            writer.writeln(f"│ {' │ '.join(mapping_grid[r])} │")
-            if r < 3:
-                writer.writeln("├───┼───┼───┼───┤")
-        writer.writeln("└───┴───┴───┴───┘")
-        writer.writeln("```")
+        writer.draw_ascii_grid(mapping_grid)
         writer.writeln("Where: A = maps to (2,0), B = maps to (2,1), C = maps to (3,0)")
 
         writer.writeln("\n### Total unique first moves after symmetry reduction:")
