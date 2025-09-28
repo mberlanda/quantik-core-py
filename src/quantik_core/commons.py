@@ -50,3 +50,8 @@ WIN_MASKS = ROW_MASKS + COLUMN_MASKS + ZONE_MASKS
 # --- Versioning/flags --------------------------------------------------------
 VERSION = 1
 FLAG_CANON = 1 << 1  # bit1
+
+class ValidationError(Exception):
+    """Exception raised when game state validation fails."""
+
+    pass

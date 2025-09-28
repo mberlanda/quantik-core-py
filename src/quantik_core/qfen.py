@@ -63,7 +63,7 @@ Examples:
    │  .  │  .  │  .  │  .  │
    └─────┴─────┴─────┴─────┘
 """
-from .commons import Bitboard
+from .commons import Bitboard, ValidationError
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 # Shape letters for QFEN notation
@@ -161,6 +161,6 @@ def bb_from_qfen(qfen: str, validate: bool = False) -> Bitboard:
     if validate:
         _, result = _validate_game_state_single_pass(bb_tuple)
         if result != ValidationResult.OK:
-            raise ValueError(f"Invalid qfen: {qfen}. {str(result)}")
+            raise ValidationError(f"Invalid qfen: {qfen}. {str(result)}")
 
     return bb_tuple

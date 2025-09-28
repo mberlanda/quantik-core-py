@@ -65,10 +65,10 @@ def test_canonical_invariance_under_symmetry_examples():
     base = State.from_qfen(q)
     base_key = base.canonical_key()
     bb8 = base.bb
-    for _, m in SymmetryHandler.D4:
+    for idx in range(len(SymmetryHandler.D4)):
         for cs in (False, True):
             for sp in SymmetryHandler.ALL_SHAPE_PERMS:
-                tbb8 = apply_symmetry(bb8, m, cs, sp)
+                tbb8 = apply_symmetry(bb8, idx, cs, sp)
                 ts = State(tbb8)
                 assert ts.canonical_key() == base_key
 
@@ -155,10 +155,10 @@ def test_canonical_is_min_over_symmetry_orbit(s):
     # The canonical payload must equal the min over the full symmetry orbit
     base = s.bb
     payloads = []
-    for _, m in SymmetryHandler.D4:
+    for idx in range(len(SymmetryHandler.D4)):
         for cs in (False, True):
             for sp in SymmetryHandler.ALL_SHAPE_PERMS:
-                tbb8 = apply_symmetry(base, m, cs, sp)
+                tbb8 = apply_symmetry(base, idx, cs, sp)
                 payloads.append(payload(tbb8))
     expected = min(payloads)
     assert s.canonical_payload() == expected
