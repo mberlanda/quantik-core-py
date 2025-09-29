@@ -3,8 +3,15 @@
 Unit tests for game_stats module to debug the symmetry analysis.
 """
 
+import pytest
 from quantik_core import apply_move, SymmetryHandler, generate_legal_moves, Move
-from quantik_core.game_stats import SymmetryTable, CanonicalState
+from quantik_core.game_stats import (
+    SymmetryTable,
+    CanonicalState,
+    GameStats,
+    CumulativeStats,
+    TableFormatter,
+)
 from quantik_core.qfen import bb_from_qfen
 from quantik_core.move import _validate_game_state_single_pass
 
@@ -331,3 +338,247 @@ class TestGameStats:
             assert (
                 state.player_turn == 1
             ), f"Depth 3 should be player 1's turn, got player {state.player_turn}"
+
+
+class TestInputValidation:
+    """Test suite for input validation and error handling."""
+
+    def test_analyze_game_tree_invalid_max_depth_type(self):
+        """Test that analyze_game_tree raises ValueError for invalid max_depth type."""
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            table.analyze_game_tree("invalid")  # type: ignore
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            table.analyze_game_tree(3.14)  # type: ignore
+
+    def test_analyze_game_tree_invalid_max_depth_value(self):
+        """Test that analyze_game_tree raises ValueError for invalid max_depth values."""
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            table.analyze_game_tree(0)
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            table.analyze_game_tree(-1)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            table.analyze_game_tree(17)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            table.analyze_game_tree(100)
+
+    def test_analyze_game_tree_valid_edge_values(self):
+        """Test that analyze_game_tree accepts valid edge values."""
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        # Should not raise for valid minimum
+        table.analyze_game_tree(1)
+
+        # Reset table
+        table = SymmetryTable()
+
+        # Should not raise for a reasonable test depth (not the actual maximum!)
+        table.analyze_game_tree(3)  # Use depth 3 instead of 16 for testing
+
+    def test_analyze_symmetry_reduction_invalid_max_depth(self):
+        """Test that analyze_symmetry_reduction validates max_depth properly."""
+        from quantik_core.game_stats import analyze_symmetry_reduction
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            analyze_symmetry_reduction("invalid")  # type: ignore
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            analyze_symmetry_reduction(0)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            analyze_symmetry_reduction(17)
+
+    def test_analyze_symmetry_reduction_invalid_output_file(self):
+        """Test that analyze_symmetry_reduction validates output_file properly."""
+        from quantik_core.game_stats import analyze_symmetry_reduction
+
+        with pytest.raises(ValueError, match="output_file must be a string or None"):
+            analyze_symmetry_reduction(1, 123)  # type: ignore
+
+        with pytest.raises(ValueError, match="output_file must be a string or None"):
+            analyze_symmetry_reduction(1, [])  # type: ignore
+
+    def test_constants_defined(self):
+        """Test that module constants are properly defined."""
+        from quantik_core import game_stats
+
+        assert hasattr(game_stats, "DEFAULT_MAX_DEPTH")
+        assert hasattr(game_stats, "MAX_ALLOWED_DEPTH")
+        assert hasattr(game_stats, "INITIAL_PLAYER")
+        assert hasattr(game_stats, "EMPTY_BOARD_QFEN")
+        assert hasattr(game_stats, "AnalysisError")
+
+        assert game_stats.DEFAULT_MAX_DEPTH == 12
+        assert game_stats.MAX_ALLOWED_DEPTH == 16
+        assert game_stats.MIN_ALLOWED_DEPTH == 1
+        assert game_stats.INITIAL_PLAYER == 0
+        assert game_stats.EMPTY_BOARD_QFEN == "..../..../..../...."
+        assert game_stats.PLAYER_0 == 0
+        assert game_stats.PLAYER_1 == 1
+        assert game_stats.TOTAL_PLAYERS == 2
+        assert game_stats.PERCENTAGE_MULTIPLIER == 100
+
+        # Test that AnalysisError is an Exception
+        assert issubclass(game_stats.AnalysisError, Exception)
+
+
+class TestTableFormatter:
+    """Test the TableFormatter class."""
+
+    def test_format_analysis_table_basic(self):
+        """Test basic table formatting functionality."""
+        # Create test data
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            ),
+            2: GameStats(
+                depth=2,
+                total_legal_moves=240,
+                unique_canonical_states=15,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=15,
+            ),
+        }
+
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=256,
+            unique_canonical_states=16,
+            player_0_wins=0,
+            player_1_wins=0,
+            ongoing_games=15,
+        )
+
+        # Test without header
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=False
+        )
+
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+        assert "Depth | Total Legal Moves" in result
+        assert "Total Legal Moves | 256" in result
+        assert "# Quantik Game Tree Analysis" not in result
+
+    def test_format_analysis_table_with_header(self):
+        """Test table formatting with header."""
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            )
+        }
+
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=16,
+            unique_canonical_states=1,
+            player_0_wins=0,
+            player_1_wins=0,
+            ongoing_games=1,
+        )
+
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=True
+        )
+
+        assert "# Quantik Game Tree Analysis with Symmetry Reduction" in result
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+
+    def test_format_depth_analysis(self):
+        """Test depth analysis formatting."""
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            ),
+            2: GameStats(
+                depth=2,
+                total_legal_moves=240,
+                unique_canonical_states=15,
+                player_0_wins=2,
+                player_1_wins=3,
+                ongoing_games=10,
+            ),
+        }
+
+        result = TableFormatter._format_depth_analysis(stats_by_depth)
+
+        # Check structure
+        assert any("## Depth-wise Analysis" in line for line in result)
+        assert any("Depth | Total Legal Moves" in line for line in result)
+        assert any("|-------|" in line for line in result)
+
+        # Check data rows
+        depth_1_line = [line for line in result if "|     1 |" in line][0]
+        assert "16" in depth_1_line
+        assert "1" in depth_1_line
+
+        depth_2_line = [line for line in result if "|     2 |" in line][0]
+        assert "240" in depth_2_line
+        assert "15" in depth_2_line
+
+    def test_format_cumulative_analysis(self):
+        """Test cumulative analysis formatting."""
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=256,
+            unique_canonical_states=16,
+            player_0_wins=5,
+            player_1_wins=8,
+            ongoing_games=10,
+        )
+
+        result = TableFormatter._format_cumulative_analysis(cumulative_stats)
+
+        # Check structure
+        assert any("## Cumulative Analysis" in line for line in result)
+        assert any("Metric | Value" in line for line in result)
+        assert any("|--------|" in line for line in result)
+
+        # Check specific metrics
+        assert any("Total Legal Moves | 256" in line for line in result)
+        assert any("Unique Canonical States | 16" in line for line in result)
+        assert any("Player 0 Wins | 5" in line for line in result)
+        assert any("Player 1 Wins | 8" in line for line in result)
+        assert any("Ongoing Games | 10" in line for line in result)
+
+    def test_empty_stats_formatting(self):
+        """Test formatting with empty statistics."""
+        stats_by_depth = {}
+        cumulative_stats = CumulativeStats()
+
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=False
+        )
+
+        # Should still contain structure but no data rows
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+        assert "Total Legal Moves | 0" in result

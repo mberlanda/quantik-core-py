@@ -1,5 +1,3 @@
-# Quantik Game Tree Analysis with Symmetry Reduction
-
 ## Depth-wise Analysis
 | Depth | Total Legal Moves | Unique Canonical | P0 Wins | P1 Wins | Ongoing | Reduction Factor | Space Savings |
 |-------|-------------------|------------------|---------|---------|---------|------------------|---------------|
@@ -9,14 +7,16 @@
 |     4 |         6,776,960 |           10,946 |       0 |   6,912 | 6,770,048 |          619.13x |         99.8% |
 |     5 |       231,883,776 |          105,632 | 1,050,624 |       0 | 230,833,152 |         2195.20x |        100.0% |
 |     6 |     6,241,600,512 |          901,916 |       0 | 81,653,760 | 6,159,946,752 |         6920.38x |        100.0% |
+|     7 |   132,400,548,864 |        4,658,465 | 3,886,838,784 |       0 | 128,513,710,080 |        28421.50x |        100.0% |
+|     8 | 2,097,048,766,464 |       17,900,160 |       0 | 118,862,401,536 | 1,978,186,364,928 |       117152.52x |        100.0% |
 
 ## Cumulative Analysis
 | Metric | Value |
 |--------|--------|
-| Total Legal Moves | 6,480,432,256 |
-| Unique Canonical States | 1,019,274 |
-| Player 0 Wins | 1,050,624 |
-| Player 1 Wins | 81,660,672 |
-| Ongoing Games | 6,397,720,960 |
-| Overall Reduction Factor | 6357.89x |
+| Total Legal Moves | 2,235,929,747,584 |
+| Unique Canonical States | 23,577,899 |
+| Player 0 Wins | 3,887,889,408 |
+| Player 1 Wins | 118,944,062,208 |
+| Ongoing Games | 2,113,097,795,968 |
+| Overall Reduction Factor | 94831.59x |
 | Overall Space Savings | 100.0% |
