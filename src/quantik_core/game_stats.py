@@ -6,7 +6,13 @@ from dataclasses import dataclass
 
 from quantik_core.plugins.validation import bb_check_game_winner, WinStatus
 
-from quantik_core import Bitboard, apply_move, SymmetryHandler, generate_legal_moves, Move
+from quantik_core import (
+    Bitboard,
+    apply_move,
+    SymmetryHandler,
+    generate_legal_moves,
+    Move,
+)
 from quantik_core.qfen import bb_from_qfen
 
 # Module constants
@@ -122,6 +128,60 @@ class MoveProcessingResult:
 
     is_winning_move: bool
     new_state: Optional[CanonicalState]
+
+
+class DepthStatsAccumulator:
+    """Accumulates statistics during depth processing."""
+
+    def __init__(self, target_depth: int) -> None:
+        self.target_depth = target_depth
+        self.total_legal_moves = 0
+        self.player_0_wins = 0
+        self.player_1_wins = 0
+        self.new_states: Dict[Tuple[int, ...], CanonicalState] = {}
+
+    def add_state_results(self, state_results: "StateProcessingResult") -> None:
+        """Add results from processing a single state."""
+        self.total_legal_moves += state_results.total_moves
+        self.player_0_wins += state_results.player_0_wins
+        self.player_1_wins += state_results.player_1_wins
+
+        # Merge new states
+        for new_state in state_results.new_states.values():
+            self._add_or_update_state(new_state)
+
+    def _add_or_update_state(self, new_state: CanonicalState) -> None:
+        """Add a new state or update existing one in the accumulator."""
+        canonical_key = new_state.canonical_bb
+
+        if canonical_key in self.new_states:
+            existing_state = self.new_states[canonical_key]
+            self.new_states[canonical_key] = CanonicalState(
+                canonical_bb=canonical_key,
+                representative_bb=existing_state.representative_bb,  # Keep first representative
+                multiplicity=existing_state.multiplicity + new_state.multiplicity,
+                player_turn=new_state.player_turn,
+                depth=new_state.depth,
+            )
+        else:
+            self.new_states[canonical_key] = new_state
+
+    def build_game_stats(self) -> GameStats:
+        """Build final GameStats from accumulated data."""
+        ongoing_games = sum(state.multiplicity for state in self.new_states.values())
+
+        return GameStats(
+            depth=self.target_depth,
+            total_legal_moves=self.total_legal_moves,
+            unique_canonical_states=len(self.new_states),
+            player_0_wins=self.player_0_wins,
+            player_1_wins=self.player_1_wins,
+            ongoing_games=ongoing_games,
+        )
+
+    def get_new_states(self) -> Dict[Tuple[int, ...], CanonicalState]:
+        """Get the accumulated new states."""
+        return self.new_states
 
 
 class TableFormatter:
@@ -300,36 +360,19 @@ class SymmetryTable:
         # Extract states for this depth and update queue
         current_queue = self._extract_states_for_depth(target_depth - 1)
 
-        # Initialize accumulators
-        new_states: Dict[Tuple[int, ...], CanonicalState] = {}
-        total_legal_moves = 0
-        player_0_wins = 0
-        player_1_wins = 0
+        # Initialize accumulator
+        accumulator = DepthStatsAccumulator(target_depth)
 
         # Process each parent state
         for parent_state in current_queue:
             state_results = self._process_parent_state(parent_state, target_depth)
-
-            # Accumulate results
-            total_legal_moves += state_results.total_moves
-            player_0_wins += state_results.player_0_wins
-            player_1_wins += state_results.player_1_wins
-
-            # Merge new states
-            self._merge_new_states(new_states, state_results.new_states)
+            accumulator.add_state_results(state_results)
 
         # Update tracking and return results
+        new_states = accumulator.get_new_states()
         self._update_state_tracking(new_states)
-        ongoing_games = sum(state.multiplicity for state in new_states.values())
 
-        return GameStats(
-            depth=target_depth,
-            total_legal_moves=total_legal_moves,
-            unique_canonical_states=len(new_states),
-            player_0_wins=player_0_wins,
-            player_1_wins=player_1_wins,
-            ongoing_games=ongoing_games,
-        )
+        return accumulator.build_game_stats()
 
     def _extract_states_for_depth(self, depth: int) -> List[CanonicalState]:
         """Extract and remove states for a specific depth from the queue."""
@@ -399,7 +442,11 @@ class SymmetryTable:
             )
 
     def _process_move(
-        self, move: "Move", parent_bb: Bitboard, parent_state: CanonicalState, target_depth: int
+        self,
+        move: "Move",
+        parent_bb: Bitboard,
+        parent_state: CanonicalState,
+        target_depth: int,
     ) -> "MoveProcessingResult":
         """Process a single move and return the result."""
         new_bb = apply_move(parent_bb, move)
@@ -447,15 +494,6 @@ class SymmetryTable:
             )
         else:
             states_dict[canonical_key] = new_state
-
-    def _merge_new_states(
-        self,
-        target_dict: Dict[Tuple[int, ...], CanonicalState],
-        source_dict: Dict[Tuple[int, ...], CanonicalState],
-    ) -> None:
-        """Merge states from source dictionary into target dictionary."""
-        for new_state in source_dict.values():
-            self._add_or_update_state(target_dict, new_state)
 
     def _update_state_tracking(
         self, new_states: Dict[Tuple[int, ...], CanonicalState]
