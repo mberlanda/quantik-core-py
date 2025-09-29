@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from quantik_core.plugins.validation import bb_check_game_winner, WinStatus
 
-from quantik_core import Bitboard, apply_move, SymmetryHandler, generate_legal_moves
+from quantik_core import Bitboard, apply_move, SymmetryHandler, generate_legal_moves, Move
 from quantik_core.qfen import bb_from_qfen
 
 # Module constants
@@ -104,6 +104,24 @@ class CanonicalState(NamedTuple):
     multiplicity: int  # How many original states map to this canonical state
     player_turn: int
     depth: int
+
+
+@dataclass
+class StateProcessingResult:
+    """Result of processing a single parent state."""
+
+    total_moves: int
+    player_0_wins: int
+    player_1_wins: int
+    new_states: Dict[Tuple[int, ...], CanonicalState]
+
+
+@dataclass
+class MoveProcessingResult:
+    """Result of processing a single move."""
+
+    is_winning_move: bool
+    new_state: Optional[CanonicalState]
 
 
 class TableFormatter:
@@ -279,89 +297,29 @@ class SymmetryTable:
 
     def _process_depth(self, target_depth: int) -> GameStats:
         """Process all states at a specific depth."""
+        # Extract states for this depth and update queue
+        current_queue = self._extract_states_for_depth(target_depth - 1)
+
+        # Initialize accumulators
         new_states: Dict[Tuple[int, ...], CanonicalState] = {}
         total_legal_moves = 0
         player_0_wins = 0
         player_1_wins = 0
-        ongoing_games = 0
 
-        # Process all states from previous depth
-        current_queue = [
-            state for state in self.state_queue if state.depth == target_depth - 1
-        ]
-        self.state_queue = [
-            state for state in self.state_queue if state.depth != target_depth - 1
-        ]
-
+        # Process each parent state
         for parent_state in current_queue:
-            # Use the representative bitboard instead of reconstructing from canonical
-            parent_bb = cast(Bitboard, parent_state.representative_bb)
+            state_results = self._process_parent_state(parent_state, target_depth)
 
-            # Generate all legal moves
-            current_player, moves_by_shape = generate_legal_moves(parent_bb)
-            legal_moves = [
-                move for move_list in moves_by_shape.values() for move in move_list
-            ]
+            # Accumulate results
+            total_legal_moves += state_results.total_moves
+            player_0_wins += state_results.player_0_wins
+            player_1_wins += state_results.player_1_wins
 
-            if not legal_moves:
-                if (current_player + TOTAL_PLAYERS) % TOTAL_PLAYERS == PLAYER_0:
-                    player_1_wins += parent_state.multiplicity
-                else:
-                    player_0_wins += parent_state.multiplicity
+            # Merge new states
+            self._merge_new_states(new_states, state_results.new_states)
 
-            # Track moves for this parent state
-            moves_count = len(legal_moves) * parent_state.multiplicity
-            total_legal_moves += moves_count
-
-            # Process each legal move
-            for move in legal_moves:
-                new_bb = apply_move(parent_bb, move)
-                if bb_check_game_winner(new_bb) != WinStatus.NO_WIN:
-                    if move.player == PLAYER_0:
-                        player_0_wins += parent_state.multiplicity
-                    else:
-                        player_1_wins += parent_state.multiplicity
-                    continue
-
-                # Find canonical form of the new state
-                canonical_bb, transformation = SymmetryHandler.find_canonical_form(
-                    new_bb
-                )
-                canonical_key = tuple(canonical_bb)
-
-                # Determine next player (accounting for potential color swap in canonical form)
-                next_player = (PLAYER_1 + parent_state.player_turn) % TOTAL_PLAYERS
-                if transformation.color_swap:
-                    # If colors were swapped in canonical form, adjust the player turn
-                    next_player = PLAYER_1 - next_player
-
-                # Add or update canonical state
-                if canonical_key in new_states:
-                    # Increase multiplicity for existing canonical state
-                    existing_state = new_states[canonical_key]
-                    new_states[canonical_key] = CanonicalState(
-                        canonical_bb=canonical_key,
-                        representative_bb=existing_state.representative_bb,  # Keep first representative
-                        multiplicity=existing_state.multiplicity
-                        + parent_state.multiplicity,
-                        player_turn=next_player,
-                        depth=target_depth,
-                    )
-                else:
-                    # Create new canonical state using the current new_bb as representative
-                    new_states[canonical_key] = CanonicalState(
-                        canonical_bb=canonical_key,
-                        representative_bb=tuple(
-                            new_bb
-                        ),  # Store original as representative
-                        multiplicity=parent_state.multiplicity,
-                        player_turn=next_player,
-                        depth=target_depth,
-                    )
-
-        # Update canonical states and queue for next iteration
-        self.canonical_states.update(new_states)
-        self.state_queue.extend(new_states.values())
+        # Update tracking and return results
+        self._update_state_tracking(new_states)
         ongoing_games = sum(state.multiplicity for state in new_states.values())
 
         return GameStats(
@@ -372,6 +330,139 @@ class SymmetryTable:
             player_1_wins=player_1_wins,
             ongoing_games=ongoing_games,
         )
+
+    def _extract_states_for_depth(self, depth: int) -> List[CanonicalState]:
+        """Extract and remove states for a specific depth from the queue."""
+        current_queue = [state for state in self.state_queue if state.depth == depth]
+        self.state_queue = [state for state in self.state_queue if state.depth != depth]
+        return current_queue
+
+    def _process_parent_state(
+        self, parent_state: CanonicalState, target_depth: int
+    ) -> "StateProcessingResult":
+        """Process a single parent state and return the results."""
+        parent_bb = cast(Bitboard, parent_state.representative_bb)
+
+        # Generate legal moves
+        current_player, moves_by_shape = generate_legal_moves(parent_bb)
+        legal_moves = [
+            move for move_list in moves_by_shape.values() for move in move_list
+        ]
+
+        # Handle no legal moves case
+        if not legal_moves:
+            return self._handle_no_legal_moves(current_player, parent_state)
+
+        # Process each legal move
+        total_moves = len(legal_moves) * parent_state.multiplicity
+        new_states: Dict[Tuple[int, ...], CanonicalState] = {}
+        player_0_wins = 0
+        player_1_wins = 0
+
+        for move in legal_moves:
+            move_result = self._process_move(
+                move, parent_bb, parent_state, target_depth
+            )
+
+            if move_result.is_winning_move:
+                if move.player == PLAYER_0:
+                    player_0_wins += parent_state.multiplicity
+                else:
+                    player_1_wins += parent_state.multiplicity
+            elif move_result.new_state:
+                self._add_or_update_state(new_states, move_result.new_state)
+
+        return StateProcessingResult(
+            total_moves=total_moves,
+            player_0_wins=player_0_wins,
+            player_1_wins=player_1_wins,
+            new_states=new_states,
+        )
+
+    def _handle_no_legal_moves(
+        self, current_player: int, parent_state: CanonicalState
+    ) -> "StateProcessingResult":
+        """Handle the case when a state has no legal moves."""
+        if (current_player + TOTAL_PLAYERS) % TOTAL_PLAYERS == PLAYER_0:
+            return StateProcessingResult(
+                total_moves=0,
+                player_0_wins=0,
+                player_1_wins=parent_state.multiplicity,
+                new_states={},
+            )
+        else:
+            return StateProcessingResult(
+                total_moves=0,
+                player_0_wins=parent_state.multiplicity,
+                player_1_wins=0,
+                new_states={},
+            )
+
+    def _process_move(
+        self, move: "Move", parent_bb: Bitboard, parent_state: CanonicalState, target_depth: int
+    ) -> "MoveProcessingResult":
+        """Process a single move and return the result."""
+        new_bb = apply_move(parent_bb, move)
+
+        # Check for winning move
+        if bb_check_game_winner(new_bb) != WinStatus.NO_WIN:
+            return MoveProcessingResult(is_winning_move=True, new_state=None)
+
+        # Find canonical form
+        canonical_bb, transformation = SymmetryHandler.find_canonical_form(new_bb)
+        canonical_key = tuple(canonical_bb)
+
+        # Calculate next player
+        next_player = (PLAYER_1 + parent_state.player_turn) % TOTAL_PLAYERS
+        if transformation.color_swap:
+            next_player = PLAYER_1 - next_player
+
+        # Create new canonical state
+        new_state = CanonicalState(
+            canonical_bb=canonical_key,
+            representative_bb=tuple(new_bb),
+            multiplicity=parent_state.multiplicity,
+            player_turn=next_player,
+            depth=target_depth,
+        )
+
+        return MoveProcessingResult(is_winning_move=False, new_state=new_state)
+
+    def _add_or_update_state(
+        self,
+        states_dict: Dict[Tuple[int, ...], CanonicalState],
+        new_state: CanonicalState,
+    ) -> None:
+        """Add a new state or update existing one in the states dictionary."""
+        canonical_key = new_state.canonical_bb
+
+        if canonical_key in states_dict:
+            existing_state = states_dict[canonical_key]
+            states_dict[canonical_key] = CanonicalState(
+                canonical_bb=canonical_key,
+                representative_bb=existing_state.representative_bb,  # Keep first representative
+                multiplicity=existing_state.multiplicity + new_state.multiplicity,
+                player_turn=new_state.player_turn,
+                depth=new_state.depth,
+            )
+        else:
+            states_dict[canonical_key] = new_state
+
+    def _merge_new_states(
+        self,
+        target_dict: Dict[Tuple[int, ...], CanonicalState],
+        source_dict: Dict[Tuple[int, ...], CanonicalState],
+    ) -> None:
+        """Merge states from source dictionary into target dictionary."""
+        for new_state in source_dict.values():
+            self._add_or_update_state(target_dict, new_state)
+
+    def _update_state_tracking(
+        self, new_states: Dict[Tuple[int, ...], CanonicalState]
+    ) -> None:
+        """Update canonical states tracking and queue for next iteration."""
+        self.canonical_states.update(new_states)
+        self.state_queue.extend(new_states.values())
 
     def _canonical_to_bitboard(self, canonical_tuple: Tuple[int, ...]) -> Bitboard:
         """Convert canonical tuple back to Bitboard."""
