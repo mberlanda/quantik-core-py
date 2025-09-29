@@ -325,5 +325,5 @@ if __name__ == "__main__":
         "GAME_TREE_ANALYSIS.md",
     )
 
-    table = analyze_symmetry_reduction(max_depth=6, output_file=output_path)
+    table = analyze_symmetry_reduction(max_depth=8, output_file=output_path)
     print(table.generate_table(use_header=True))
