@@ -106,6 +106,85 @@ class CanonicalState(NamedTuple):
     depth: int
 
 
+class TableFormatter:
+    """Formats game statistics into human-readable tables."""
+
+    @staticmethod
+    def format_analysis_table(
+        stats_by_depth: Dict[int, GameStats],
+        cumulative_stats: CumulativeStats,
+        use_header: bool = False,
+    ) -> str:
+        """Format statistics into a markdown table.
+
+        Args:
+            stats_by_depth: Statistics organized by depth
+            cumulative_stats: Overall cumulative statistics
+            use_header: Whether to include markdown header
+
+        Returns:
+            Formatted markdown table string
+        """
+        lines = []
+        if use_header:
+            lines.append("# Quantik Game Tree Analysis with Symmetry Reduction\n")
+
+        # Depth-wise analysis
+        lines.extend(TableFormatter._format_depth_analysis(stats_by_depth))
+
+        # Cumulative analysis
+        lines.extend(TableFormatter._format_cumulative_analysis(cumulative_stats))
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_depth_analysis(stats_by_depth: Dict[int, GameStats]) -> List[str]:
+        """Format depth-wise analysis section."""
+        lines = []
+        lines.append("## Depth-wise Analysis")
+        lines.append(
+            "| Depth | Total Legal Moves | Unique Canonical | P0 Wins | P1 Wins | Ongoing | Reduction Factor | Space Savings |"
+        )
+        lines.append(
+            "|-------|-------------------|------------------|---------|---------|---------|------------------|---------------|"
+        )
+
+        for depth in sorted(stats_by_depth.keys()):
+            stats = stats_by_depth[depth]
+            lines.append(
+                f"| {depth:5d} | {stats.total_legal_moves:17,d} | "
+                f"{stats.unique_canonical_states:16,d} | "
+                f"{stats.player_0_wins:7,d} | {stats.player_1_wins:7,d} | "
+                f"{stats.ongoing_games:7,d} | {stats.reduction_factor:15.2f}x | "
+                f"{stats.space_savings_percent:12.1f}% |"
+            )
+
+        return lines
+
+    @staticmethod
+    def _format_cumulative_analysis(cumulative_stats: CumulativeStats) -> List[str]:
+        """Format cumulative analysis section."""
+        lines = []
+        lines.append("\n## Cumulative Analysis")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|--------|")
+        lines.append(f"| Total Legal Moves | {cumulative_stats.total_legal_moves:,} |")
+        lines.append(
+            f"| Unique Canonical States | {cumulative_stats.unique_canonical_states:,} |"
+        )
+        lines.append(f"| Player 0 Wins | {cumulative_stats.player_0_wins:,} |")
+        lines.append(f"| Player 1 Wins | {cumulative_stats.player_1_wins:,} |")
+        lines.append(f"| Ongoing Games | {cumulative_stats.ongoing_games:,} |")
+        lines.append(
+            f"| Overall Reduction Factor | {cumulative_stats.reduction_factor:.2f}x |"
+        )
+        lines.append(
+            f"| Overall Space Savings | {cumulative_stats.space_savings_percent:.1f}% |"
+        )
+
+        return lines
+
+
 class SymmetryTable:
     """Comprehensive symmetry analysis table for Quantik game."""
 
@@ -300,50 +379,9 @@ class SymmetryTable:
 
     def generate_table(self, use_header: bool = False) -> str:
         """Generate a formatted table of statistics."""
-        lines = []
-        if use_header:
-            lines.append("# Quantik Game Tree Analysis with Symmetry Reduction\n")
-
-        # Depth-wise analysis
-        lines.append("## Depth-wise Analysis")
-        lines.append(
-            "| Depth | Total Legal Moves | Unique Canonical | P0 Wins | P1 Wins | Ongoing | Reduction Factor | Space Savings |"
+        return TableFormatter.format_analysis_table(
+            self.stats_by_depth, self.cumulative_stats, use_header
         )
-        lines.append(
-            "|-------|-------------------|------------------|---------|---------|---------|------------------|---------------|"
-        )
-
-        for depth in sorted(self.stats_by_depth.keys()):
-            stats = self.stats_by_depth[depth]
-            lines.append(
-                f"| {depth:5d} | {stats.total_legal_moves:17,d} | "
-                f"{stats.unique_canonical_states:16,d} | "
-                f"{stats.player_0_wins:7,d} | {stats.player_1_wins:7,d} | "
-                f"{stats.ongoing_games:7,d} | {stats.reduction_factor:15.2f}x | "
-                f"{stats.space_savings_percent:12.1f}% |"
-            )
-
-        # Cumulative analysis
-        lines.append("\n## Cumulative Analysis")
-        lines.append("| Metric | Value |")
-        lines.append("|--------|--------|")
-        lines.append(
-            f"| Total Legal Moves | {self.cumulative_stats.total_legal_moves:,} |"
-        )
-        lines.append(
-            f"| Unique Canonical States | {self.cumulative_stats.unique_canonical_states:,} |"
-        )
-        lines.append(f"| Player 0 Wins | {self.cumulative_stats.player_0_wins:,} |")
-        lines.append(f"| Player 1 Wins | {self.cumulative_stats.player_1_wins:,} |")
-        lines.append(f"| Ongoing Games | {self.cumulative_stats.ongoing_games:,} |")
-        lines.append(
-            f"| Overall Reduction Factor | {self.cumulative_stats.reduction_factor:.2f}x |"
-        )
-        lines.append(
-            f"| Overall Space Savings | {self.cumulative_stats.space_savings_percent:.1f}% |"
-        )
-
-        return "\n".join(lines)
 
     def get_stats_at_depth(self, depth: int) -> Optional[GameStats]:
         """Get statistics for a specific depth."""

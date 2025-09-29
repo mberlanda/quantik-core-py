@@ -5,7 +5,13 @@ Unit tests for game_stats module to debug the symmetry analysis.
 
 import pytest
 from quantik_core import apply_move, SymmetryHandler, generate_legal_moves, Move
-from quantik_core.game_stats import SymmetryTable, CanonicalState
+from quantik_core.game_stats import (
+    SymmetryTable,
+    CanonicalState,
+    GameStats,
+    CumulativeStats,
+    TableFormatter,
+)
 from quantik_core.qfen import bb_from_qfen
 from quantik_core.move import _validate_game_state_single_pass
 
@@ -427,3 +433,152 @@ class TestInputValidation:
 
         # Test that AnalysisError is an Exception
         assert issubclass(game_stats.AnalysisError, Exception)
+
+
+class TestTableFormatter:
+    """Test the TableFormatter class."""
+
+    def test_format_analysis_table_basic(self):
+        """Test basic table formatting functionality."""
+        # Create test data
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            ),
+            2: GameStats(
+                depth=2,
+                total_legal_moves=240,
+                unique_canonical_states=15,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=15,
+            ),
+        }
+
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=256,
+            unique_canonical_states=16,
+            player_0_wins=0,
+            player_1_wins=0,
+            ongoing_games=15,
+        )
+
+        # Test without header
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=False
+        )
+
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+        assert "Depth | Total Legal Moves" in result
+        assert "Total Legal Moves | 256" in result
+        assert "# Quantik Game Tree Analysis" not in result
+
+    def test_format_analysis_table_with_header(self):
+        """Test table formatting with header."""
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            )
+        }
+
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=16,
+            unique_canonical_states=1,
+            player_0_wins=0,
+            player_1_wins=0,
+            ongoing_games=1,
+        )
+
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=True
+        )
+
+        assert "# Quantik Game Tree Analysis with Symmetry Reduction" in result
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+
+    def test_format_depth_analysis(self):
+        """Test depth analysis formatting."""
+        stats_by_depth = {
+            1: GameStats(
+                depth=1,
+                total_legal_moves=16,
+                unique_canonical_states=1,
+                player_0_wins=0,
+                player_1_wins=0,
+                ongoing_games=1,
+            ),
+            2: GameStats(
+                depth=2,
+                total_legal_moves=240,
+                unique_canonical_states=15,
+                player_0_wins=2,
+                player_1_wins=3,
+                ongoing_games=10,
+            ),
+        }
+
+        result = TableFormatter._format_depth_analysis(stats_by_depth)
+
+        # Check structure
+        assert any("## Depth-wise Analysis" in line for line in result)
+        assert any("Depth | Total Legal Moves" in line for line in result)
+        assert any("|-------|" in line for line in result)
+
+        # Check data rows
+        depth_1_line = [line for line in result if "|     1 |" in line][0]
+        assert "16" in depth_1_line
+        assert "1" in depth_1_line
+
+        depth_2_line = [line for line in result if "|     2 |" in line][0]
+        assert "240" in depth_2_line
+        assert "15" in depth_2_line
+
+    def test_format_cumulative_analysis(self):
+        """Test cumulative analysis formatting."""
+        cumulative_stats = CumulativeStats(
+            total_legal_moves=256,
+            unique_canonical_states=16,
+            player_0_wins=5,
+            player_1_wins=8,
+            ongoing_games=10,
+        )
+
+        result = TableFormatter._format_cumulative_analysis(cumulative_stats)
+
+        # Check structure
+        assert any("## Cumulative Analysis" in line for line in result)
+        assert any("Metric | Value" in line for line in result)
+        assert any("|--------|" in line for line in result)
+
+        # Check specific metrics
+        assert any("Total Legal Moves | 256" in line for line in result)
+        assert any("Unique Canonical States | 16" in line for line in result)
+        assert any("Player 0 Wins | 5" in line for line in result)
+        assert any("Player 1 Wins | 8" in line for line in result)
+        assert any("Ongoing Games | 10" in line for line in result)
+
+    def test_empty_stats_formatting(self):
+        """Test formatting with empty statistics."""
+        stats_by_depth = {}
+        cumulative_stats = CumulativeStats()
+
+        result = TableFormatter.format_analysis_table(
+            stats_by_depth, cumulative_stats, use_header=False
+        )
+
+        # Should still contain structure but no data rows
+        assert "## Depth-wise Analysis" in result
+        assert "## Cumulative Analysis" in result
+        assert "Total Legal Moves | 0" in result
