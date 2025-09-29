@@ -9,6 +9,18 @@ from quantik_core.plugins.validation import bb_check_game_winner, WinStatus
 from quantik_core import Bitboard, apply_move, SymmetryHandler, generate_legal_moves
 from quantik_core.qfen import bb_from_qfen
 
+# Module constants
+DEFAULT_MAX_DEPTH = 12  # limit due heuristic of states with legal moves
+MAX_ALLOWED_DEPTH = 16  # limit due to board size and total states
+INITIAL_PLAYER = 0
+EMPTY_BOARD_QFEN = "..../..../..../...."
+
+
+class AnalysisError(Exception):
+    """Exception raised when game tree analysis fails."""
+
+    pass
+
 
 class StatsProtocol(Protocol):
     """Protocol defining the interface for statistics objects."""
@@ -92,44 +104,76 @@ class SymmetryTable:
         self.canonical_states: Dict[Tuple[int, ...], CanonicalState] = {}
         self.state_queue: List[CanonicalState] = []
 
-    def analyze_game_tree(self, max_depth: int = 16) -> None:
-        """Analyze the complete game tree up to max_depth."""
-        # Initialize with empty board
-        empty_bb = bb_from_qfen("..../..../..../....")
-        canonical_empty, _ = SymmetryHandler.find_canonical_form(empty_bb)
-        canonical_key = tuple(canonical_empty)
+    def analyze_game_tree(self, max_depth: int = DEFAULT_MAX_DEPTH) -> None:
+        """Analyze the complete game tree up to max_depth.
 
-        # Start with the empty state (depth 0, player 0's turn)
-        initial_state = CanonicalState(
-            canonical_bb=canonical_key,
-            representative_bb=canonical_key,  # Empty board is its own representative
-            multiplicity=1,
-            player_turn=0,
-            depth=0,
-        )
+        Args:
+            max_depth: Maximum depth to analyze (must be between 1 and 16)
 
-        self.canonical_states[canonical_key] = initial_state
-        self.state_queue = [initial_state]
-
-        # Process each depth level
-        for depth in range(1, max_depth + 1):
-            print(f"Processing depth {depth}...")
-            depth_stats = self._process_depth(depth)
-            self.stats_by_depth[depth] = depth_stats
-
-            # Update cumulative stats
-            self.cumulative_stats.total_legal_moves += depth_stats.total_legal_moves
-            self.cumulative_stats.unique_canonical_states += (
-                depth_stats.unique_canonical_states
+        Raises:
+            ValueError: If max_depth is invalid
+            AnalysisError: If analysis fails during execution
+        """
+        # Input validation
+        if not isinstance(max_depth, int):
+            raise ValueError(
+                f"max_depth must be an integer, got {type(max_depth).__name__}"
             )
-            self.cumulative_stats.player_0_wins += depth_stats.player_0_wins
-            self.cumulative_stats.player_1_wins += depth_stats.player_1_wins
-            self.cumulative_stats.ongoing_games += depth_stats.ongoing_games
+        if max_depth < 1:
+            raise ValueError(f"max_depth must be at least 1, got {max_depth}")
+        if max_depth > MAX_ALLOWED_DEPTH:
+            raise ValueError(
+                f"max_depth cannot exceed {MAX_ALLOWED_DEPTH} (memory constraints), got {max_depth}"
+            )
 
-            # If no ongoing games, we've reached the end
-            if depth_stats.ongoing_games == 0:
-                print(f"Game tree analysis complete at depth {depth}")
-                break
+        try:
+            # Initialize with empty board
+            empty_bb = bb_from_qfen(EMPTY_BOARD_QFEN)
+            canonical_empty, _ = SymmetryHandler.find_canonical_form(empty_bb)
+            canonical_key = tuple(canonical_empty)
+
+            # Start with the empty state (depth 0, player 0's turn)
+            initial_state = CanonicalState(
+                canonical_bb=canonical_key,
+                representative_bb=canonical_key,  # Empty board is its own representative
+                multiplicity=1,
+                player_turn=INITIAL_PLAYER,
+                depth=0,
+            )
+
+            self.canonical_states[canonical_key] = initial_state
+            self.state_queue = [initial_state]
+
+            # Process each depth level
+            for depth in range(1, max_depth + 1):
+                print(f"Processing depth {depth}...")
+
+                try:
+                    depth_stats = self._process_depth(depth)
+                    self.stats_by_depth[depth] = depth_stats
+                except Exception as e:
+                    raise AnalysisError(f"Analysis failed at depth {depth}: {e}") from e
+
+                # Update cumulative stats
+                self.cumulative_stats.total_legal_moves += depth_stats.total_legal_moves
+                self.cumulative_stats.unique_canonical_states += (
+                    depth_stats.unique_canonical_states
+                )
+                self.cumulative_stats.player_0_wins += depth_stats.player_0_wins
+                self.cumulative_stats.player_1_wins += depth_stats.player_1_wins
+                self.cumulative_stats.ongoing_games += depth_stats.ongoing_games
+
+                # If no ongoing games, we've reached the end
+                if depth_stats.ongoing_games == 0:
+                    print(f"Game tree analysis complete at depth {depth}")
+                    break
+
+        except AnalysisError:
+            # Re-raise analysis errors as-is
+            raise
+        except Exception as e:
+            # Wrap unexpected errors
+            raise AnalysisError(f"Unexpected error during analysis: {e}") from e
 
     def _process_depth(self, target_depth: int) -> GameStats:
         """Process all states at a specific depth."""
@@ -288,18 +332,39 @@ class SymmetryTable:
 
 
 def analyze_symmetry_reduction(
-    max_depth: int = 16, output_file: Optional[str] = None
+    max_depth: int = DEFAULT_MAX_DEPTH, output_file: Optional[str] = None
 ) -> SymmetryTable:
     """
     Perform comprehensive symmetry reduction analysis.
 
     Args:
-        max_depth: Maximum depth to analyze
+        max_depth: Maximum depth to analyze (must be between 1 and 16)
         output_file: Optional file to save the analysis table
 
     Returns:
         SymmetryTable with complete analysis
+
+    Raises:
+        ValueError: If max_depth is invalid
+        AnalysisError: If analysis fails during execution
+        IOError: If output_file cannot be written
     """
+    # Input validation
+    if not isinstance(max_depth, int):
+        raise ValueError(
+            f"max_depth must be an integer, got {type(max_depth).__name__}"
+        )
+    if max_depth < 1:
+        raise ValueError(f"max_depth must be at least 1, got {max_depth}")
+    if max_depth > MAX_ALLOWED_DEPTH:
+        raise ValueError(
+            f"max_depth cannot exceed {MAX_ALLOWED_DEPTH} (memory constraints), got {max_depth}"
+        )
+    if output_file is not None and not isinstance(output_file, str):
+        raise ValueError(
+            f"output_file must be a string or None, got {type(output_file).__name__}"
+        )
+
     print("Starting symmetry reduction analysis...")
     table = SymmetryTable()
     table.analyze_game_tree(max_depth)
@@ -308,9 +373,12 @@ def analyze_symmetry_reduction(
     table_content = table.generate_table()
 
     if output_file:
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(table_content)
-        print(f"Analysis saved to {output_file}")
+        try:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(table_content)
+            print(f"Analysis saved to {output_file}")
+        except IOError as e:
+            raise IOError(f"Failed to write analysis to {output_file}: {e}") from e
 
     print("Analysis complete!")
     return table

@@ -3,6 +3,7 @@
 Unit tests for game_stats module to debug the symmetry analysis.
 """
 
+import pytest
 from quantik_core import apply_move, SymmetryHandler, generate_legal_moves, Move
 from quantik_core.game_stats import SymmetryTable, CanonicalState
 from quantik_core.qfen import bb_from_qfen
@@ -331,3 +332,97 @@ class TestGameStats:
             assert (
                 state.player_turn == 1
             ), f"Depth 3 should be player 1's turn, got player {state.player_turn}"
+
+
+class TestInputValidation:
+    """Test suite for input validation and error handling."""
+
+    def test_analyze_game_tree_invalid_max_depth_type(self):
+        """Test that analyze_game_tree raises ValueError for invalid max_depth type."""
+        import pytest
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            table.analyze_game_tree("invalid")  # type: ignore
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            table.analyze_game_tree(3.14)  # type: ignore
+
+    def test_analyze_game_tree_invalid_max_depth_value(self):
+        """Test that analyze_game_tree raises ValueError for invalid max_depth values."""
+        import pytest
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            table.analyze_game_tree(0)
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            table.analyze_game_tree(-1)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            table.analyze_game_tree(17)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            table.analyze_game_tree(100)
+
+    def test_analyze_game_tree_valid_edge_values(self):
+        """Test that analyze_game_tree accepts valid edge values."""
+        from quantik_core.game_stats import SymmetryTable
+
+        table = SymmetryTable()
+
+        # Should not raise for valid minimum
+        table.analyze_game_tree(1)
+
+        # Reset table
+        table = SymmetryTable()
+
+        # Should not raise for a reasonable test depth (not the actual maximum!)
+        table.analyze_game_tree(3)  # Use depth 3 instead of 16 for testing
+
+    def test_analyze_symmetry_reduction_invalid_max_depth(self):
+        """Test that analyze_symmetry_reduction validates max_depth properly."""
+        import pytest
+        from quantik_core.game_stats import analyze_symmetry_reduction
+
+        with pytest.raises(ValueError, match="max_depth must be an integer"):
+            analyze_symmetry_reduction("invalid")  # type: ignore
+
+        with pytest.raises(ValueError, match="max_depth must be at least 1"):
+            analyze_symmetry_reduction(0)
+
+        with pytest.raises(ValueError, match="max_depth cannot exceed 16"):
+            analyze_symmetry_reduction(17)
+
+    def test_analyze_symmetry_reduction_invalid_output_file(self):
+        """Test that analyze_symmetry_reduction validates output_file properly."""
+        import pytest
+        from quantik_core.game_stats import analyze_symmetry_reduction
+
+        with pytest.raises(ValueError, match="output_file must be a string or None"):
+            analyze_symmetry_reduction(1, 123)  # type: ignore
+
+        with pytest.raises(ValueError, match="output_file must be a string or None"):
+            analyze_symmetry_reduction(1, [])  # type: ignore
+
+    def test_constants_defined(self):
+        """Test that module constants are properly defined."""
+        from quantik_core import game_stats
+
+        assert hasattr(game_stats, "DEFAULT_MAX_DEPTH")
+        assert hasattr(game_stats, "MAX_ALLOWED_DEPTH")
+        assert hasattr(game_stats, "INITIAL_PLAYER")
+        assert hasattr(game_stats, "EMPTY_BOARD_QFEN")
+        assert hasattr(game_stats, "AnalysisError")
+
+        assert game_stats.DEFAULT_MAX_DEPTH == 12
+        assert game_stats.MAX_ALLOWED_DEPTH == 16
+        assert game_stats.INITIAL_PLAYER == 0
+        assert game_stats.EMPTY_BOARD_QFEN == "..../..../..../...."
+
+        # Test that AnalysisError is an Exception
+        assert issubclass(game_stats.AnalysisError, Exception)
