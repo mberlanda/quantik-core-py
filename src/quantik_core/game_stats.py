@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Game statistics and symmetry analysis for Quantik with comprehensive game tree analysis."""
 
-from typing import Dict, Tuple, List, Optional, NamedTuple, cast
+from typing import Dict, Tuple, List, Optional, NamedTuple, cast, Protocol
 from dataclasses import dataclass
 
 from quantik_core.plugins.validation import bb_check_game_winner, WinStatus
@@ -10,8 +10,48 @@ from quantik_core import Bitboard, apply_move, SymmetryHandler, generate_legal_m
 from quantik_core.qfen import bb_from_qfen
 
 
+class StatsProtocol(Protocol):
+    """Protocol defining the interface for statistics objects."""
+
+    @property
+    def total_legal_moves(self) -> int:
+        """Total number of legal moves."""
+        ...
+
+    @property
+    def unique_canonical_states(self) -> int:
+        """Number of unique canonical states."""
+        ...
+
+
+class StatsCalculationMixin:
+    """Mixin providing common statistical calculations."""
+
+    @property
+    def reduction_factor(self) -> float:
+        """Calculate reduction factor."""
+        self_stats = cast(StatsProtocol, self)
+        return (
+            self_stats.total_legal_moves / self_stats.unique_canonical_states
+            if self_stats.unique_canonical_states > 0
+            else 0
+        )
+
+    @property
+    def space_savings_percent(self) -> float:
+        """Calculate space savings percentage."""
+        self_stats = cast(StatsProtocol, self)
+        if self_stats.total_legal_moves == 0:
+            return 0
+        return (
+            (self_stats.total_legal_moves - self_stats.unique_canonical_states)
+            / self_stats.total_legal_moves
+            * 100
+        )
+
+
 @dataclass
-class GameStats:
+class GameStats(StatsCalculationMixin):
     """Statistics for a game state at a specific depth."""
 
     depth: int
@@ -21,29 +61,9 @@ class GameStats:
     player_1_wins: int
     ongoing_games: int
 
-    @property
-    def reduction_factor(self) -> float:
-        """Calculate reduction factor."""
-        return (
-            self.total_legal_moves / self.unique_canonical_states
-            if self.unique_canonical_states > 0
-            else 0
-        )
-
-    @property
-    def space_savings_percent(self) -> float:
-        """Calculate space savings percentage."""
-        if self.total_legal_moves == 0:
-            return 0
-        return (
-            (self.total_legal_moves - self.unique_canonical_states)
-            / self.total_legal_moves
-            * 100
-        )
-
 
 @dataclass
-class CumulativeStats:
+class CumulativeStats(StatsCalculationMixin):
     """Cumulative statistics across all depths."""
 
     total_legal_moves: int = 0
@@ -51,26 +71,6 @@ class CumulativeStats:
     player_0_wins: int = 0
     player_1_wins: int = 0
     ongoing_games: int = 0
-
-    @property
-    def reduction_factor(self) -> float:
-        """Calculate cumulative reduction factor."""
-        return (
-            self.total_legal_moves / self.unique_canonical_states
-            if self.unique_canonical_states > 0
-            else 0
-        )
-
-    @property
-    def space_savings_percent(self) -> float:
-        """Calculate cumulative space savings percentage."""
-        if self.total_legal_moves == 0:
-            return 0
-        return (
-            (self.total_legal_moves - self.unique_canonical_states)
-            / self.total_legal_moves
-            * 100
-        )
 
 
 class CanonicalState(NamedTuple):
