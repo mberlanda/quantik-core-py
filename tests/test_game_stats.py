@@ -339,7 +339,6 @@ class TestInputValidation:
 
     def test_analyze_game_tree_invalid_max_depth_type(self):
         """Test that analyze_game_tree raises ValueError for invalid max_depth type."""
-        import pytest
         from quantik_core.game_stats import SymmetryTable
 
         table = SymmetryTable()
@@ -352,7 +351,6 @@ class TestInputValidation:
 
     def test_analyze_game_tree_invalid_max_depth_value(self):
         """Test that analyze_game_tree raises ValueError for invalid max_depth values."""
-        import pytest
         from quantik_core.game_stats import SymmetryTable
 
         table = SymmetryTable()
@@ -386,7 +384,6 @@ class TestInputValidation:
 
     def test_analyze_symmetry_reduction_invalid_max_depth(self):
         """Test that analyze_symmetry_reduction validates max_depth properly."""
-        import pytest
         from quantik_core.game_stats import analyze_symmetry_reduction
 
         with pytest.raises(ValueError, match="max_depth must be an integer"):
@@ -400,7 +397,6 @@ class TestInputValidation:
 
     def test_analyze_symmetry_reduction_invalid_output_file(self):
         """Test that analyze_symmetry_reduction validates output_file properly."""
-        import pytest
         from quantik_core.game_stats import analyze_symmetry_reduction
 
         with pytest.raises(ValueError, match="output_file must be a string or None"):
@@ -421,8 +417,13 @@ class TestInputValidation:
 
         assert game_stats.DEFAULT_MAX_DEPTH == 12
         assert game_stats.MAX_ALLOWED_DEPTH == 16
+        assert game_stats.MIN_ALLOWED_DEPTH == 1
         assert game_stats.INITIAL_PLAYER == 0
         assert game_stats.EMPTY_BOARD_QFEN == "..../..../..../...."
+        assert game_stats.PLAYER_0 == 0
+        assert game_stats.PLAYER_1 == 1
+        assert game_stats.TOTAL_PLAYERS == 2
+        assert game_stats.PERCENTAGE_MULTIPLIER == 100
 
         # Test that AnalysisError is an Exception
         assert issubclass(game_stats.AnalysisError, Exception)

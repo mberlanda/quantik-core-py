@@ -12,8 +12,19 @@ from quantik_core.qfen import bb_from_qfen
 # Module constants
 DEFAULT_MAX_DEPTH = 12  # limit due heuristic of states with legal moves
 MAX_ALLOWED_DEPTH = 16  # limit due to board size and total states
+MIN_ALLOWED_DEPTH = 1  # minimum meaningful depth for analysis
 INITIAL_PLAYER = 0
 EMPTY_BOARD_QFEN = "..../..../..../...."
+
+# Game constants
+PLAYER_0 = 0
+PLAYER_1 = 1
+TOTAL_PLAYERS = 2
+PERCENTAGE_MULTIPLIER = 100
+
+# Analysis constants
+INITIAL_DEPTH = 0
+INITIAL_MULTIPLICITY = 1
 
 
 class AnalysisError(Exception):
@@ -58,7 +69,7 @@ class StatsCalculationMixin:
         return (
             (self_stats.total_legal_moves - self_stats.unique_canonical_states)
             / self_stats.total_legal_moves
-            * 100
+            * PERCENTAGE_MULTIPLIER
         )
 
 
@@ -114,66 +125,78 @@ class SymmetryTable:
             ValueError: If max_depth is invalid
             AnalysisError: If analysis fails during execution
         """
-        # Input validation
-        if not isinstance(max_depth, int):
-            raise ValueError(
-                f"max_depth must be an integer, got {type(max_depth).__name__}"
-            )
-        if max_depth < 1:
-            raise ValueError(f"max_depth must be at least 1, got {max_depth}")
-        if max_depth > MAX_ALLOWED_DEPTH:
-            raise ValueError(
-                f"max_depth cannot exceed {MAX_ALLOWED_DEPTH} (memory constraints), got {max_depth}"
-            )
+        self._validate_max_depth(max_depth)
 
         try:
-            # Initialize with empty board
-            empty_bb = bb_from_qfen(EMPTY_BOARD_QFEN)
-            canonical_empty, _ = SymmetryHandler.find_canonical_form(empty_bb)
-            canonical_key = tuple(canonical_empty)
-
-            # Start with the empty state (depth 0, player 0's turn)
-            initial_state = CanonicalState(
-                canonical_bb=canonical_key,
-                representative_bb=canonical_key,  # Empty board is its own representative
-                multiplicity=1,
-                player_turn=INITIAL_PLAYER,
-                depth=0,
-            )
-
-            self.canonical_states[canonical_key] = initial_state
-            self.state_queue = [initial_state]
-
-            # Process each depth level
-            for depth in range(1, max_depth + 1):
-                print(f"Processing depth {depth}...")
-
-                try:
-                    depth_stats = self._process_depth(depth)
-                    self.stats_by_depth[depth] = depth_stats
-                except Exception as e:
-                    raise AnalysisError(f"Analysis failed at depth {depth}: {e}") from e
-
-                # Update cumulative stats
-                self.cumulative_stats.total_legal_moves += depth_stats.total_legal_moves
-                self.cumulative_stats.unique_canonical_states += (
-                    depth_stats.unique_canonical_states
-                )
-                self.cumulative_stats.player_0_wins += depth_stats.player_0_wins
-                self.cumulative_stats.player_1_wins += depth_stats.player_1_wins
-                self.cumulative_stats.ongoing_games += depth_stats.ongoing_games
-
-                # If no ongoing games, we've reached the end
-                if depth_stats.ongoing_games == 0:
-                    print(f"Game tree analysis complete at depth {depth}")
-                    break
-
+            self._initialize_analysis()
+            self._process_depth_levels(max_depth)
         except AnalysisError:
             # Re-raise analysis errors as-is
             raise
         except Exception as e:
             # Wrap unexpected errors
             raise AnalysisError(f"Unexpected error during analysis: {e}") from e
+
+    def _validate_max_depth(self, max_depth: int) -> None:
+        """Validate the max_depth parameter."""
+        if not isinstance(max_depth, int):
+            raise ValueError(
+                f"max_depth must be an integer, got {type(max_depth).__name__}"
+            )
+        if max_depth < MIN_ALLOWED_DEPTH:
+            raise ValueError(
+                f"max_depth must be at least {MIN_ALLOWED_DEPTH}, got {max_depth}"
+            )
+        if max_depth > MAX_ALLOWED_DEPTH:
+            raise ValueError(
+                f"max_depth cannot exceed {MAX_ALLOWED_DEPTH} (memory constraints), got {max_depth}"
+            )
+
+    def _initialize_analysis(self) -> None:
+        """Initialize the analysis with the empty board state."""
+        empty_bb = bb_from_qfen(EMPTY_BOARD_QFEN)
+        canonical_empty, _ = SymmetryHandler.find_canonical_form(empty_bb)
+        canonical_key = tuple(canonical_empty)
+
+        # Start with the empty state (depth 0, player 0's turn)
+        initial_state = CanonicalState(
+            canonical_bb=canonical_key,
+            representative_bb=canonical_key,  # Empty board is its own representative
+            multiplicity=INITIAL_MULTIPLICITY,
+            player_turn=INITIAL_PLAYER,
+            depth=INITIAL_DEPTH,
+        )
+
+        self.canonical_states[canonical_key] = initial_state
+        self.state_queue = [initial_state]
+
+    def _process_depth_levels(self, max_depth: int) -> None:
+        """Process each depth level in the game tree."""
+        for depth in range(1, max_depth + 1):
+            print(f"Processing depth {depth}...")
+
+            try:
+                depth_stats = self._process_depth(depth)
+                self.stats_by_depth[depth] = depth_stats
+            except Exception as e:
+                raise AnalysisError(f"Analysis failed at depth {depth}: {e}") from e
+
+            self._update_cumulative_stats(depth_stats)
+
+            # If no ongoing games, we've reached the end
+            if depth_stats.ongoing_games == 0:
+                print(f"Game tree analysis complete at depth {depth}")
+                break
+
+    def _update_cumulative_stats(self, depth_stats: GameStats) -> None:
+        """Update cumulative statistics with depth results."""
+        self.cumulative_stats.total_legal_moves += depth_stats.total_legal_moves
+        self.cumulative_stats.unique_canonical_states += (
+            depth_stats.unique_canonical_states
+        )
+        self.cumulative_stats.player_0_wins += depth_stats.player_0_wins
+        self.cumulative_stats.player_1_wins += depth_stats.player_1_wins
+        self.cumulative_stats.ongoing_games += depth_stats.ongoing_games
 
     def _process_depth(self, target_depth: int) -> GameStats:
         """Process all states at a specific depth."""
@@ -202,7 +225,7 @@ class SymmetryTable:
             ]
 
             if not legal_moves:
-                if (current_player + 2) % 2 == 0:
+                if (current_player + TOTAL_PLAYERS) % TOTAL_PLAYERS == PLAYER_0:
                     player_1_wins += parent_state.multiplicity
                 else:
                     player_0_wins += parent_state.multiplicity
@@ -215,7 +238,7 @@ class SymmetryTable:
             for move in legal_moves:
                 new_bb = apply_move(parent_bb, move)
                 if bb_check_game_winner(new_bb) != WinStatus.NO_WIN:
-                    if move.player == 0:
+                    if move.player == PLAYER_0:
                         player_0_wins += parent_state.multiplicity
                     else:
                         player_1_wins += parent_state.multiplicity
@@ -228,10 +251,10 @@ class SymmetryTable:
                 canonical_key = tuple(canonical_bb)
 
                 # Determine next player (accounting for potential color swap in canonical form)
-                next_player = (1 + parent_state.player_turn) % 2
+                next_player = (PLAYER_1 + parent_state.player_turn) % TOTAL_PLAYERS
                 if transformation.color_swap:
                     # If colors were swapped in canonical form, adjust the player turn
-                    next_player = 1 - next_player
+                    next_player = PLAYER_1 - next_player
 
                 # Add or update canonical state
                 if canonical_key in new_states:
@@ -354,8 +377,10 @@ def analyze_symmetry_reduction(
         raise ValueError(
             f"max_depth must be an integer, got {type(max_depth).__name__}"
         )
-    if max_depth < 1:
-        raise ValueError(f"max_depth must be at least 1, got {max_depth}")
+    if max_depth < MIN_ALLOWED_DEPTH:
+        raise ValueError(
+            f"max_depth must be at least {MIN_ALLOWED_DEPTH}, got {max_depth}"
+        )
     if max_depth > MAX_ALLOWED_DEPTH:
         raise ValueError(
             f"max_depth cannot exceed {MAX_ALLOWED_DEPTH} (memory constraints), got {max_depth}"
