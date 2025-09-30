@@ -29,7 +29,11 @@ keywords = [
     "game-engine", "mcts", "game-theory", "combinatorial-games"
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "psutil>=5.9.0",  # For memory profiling
+    "numpy>=1.21.0",  # For compact array storage
+    "zstandard>=0.19.0",  # For state compression
+]
 
 [project.optional-dependencies]
 dev = [
