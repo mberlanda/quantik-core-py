@@ -19,7 +19,7 @@ This provides:
 Note: Uses 16-bit integers (2 bytes each) to support Quantik bitboard values up to 65535.
 """
 
-from typing import Union
+from typing import Union, Iterator
 import struct
 from quantik_core.commons import Bitboard
 from quantik_core.qfen import bb_from_qfen, bb_to_qfen
@@ -105,7 +105,21 @@ class CompactBitboard:
         bb_tuple = list(self.to_tuple())
         bitboard_idx = player * 4 + shape
         bb_tuple[bitboard_idx] |= 1 << position
-        return CompactBitboard.from_tuple(tuple(bb_tuple))
+        # Ensure we have exactly 8 values for the tuple
+        if len(bb_tuple) != 8:
+            raise ValueError(f"Expected 8 bitboard values, got {len(bb_tuple)}")
+        return CompactBitboard.from_tuple(
+            (
+                bb_tuple[0],
+                bb_tuple[1],
+                bb_tuple[2],
+                bb_tuple[3],
+                bb_tuple[4],
+                bb_tuple[5],
+                bb_tuple[6],
+                bb_tuple[7],
+            )
+        )
 
     def is_position_occupied(self, position: int) -> bool:
         """Check if a position is occupied by any piece."""
@@ -113,18 +127,30 @@ class CompactBitboard:
             raise ValueError(f"Invalid position {position}, must be 0-15")
         return bool(self.get_occupied_mask() & (1 << position))
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[int]:
         """Iterate over the 8 bitboard values."""
         for i in range(8):
             yield self[i]
 
     @classmethod
-    def from_any(cls, data) -> "CompactBitboard":
+    def from_any(cls, data: Union["CompactBitboard", Bitboard, bytes, bytearray]) -> "CompactBitboard":
         """Create CompactBitboard from various input types."""
         if isinstance(data, CompactBitboard):
             return data
         elif isinstance(data, (tuple, list)) and len(data) == 8:
-            return cls.from_tuple(tuple(data))
+            # Ensure we have the correct type for from_tuple
+            return cls.from_tuple(
+                (
+                    data[0],
+                    data[1],
+                    data[2],
+                    data[3],
+                    data[4],
+                    data[5],
+                    data[6],
+                    data[7],
+                )
+            )
         elif isinstance(data, (bytes, bytearray)):
             return cls.from_bytes(data)
         else:

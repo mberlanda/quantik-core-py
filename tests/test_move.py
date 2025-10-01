@@ -11,6 +11,7 @@ from quantik_core.move import (
     generate_legal_moves_list,
     count_pieces_by_player_shape,
 )
+from quantik_core.memory.bitboard_compact import CompactBitboard
 from quantik_core.state_validator import ValidationResult
 from quantik_core.qfen import bb_from_qfen
 
@@ -362,6 +363,88 @@ class TestCountPiecesByPlayerShape:
         # Player 1: b@1, c@4 -> [0,1,1,0]
         assert player0_counts == [1, 0, 0, 1]  # A, D for player 0
         assert player1_counts == [0, 1, 1, 0]  # b, c for player 1
+
+
+class TestCompactBitboardIntegration:
+    """Test move operations with CompactBitboard."""
+
+    def test_validate_move_compact_bitboard(self):
+        """Test validating moves with CompactBitboard input."""
+        bb_tuple = bb_from_qfen(EMPTY_BOARD_QFEN, validate=True)
+        compact_bb = CompactBitboard.from_tuple(bb_tuple)
+        move = Move(player=0, shape=0, position=0)
+
+        # Both should give same result
+        result_tuple = validate_move(bb_tuple, move)
+        result_compact = validate_move(compact_bb, move)
+
+        assert result_tuple.is_valid == result_compact.is_valid
+        assert result_tuple.error == result_compact.error
+        assert result_tuple.new_bb == result_compact.new_bb
+
+    def test_apply_move_compact_bitboard(self):
+        """Test applying moves with CompactBitboard input."""
+        bb_tuple = bb_from_qfen(EMPTY_BOARD_QFEN, validate=True)
+        compact_bb = CompactBitboard.from_tuple(bb_tuple)
+        move = Move(player=0, shape=0, position=0)
+
+        # Apply move to tuple
+        result_tuple = apply_move(bb_tuple, move)
+
+        # Apply move to CompactBitboard
+        result_compact = apply_move(compact_bb, move)
+
+        # Results should be equivalent
+        assert isinstance(result_compact, CompactBitboard)
+        assert result_compact.to_tuple() == result_tuple
+
+    def test_generate_legal_moves_compact_bitboard(self):
+        """Test legal move generation with CompactBitboard input."""
+        bb_tuple = bb_from_qfen(EMPTY_BOARD_QFEN, validate=True)
+        compact_bb = CompactBitboard.from_tuple(bb_tuple)
+
+        # Both should generate same moves
+        player_tuple, moves_tuple = generate_legal_moves(bb_tuple)
+        player_compact, moves_compact = generate_legal_moves(compact_bb)
+
+        assert player_tuple == player_compact
+        assert moves_tuple.keys() == moves_compact.keys()
+
+        # Check all moves are identical
+        for shape in moves_tuple:
+            assert len(moves_tuple[shape]) == len(moves_compact[shape])
+            for move_tuple, move_compact in zip(
+                moves_tuple[shape], moves_compact[shape]
+            ):
+                assert move_tuple == move_compact
+
+    def test_complex_game_scenario_compact_bitboard(self):
+        """Test complex game scenario with CompactBitboard."""
+        # Start with partially filled board
+        qfen = "A.../b.../..c./...D"
+        bb_tuple = bb_from_qfen(qfen, validate=True)
+        compact_bb = CompactBitboard.from_tuple(bb_tuple)
+
+        # Generate legal moves for both representations
+        player_tuple, moves_tuple = generate_legal_moves(bb_tuple)
+        player_compact, moves_compact = generate_legal_moves(compact_bb)
+
+        # Should have same current player
+        assert player_tuple == player_compact
+
+        # Should have same number of legal moves for each shape
+        for shape in range(4):
+            assert len(moves_tuple[shape]) == len(moves_compact[shape])
+
+        # Apply a move to both and verify results match
+        if moves_tuple[0]:  # If shape A has legal moves
+            test_move = moves_tuple[0][0]
+
+            result_tuple = apply_move(bb_tuple, test_move)
+            result_compact = apply_move(compact_bb, test_move)
+
+            assert isinstance(result_compact, CompactBitboard)
+            assert result_compact.to_tuple() == result_tuple
 
 
 if __name__ == "__main__":
