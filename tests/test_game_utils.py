@@ -33,6 +33,10 @@ from src.quantik_core.game_utils import (
     validate_shape,
     validate_position,
     validate_move_parameters,
+    create_position_mask,
+    position_to_coordinates,
+    coordinates_to_position,
+    is_position_occupied,
 )
 from src.quantik_core.commons import Bitboard
 from src.quantik_core.qfen import bb_from_qfen
@@ -494,3 +498,85 @@ class TestGameUtilsValidation:
             calculate_bitboard_index(0, -1)
         with pytest.raises(ValueError, match="Invalid shape"):
             calculate_bitboard_index(0, 4)
+
+
+class TestGameUtilsPositionUtilities:
+    """Test position and bit manipulation utilities."""
+
+    def test_create_position_mask(self):
+        """Test position mask creation."""
+        assert create_position_mask(0) == 1
+        assert create_position_mask(1) == 2
+        assert create_position_mask(2) == 4
+        assert create_position_mask(15) == 32768  # 2^15
+        
+    def test_create_position_mask_invalid(self):
+        """Test invalid position mask creation."""
+        with pytest.raises(ValueError, match="Invalid position"):
+            create_position_mask(-1)
+        with pytest.raises(ValueError, match="Invalid position"):
+            create_position_mask(16)
+
+    def test_position_to_coordinates(self):
+        """Test position to coordinates conversion."""
+        assert position_to_coordinates(0) == (0, 0)
+        assert position_to_coordinates(3) == (0, 3)
+        assert position_to_coordinates(4) == (1, 0)
+        assert position_to_coordinates(15) == (3, 3)
+        
+    def test_position_to_coordinates_invalid(self):
+        """Test invalid position to coordinates conversion."""
+        with pytest.raises(ValueError, match="Invalid position"):
+            position_to_coordinates(-1)
+        with pytest.raises(ValueError, match="Invalid position"):
+            position_to_coordinates(16)
+
+    def test_coordinates_to_position(self):
+        """Test coordinates to position conversion."""
+        assert coordinates_to_position(0, 0) == 0
+        assert coordinates_to_position(0, 3) == 3
+        assert coordinates_to_position(1, 0) == 4
+        assert coordinates_to_position(3, 3) == 15
+        
+    def test_coordinates_to_position_invalid(self):
+        """Test invalid coordinates to position conversion."""
+        with pytest.raises(ValueError, match="Invalid row"):
+            coordinates_to_position(-1, 0)
+        with pytest.raises(ValueError, match="Invalid row"):
+            coordinates_to_position(4, 0)
+        with pytest.raises(ValueError, match="Invalid col"):
+            coordinates_to_position(0, -1)
+        with pytest.raises(ValueError, match="Invalid col"):
+            coordinates_to_position(0, 4)
+
+    def test_coordinates_position_roundtrip(self):
+        """Test round-trip conversion between positions and coordinates."""
+        for pos in range(16):
+            row, col = position_to_coordinates(pos)
+            assert coordinates_to_position(row, col) == pos
+
+    def test_is_position_occupied_empty_board(self):
+        """Test position occupancy on empty board."""
+        bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
+        for pos in range(16):
+            assert not is_position_occupied(bb, pos)
+
+    def test_is_position_occupied_with_pieces(self):
+        """Test position occupancy with pieces."""
+        # Place a piece at position 0 for player 0 shape 0
+        bb: Bitboard = (1, 0, 0, 0, 0, 0, 0, 0)  # bit 0 set in bitboard 0
+        assert is_position_occupied(bb, 0)
+        assert not is_position_occupied(bb, 1)
+        
+        # Place piece at position 5 for player 1 shape 2
+        bb = (0, 0, 0, 0, 0, 0, 32, 0)  # bit 5 set in bitboard 6 (player 1, shape 2)
+        assert is_position_occupied(bb, 5)
+        assert not is_position_occupied(bb, 4)
+
+    def test_is_position_occupied_invalid(self):
+        """Test position occupancy with invalid position."""
+        bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
+        with pytest.raises(ValueError, match="Invalid position"):
+            is_position_occupied(bb, -1)
+        with pytest.raises(ValueError, match="Invalid position"):
+            is_position_occupied(bb, 16)

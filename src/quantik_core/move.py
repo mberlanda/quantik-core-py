@@ -12,6 +12,8 @@ from .game_utils import (
     count_pieces_by_shape_lists,
     calculate_bitboard_index,
     validate_move_parameters,
+    create_position_mask,
+    is_position_occupied,
 )
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
@@ -97,14 +99,13 @@ def validate_move(
         return MoveValidationResult(False, ValidationResult.NOT_PLAYER_TURN)
 
     # Check if position is empty
-    position_mask = 1 << move.position
-    for bb_value in bb_tuple:
-        if bb_value & position_mask:
-            return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
+    if is_position_occupied(cast(Bitboard, bb_tuple), move.position):
+        return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
     # Create new state with the move applied
     lst_bb = list(bb_tuple)
     bitboard_index = calculate_bitboard_index(move.player, move.shape)
+    position_mask = create_position_mask(move.position)
     lst_bb[bitboard_index] |= position_mask
 
     # Validate the new bitboard representation
@@ -140,8 +141,8 @@ def apply_move(
     Returns:
         New state with the move applied (same type as input)
     """
-    position_mask = 1 << move.position
     bitboard_index = calculate_bitboard_index(move.player, move.shape)
+    position_mask = create_position_mask(move.position)
 
     # Handle CompactBitboard
     if hasattr(bb, "apply_move_functional"):  # It's a CompactBitboard
@@ -228,11 +229,11 @@ def generate_legal_moves(
 
         # For each position on the board
         for position in range(16):
-            position_mask = 1 << position
-
             # Check if position is already occupied
-            if any(bb_value & position_mask for bb_value in bb_tuple):
+            if is_position_occupied(cast(Bitboard, bb_tuple), position):
                 continue
+
+            position_mask = create_position_mask(position)
 
             # Check if this position conflicts with opponent's same shape on any win line
             is_legal = True

@@ -1,14 +1,15 @@
 """
-Common game utilities for piece counting, endgame detection, and state analysis.
+Consolidated game utilities for Quantik.
 
-This module provides consolidated functions that were previously duplicated
-across move.py, board.py, plugins/validation.py, and plugins/endgame.py.
+This module serves as the central hub for shared game functionality,
+eliminating duplication across the codebase while maintaining full
+backward compatibility.
 """
 
-from enum import IntEnum
 from functools import lru_cache
-from typing import List, Tuple
-from .commons import Bitboard, WIN_MASKS, MAX_PIECES_PER_SHAPE
+from enum import IntEnum
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from .commons import Bitboard, WIN_MASKS
 
 
 # ===== GAME CONSTANTS =====
@@ -343,3 +344,76 @@ def validate_move_parameters(player: int, shape: int, position: int) -> None:
     validate_player(player)
     validate_shape(shape)
     validate_position(position)
+
+
+# ============================================================================
+# Position and Bit Manipulation Utilities
+# ============================================================================
+
+def create_position_mask(position: int) -> int:
+    """Create bit mask for a specific position.
+    
+    Args:
+        position: Position index (0-15)
+        
+    Returns:
+        Bit mask with only the specified position bit set
+        
+    Raises:
+        ValueError: If position is invalid
+    """
+    validate_position(position)
+    return 1 << position
+
+
+def position_to_coordinates(position: int) -> tuple[int, int]:
+    """Convert position index to row and column coordinates.
+    
+    Args:
+        position: Position index (0-15)
+        
+    Returns:
+        Tuple of (row, column) where both are 0-3
+        
+    Raises:
+        ValueError: If position is invalid
+    """
+    validate_position(position)
+    return position // 4, position % 4
+
+
+def coordinates_to_position(row: int, col: int) -> int:
+    """Convert row and column coordinates to position index.
+    
+    Args:
+        row: Row index (0-3)
+        col: Column index (0-3)
+        
+    Returns:
+        Position index (0-15)
+        
+    Raises:
+        ValueError: If coordinates are invalid
+    """
+    if not (0 <= row <= 3):
+        raise ValueError(f"Invalid row: {row}, must be 0-3")
+    if not (0 <= col <= 3):
+        raise ValueError(f"Invalid col: {col}, must be 0-3")
+    return row * 4 + col
+
+
+def is_position_occupied(bb: "Bitboard", position: int) -> bool:
+    """Check if any piece occupies the specified position.
+    
+    Args:
+        bb: Bitboard to check
+        position: Position to check (0-15)
+        
+    Returns:
+        True if position is occupied by any piece
+        
+    Raises:
+        ValueError: If position is invalid
+    """
+    position_mask = create_position_mask(position)
+    return any(bb_value & position_mask for bb_value in bb)
