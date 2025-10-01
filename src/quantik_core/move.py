@@ -54,13 +54,11 @@ class MoveValidationResult:
 
 
 @overload
-def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult:
-    ...
+def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult: ...
 
 
 @overload
-def validate_move(bb: "CompactBitboard", move: Move) -> MoveValidationResult:
-    ...
+def validate_move(bb: "CompactBitboard", move: Move) -> MoveValidationResult: ...
 
 
 def validate_move(
@@ -83,7 +81,9 @@ def validate_move(
     """
     # Convert CompactBitboard to tuple if needed for compatibility
     bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(getattr(bb, "to_tuple", None)):  # It's a CompactBitboard
+    if hasattr(bb, "to_tuple") and callable(
+        getattr(bb, "to_tuple", None)
+    ):  # It's a CompactBitboard
         bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
     else:
         bb_tuple = bb  # type: ignore[assignment]
@@ -118,13 +118,11 @@ def validate_move(
 
 
 @overload
-def apply_move(bb: Bitboard, move: Move) -> Bitboard:
-    ...
+def apply_move(bb: Bitboard, move: Move) -> Bitboard: ...
 
 
 @overload
-def apply_move(bb: "CompactBitboard", move: Move) -> "CompactBitboard":
-    ...
+def apply_move(bb: "CompactBitboard", move: Move) -> "CompactBitboard": ...
 
 
 def apply_move(
@@ -163,15 +161,13 @@ def apply_move(
 @overload
 def generate_legal_moves(
     bb: Bitboard, player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]:
-    ...
+) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
 
 
 @overload
 def generate_legal_moves(
     bb: "CompactBitboard", player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]:
-    ...
+) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
 
 
 def generate_legal_moves(
@@ -196,7 +192,9 @@ def generate_legal_moves(
     """
     # Convert CompactBitboard to tuple if needed for compatibility
     bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(getattr(bb, "to_tuple", None)):  # It's a CompactBitboard
+    if hasattr(bb, "to_tuple") and callable(
+        getattr(bb, "to_tuple", None)
+    ):  # It's a CompactBitboard
         bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
     else:
         bb_tuple = bb  # type: ignore[assignment]

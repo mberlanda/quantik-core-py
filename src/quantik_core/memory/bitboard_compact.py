@@ -133,7 +133,9 @@ class CompactBitboard:
             yield self[i]
 
     @classmethod
-    def from_any(cls, data: Union["CompactBitboard", Bitboard, bytes, bytearray]) -> "CompactBitboard":
+    def from_any(
+        cls, data: Union["CompactBitboard", Bitboard, bytes, bytearray]
+    ) -> "CompactBitboard":
         """Create CompactBitboard from various input types."""
         if isinstance(data, CompactBitboard):
             return data
