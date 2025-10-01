@@ -25,6 +25,8 @@ EMPTY_BOARD_QFEN = "..../..../..../...."
 SHAPES_PER_PLAYER = 4
 TOTAL_SHAPES = 8  # 4 shapes * 2 players
 BOARD_SIZE = 16  # 4x4 grid
+TOTAL_POSITIONS = 16  # Total positions on the board
+MAX_PIECES_PER_SHAPE = 2  # Maximum pieces per shape per player
 
 
 class WinStatus(IntEnum):
@@ -272,5 +274,72 @@ def calculate_bitboard_index(player: int, shape: int) -> int:
 
     Returns:
         Bitboard index (0-7)
+        
+    Raises:
+        ValueError: If player or shape is invalid
     """
+    if player not in (0, 1):
+        raise ValueError(f"Invalid player {player}, must be 0 or 1")
+    if shape not in range(SHAPES_PER_PLAYER):
+        raise ValueError(f"Invalid shape {shape}, must be 0-{SHAPES_PER_PLAYER-1}")
+    
     return player * SHAPES_PER_PLAYER + shape
+
+
+# ============================================================================
+# Validation Utilities
+# ============================================================================
+
+def validate_player(player: int) -> None:
+    """Validate player parameter.
+    
+    Args:
+        player: Player ID to validate
+        
+    Raises:
+        ValueError: If player is invalid
+    """
+    if player not in (0, 1):
+        raise ValueError(f"Invalid player: {player}")
+
+
+def validate_shape(shape: int) -> None:
+    """Validate shape parameter.
+    
+    Args:
+        shape: Shape ID to validate
+        
+    Raises:
+        ValueError: If shape is invalid
+    """
+    if shape not in range(SHAPES_PER_PLAYER):
+        raise ValueError(f"Invalid shape: {shape}")
+
+
+def validate_position(position: int) -> None:
+    """Validate position parameter.
+    
+    Args:
+        position: Position to validate
+        
+    Raises:
+        ValueError: If position is invalid
+    """
+    if position not in range(TOTAL_POSITIONS):
+        raise ValueError(f"Invalid position: {position}")
+
+
+def validate_move_parameters(player: int, shape: int, position: int) -> None:
+    """Validate all move parameters.
+    
+    Args:
+        player: Player ID to validate
+        shape: Shape ID to validate
+        position: Position to validate
+        
+    Raises:
+        ValueError: If any parameter is invalid
+    """
+    validate_player(player)
+    validate_shape(shape)
+    validate_position(position)

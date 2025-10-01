@@ -24,9 +24,15 @@ from src.quantik_core.game_utils import (
     SHAPES_PER_PLAYER,
     TOTAL_SHAPES,
     BOARD_SIZE,
+    TOTAL_POSITIONS,
+    MAX_PIECES_PER_SHAPE,
     get_current_player_from_counts,
     validate_piece_counts,
     calculate_bitboard_index,
+    validate_player,
+    validate_shape,
+    validate_position,
+    validate_move_parameters,
 )
 from src.quantik_core.commons import Bitboard
 from src.quantik_core.qfen import bb_from_qfen
@@ -408,3 +414,83 @@ class TestGameUtilsValidation:
                 new_index = calculate_bitboard_index(player, shape)
                 old_index = shape if player == 0 else shape + 4
                 assert new_index == old_index
+
+
+class TestGameUtilsValidation:
+    """Test validation utility functions."""
+
+    def test_validate_player_valid(self):
+        """Test valid player validation."""
+        validate_player(0)  # Should not raise
+        validate_player(1)  # Should not raise
+
+    def test_validate_player_invalid(self):
+        """Test invalid player validation."""
+        with pytest.raises(ValueError, match="Invalid player"):
+            validate_player(-1)
+        with pytest.raises(ValueError, match="Invalid player"):
+            validate_player(2)
+
+    def test_validate_shape_valid(self):
+        """Test valid shape validation."""
+        for shape in range(4):
+            validate_shape(shape)  # Should not raise
+
+    def test_validate_shape_invalid(self):
+        """Test invalid shape validation."""
+        with pytest.raises(ValueError, match="Invalid shape"):
+            validate_shape(-1)
+        with pytest.raises(ValueError, match="Invalid shape"):
+            validate_shape(4)
+
+    def test_validate_position_valid(self):
+        """Test valid position validation."""
+        for position in range(16):
+            validate_position(position)  # Should not raise
+
+    def test_validate_position_invalid(self):
+        """Test invalid position validation."""
+        with pytest.raises(ValueError, match="Invalid position"):
+            validate_position(-1)
+        with pytest.raises(ValueError, match="Invalid position"):
+            validate_position(16)
+
+    def test_validate_move_parameters_valid(self):
+        """Test valid move parameter validation."""
+        validate_move_parameters(0, 0, 0)  # Should not raise
+        validate_move_parameters(1, 3, 15)  # Should not raise
+
+    def test_validate_move_parameters_invalid_player(self):
+        """Test move parameter validation with invalid player."""
+        with pytest.raises(ValueError, match="Invalid player"):
+            validate_move_parameters(-1, 0, 0)
+
+    def test_validate_move_parameters_invalid_shape(self):
+        """Test move parameter validation with invalid shape."""
+        with pytest.raises(ValueError, match="Invalid shape"):
+            validate_move_parameters(0, 4, 0)
+
+    def test_validate_move_parameters_invalid_position(self):
+        """Test move parameter validation with invalid position."""
+        with pytest.raises(ValueError, match="Invalid position"):
+            validate_move_parameters(0, 0, 16)
+
+    def test_calculate_bitboard_index_enhanced_validation(self):
+        """Test calculate_bitboard_index with validation."""
+        # Valid cases
+        assert calculate_bitboard_index(0, 0) == 0
+        assert calculate_bitboard_index(0, 3) == 3
+        assert calculate_bitboard_index(1, 0) == 4
+        assert calculate_bitboard_index(1, 3) == 7
+        
+        # Invalid player
+        with pytest.raises(ValueError, match="Invalid player"):
+            calculate_bitboard_index(-1, 0)
+        with pytest.raises(ValueError, match="Invalid player"):
+            calculate_bitboard_index(2, 0)
+            
+        # Invalid shape
+        with pytest.raises(ValueError, match="Invalid shape"):
+            calculate_bitboard_index(0, -1)
+        with pytest.raises(ValueError, match="Invalid shape"):
+            calculate_bitboard_index(0, 4)

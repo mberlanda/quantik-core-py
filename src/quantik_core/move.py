@@ -8,7 +8,11 @@ and game tree construction by defining moves and their validation.
 from dataclasses import dataclass
 from typing import Optional, List, Dict, cast, Union, overload, TYPE_CHECKING
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
-from .game_utils import count_pieces_by_shape_lists, calculate_bitboard_index
+from .game_utils import (
+    count_pieces_by_shape_lists,
+    calculate_bitboard_index,
+    validate_move_parameters,
+)
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 if TYPE_CHECKING:
@@ -30,12 +34,7 @@ class Move:
 
     def __post_init__(self) -> None:
         """Validate move parameters."""
-        if self.player not in (0, 1):
-            raise ValueError(f"Invalid player: {self.player}")
-        if self.shape not in range(4):
-            raise ValueError(f"Invalid shape: {self.shape}")
-        if self.position not in range(16):
-            raise ValueError(f"Invalid position: {self.position}")
+        validate_move_parameters(self.player, self.shape, self.position)
 
 
 class MoveValidationResult:
@@ -105,7 +104,7 @@ def validate_move(
 
     # Create new state with the move applied
     lst_bb = list(bb_tuple)
-    bitboard_index = move.shape if move.player == 0 else move.shape + 4
+    bitboard_index = calculate_bitboard_index(move.player, move.shape)
     lst_bb[bitboard_index] |= position_mask
 
     # Validate the new bitboard representation
@@ -142,7 +141,7 @@ def apply_move(
         New state with the move applied (same type as input)
     """
     position_mask = 1 << move.position
-    bitboard_index = move.shape if move.player == 0 else move.shape + 4
+    bitboard_index = calculate_bitboard_index(move.player, move.shape)
 
     # Handle CompactBitboard
     if hasattr(bb, "apply_move_functional"):  # It's a CompactBitboard

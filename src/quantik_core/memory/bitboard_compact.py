@@ -23,6 +23,7 @@ from typing import Union, Iterator
 import struct
 from quantik_core.commons import Bitboard
 from quantik_core.qfen import bb_from_qfen, bb_to_qfen
+from quantik_core.game_utils import validate_move_parameters
 
 
 class CompactBitboard:
@@ -94,12 +95,7 @@ class CompactBitboard:
         self, player: int, shape: int, position: int
     ) -> "CompactBitboard":
         """Apply a move and return a new CompactBitboard (functional approach)."""
-        if not (0 <= player <= 1):
-            raise ValueError(f"Invalid player {player}, must be 0 or 1")
-        if not (0 <= shape <= 3):
-            raise ValueError(f"Invalid shape {shape}, must be 0-3")
-        if not (0 <= position <= 15):
-            raise ValueError(f"Invalid position {position}, must be 0-15")
+        validate_move_parameters(player, shape, position)
 
         # Convert to tuple, apply move, convert back
         bb_tuple = list(self.to_tuple())
