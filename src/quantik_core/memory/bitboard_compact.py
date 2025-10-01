@@ -77,6 +77,59 @@ class CompactBitboard:
         """Get raw byte representation."""
         return self._data
 
+    def bit_count(self, bitboard_index: int) -> int:
+        """Get the number of set bits in a specific bitboard."""
+        if not (0 <= bitboard_index < 8):
+            raise IndexError(f"Index {bitboard_index} out of range [0, 7]")
+        return self[bitboard_index].bit_count()
+
+    def get_occupied_mask(self) -> int:
+        """Get a mask of all occupied positions across all bitboards."""
+        occupied = 0
+        for i in range(8):
+            occupied |= self[i]
+        return occupied
+
+    def apply_move_functional(
+        self, player: int, shape: int, position: int
+    ) -> "CompactBitboard":
+        """Apply a move and return a new CompactBitboard (functional approach)."""
+        if not (0 <= player <= 1):
+            raise ValueError(f"Invalid player {player}, must be 0 or 1")
+        if not (0 <= shape <= 3):
+            raise ValueError(f"Invalid shape {shape}, must be 0-3")
+        if not (0 <= position <= 15):
+            raise ValueError(f"Invalid position {position}, must be 0-15")
+
+        # Convert to tuple, apply move, convert back
+        bb_tuple = list(self.to_tuple())
+        bitboard_idx = player * 4 + shape
+        bb_tuple[bitboard_idx] |= 1 << position
+        return CompactBitboard.from_tuple(tuple(bb_tuple))
+
+    def is_position_occupied(self, position: int) -> bool:
+        """Check if a position is occupied by any piece."""
+        if not (0 <= position <= 15):
+            raise ValueError(f"Invalid position {position}, must be 0-15")
+        return bool(self.get_occupied_mask() & (1 << position))
+
+    def __iter__(self):
+        """Iterate over the 8 bitboard values."""
+        for i in range(8):
+            yield self[i]
+
+    @classmethod
+    def from_any(cls, data) -> "CompactBitboard":
+        """Create CompactBitboard from various input types."""
+        if isinstance(data, CompactBitboard):
+            return data
+        elif isinstance(data, (tuple, list)) and len(data) == 8:
+            return cls.from_tuple(tuple(data))
+        elif isinstance(data, (bytes, bytearray)):
+            return cls.from_bytes(data)
+        else:
+            raise TypeError(f"Cannot create CompactBitboard from {type(data)}")
+
     def __getitem__(self, index: int) -> int:
         """Get value at specific bitboard position."""
         if not (0 <= index < 8):
