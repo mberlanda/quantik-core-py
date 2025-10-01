@@ -8,7 +8,23 @@ across move.py, board.py, plugins/validation.py, and plugins/endgame.py.
 from enum import IntEnum
 from functools import lru_cache
 from typing import List, Tuple
-from .commons import Bitboard, WIN_MASKS
+from .commons import Bitboard, WIN_MASKS, MAX_PIECES_PER_SHAPE
+
+
+# ===== GAME CONSTANTS =====
+
+# Player identifiers - consolidated from scattered definitions
+PLAYER_0 = 0
+PLAYER_1 = 1
+TOTAL_PLAYERS = 2
+
+# Common board states
+EMPTY_BOARD_QFEN = "..../..../..../...."
+
+# Shape and piece limits
+SHAPES_PER_PLAYER = 4
+TOTAL_SHAPES = 8  # 4 shapes * 2 players
+BOARD_SIZE = 16  # 4x4 grid
 
 
 class WinStatus(IntEnum):
@@ -41,8 +57,10 @@ def count_pieces_by_shape(bb: Bitboard) -> Tuple[Tuple[int, ...], Tuple[int, ...
         >>> count_pieces_by_shape(bb)
         ((1, 1, 0, 0), (1, 0, 0, 0))
     """
-    player0_counts = tuple(bb[shape].bit_count() for shape in range(4))
-    player1_counts = tuple(bb[4 + shape].bit_count() for shape in range(4))
+    player0_counts = tuple(bb[shape].bit_count() for shape in range(SHAPES_PER_PLAYER))
+    player1_counts = tuple(
+        bb[shape + SHAPES_PER_PLAYER].bit_count() for shape in range(SHAPES_PER_PLAYER)
+    )
     return (player0_counts, player1_counts)
 
 
@@ -60,8 +78,10 @@ def count_pieces_by_shape_lists(bb: Bitboard) -> Tuple[List[int], List[int]]:
         Tuple of (player0_counts, player1_counts) where each is a list of 4 ints
         representing count of shapes A, B, C, D respectively.
     """
-    player0_counts = [bb[shape].bit_count() for shape in range(4)]
-    player1_counts = [bb[shape + 4].bit_count() for shape in range(4)]
+    player0_counts = [bb[shape].bit_count() for shape in range(SHAPES_PER_PLAYER)]
+    player1_counts = [
+        bb[shape + SHAPES_PER_PLAYER].bit_count() for shape in range(SHAPES_PER_PLAYER)
+    ]
     return player0_counts, player1_counts
 
 
@@ -91,7 +111,7 @@ def count_player_shape_pieces(bb: Bitboard, player: int, shape: int) -> int:
     Returns:
         Number of pieces of the specified shape for the specified player
     """
-    bitboard_index = shape if player == 0 else shape + 4
+    bitboard_index = calculate_bitboard_index(player, shape)
     return bb[bitboard_index].bit_count()
 
 
@@ -123,8 +143,9 @@ def has_winning_line(bb: Bitboard) -> bool:
     """
     # Precompute shape unions (combine both players for each shape)
     shape_unions = [
-        bb[shape] | bb[shape + 4]  # Player 0 and Player 1 for each shape
-        for shape in range(4)
+        bb[shape]
+        | bb[shape + SHAPES_PER_PLAYER]  # Player 0 and Player 1 for each shape
+        for shape in range(SHAPES_PER_PLAYER)
     ]
 
     # Check each possible win line (row, column, or zone)
@@ -182,3 +203,74 @@ def is_game_over(bb: Bitboard) -> bool:
         True if the game is over, False otherwise
     """
     return check_game_winner(bb) != WinStatus.NO_WIN
+
+
+# ===== VALIDATION UTILITIES =====
+
+
+def get_current_player_from_counts(player0_total: int, player1_total: int) -> int:
+    """
+    Determine current player based on piece counts.
+
+    This is the consolidated implementation that replaces:
+    - state_validator._validate_turn_balance() logic
+    - Various manual calculations across files
+
+    Args:
+        player0_total: Total pieces for player 0
+        player1_total: Total pieces for player 1
+
+    Returns:
+        Current player (0 or 1)
+
+    Raises:
+        ValueError: If piece counts indicate invalid game state
+    """
+    diff = player0_total - player1_total
+
+    if diff == 0:
+        return PLAYER_0  # Player 0 goes first when counts are equal
+    elif diff == 1:
+        return PLAYER_1  # Player 1's turn after Player 0 moved
+    else:
+        raise ValueError(
+            f"Invalid turn balance: P0={player0_total}, P1={player1_total}"
+        )
+
+
+def validate_piece_counts(bb: Bitboard) -> bool:
+    """
+    Validate that piece counts don't exceed limits.
+
+    This is the consolidated implementation that replaces:
+    - state_validator._validate_piece_counts_and_overlaps() piece count logic
+    - Various inline checks across files
+
+    Args:
+        bb: Bitboard to validate
+
+    Returns:
+        True if all piece counts are valid, False otherwise
+    """
+    for shape in range(TOTAL_SHAPES):
+        if bb[shape].bit_count() > MAX_PIECES_PER_SHAPE:
+            return False
+    return True
+
+
+def calculate_bitboard_index(player: int, shape: int) -> int:
+    """
+    Calculate bitboard index for a player's shape.
+
+    This is the consolidated implementation that replaces:
+    - Various manual player * 4 + shape calculations
+    - Scattered index computations across files
+
+    Args:
+        player: Player ID (0 or 1)
+        shape: Shape ID (0-3 for A, B, C, D)
+
+    Returns:
+        Bitboard index (0-7)
+    """
+    return player * SHAPES_PER_PLAYER + shape

@@ -19,7 +19,7 @@ from .core import State
 from .move import Move, apply_move, validate_move
 from .commons import MAX_PIECES_PER_SHAPE, PlayerId
 from .plugins.validation import check_game_winner
-from .game_utils import WinStatus
+from .game_utils import WinStatus, calculate_bitboard_index
 from .state_validator import validate_game_state
 
 
@@ -442,7 +442,7 @@ class QuantikBoard:
         for player in range(2):
             shape_counts = []
             for shape in range(4):
-                bitboard_idx = shape if player == 0 else shape + 4
+                bitboard_idx = calculate_bitboard_index(player, shape)
                 used_count = state.bb[bitboard_idx].bit_count()
                 remaining = MAX_PIECES_PER_SHAPE - used_count
                 shape_counts.append(remaining)
@@ -457,7 +457,7 @@ class QuantikBoard:
         for player in range(2):
             inventory = self._inventories[player]
             for shape in range(4):
-                bitboard_idx = shape if player == 0 else shape + 4
+                bitboard_idx = calculate_bitboard_index(player, shape)
                 on_board = self._state.bb[bitboard_idx].bit_count()
                 in_inventory = inventory.get_shape_count(shape)
 

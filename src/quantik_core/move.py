@@ -8,7 +8,7 @@ and game tree construction by defining moves and their validation.
 from dataclasses import dataclass
 from typing import Optional, List, Dict, cast, Union, overload, TYPE_CHECKING
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
-from .game_utils import count_pieces_by_shape_lists
+from .game_utils import count_pieces_by_shape_lists, calculate_bitboard_index
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 if TYPE_CHECKING:
@@ -211,18 +211,21 @@ def generate_legal_moves(
 
     moves_by_shape: Dict[int, List[Move]] = {0: [], 1: [], 2: [], 3: []}  # A, B, C, D
 
-    # Count current pieces for the player to enforce max pieces constraint
-    player_shape_counts = [
-        bb_tuple[current_player * 4 + shape].bit_count() for shape in range(4)
+    # Count existing pieces for current player by shape (for max pieces constraint)
+    current_shape_counts = [
+        bb_tuple[calculate_bitboard_index(current_player, shape)].bit_count()
+        for shape in range(4)
     ]
 
     # For each shape that the player can still place
     for shape in range(4):
-        if player_shape_counts[shape] >= MAX_PIECES_PER_SHAPE:
+        if current_shape_counts[shape] >= MAX_PIECES_PER_SHAPE:
             continue  # Player already has max pieces of this shape
 
         # Get opponent's pieces of the same shape
-        opponent_shape_bits = bb_tuple[(1 - current_player) * 4 + shape]
+        opponent_shape_bits = bb_tuple[
+            calculate_bitboard_index(1 - current_player, shape)
+        ]
 
         # For each position on the board
         for position in range(16):

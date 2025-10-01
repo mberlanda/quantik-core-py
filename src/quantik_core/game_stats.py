@@ -5,7 +5,13 @@ from typing import Dict, Tuple, List, Optional, NamedTuple, cast, Protocol
 from dataclasses import dataclass
 
 from quantik_core.plugins.validation import bb_check_game_winner
-from quantik_core.game_utils import WinStatus
+from quantik_core.game_utils import (
+    WinStatus,
+    PLAYER_0,
+    PLAYER_1,
+    TOTAL_PLAYERS,
+    EMPTY_BOARD_QFEN,
+)
 
 from quantik_core import (
     Bitboard,
@@ -20,13 +26,7 @@ from quantik_core.qfen import bb_from_qfen
 DEFAULT_MAX_DEPTH = 12  # limit due heuristic of states with legal moves
 MAX_ALLOWED_DEPTH = 16  # limit due to board size and total states
 MIN_ALLOWED_DEPTH = 1  # minimum meaningful depth for analysis
-INITIAL_PLAYER = 0
-EMPTY_BOARD_QFEN = "..../..../..../...."
-
-# Game constants
-PLAYER_0 = 0
-PLAYER_1 = 1
-TOTAL_PLAYERS = 2
+INITIAL_PLAYER = PLAYER_0
 PERCENTAGE_MULTIPLIER = 100
 
 # Analysis constants

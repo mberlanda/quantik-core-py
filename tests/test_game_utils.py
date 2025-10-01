@@ -16,6 +16,17 @@ from src.quantik_core.game_utils import (
     check_game_winner,
     is_game_over,
     WinStatus,
+    # New consolidation utilities
+    PLAYER_0,
+    PLAYER_1,
+    TOTAL_PLAYERS,
+    EMPTY_BOARD_QFEN,
+    SHAPES_PER_PLAYER,
+    TOTAL_SHAPES,
+    BOARD_SIZE,
+    get_current_player_from_counts,
+    validate_piece_counts,
+    calculate_bitboard_index,
 )
 from src.quantik_core.commons import Bitboard
 from src.quantik_core.qfen import bb_from_qfen
@@ -303,3 +314,97 @@ class TestGameUtilsEndgameDetection:
         
         assert is_game_over(winning_bb) == old_is_over(winning_state)
         assert is_game_over(ongoing_bb) == old_is_over(ongoing_state)
+
+
+class TestGameUtilsConstants:
+    """Test consolidated constants and configuration."""
+
+    def test_player_constants(self):
+        """Test player identifier constants."""
+        assert PLAYER_0 == 0
+        assert PLAYER_1 == 1
+        assert TOTAL_PLAYERS == 2
+
+    def test_shape_constants(self):
+        """Test shape and board constants."""
+        assert SHAPES_PER_PLAYER == 4
+        assert TOTAL_SHAPES == 8
+        assert BOARD_SIZE == 16
+
+    def test_empty_board_constant(self):
+        """Test empty board QFEN constant."""
+        assert EMPTY_BOARD_QFEN == "..../..../..../...."
+        # Verify it's a valid QFEN
+        bb = bb_from_qfen(EMPTY_BOARD_QFEN)
+        assert all(bb[i] == 0 for i in range(8))
+
+
+class TestGameUtilsValidation:
+    """Test consolidated validation utilities."""
+
+    def test_get_current_player_from_counts_empty_board(self):
+        """Test current player determination - empty board."""
+        assert get_current_player_from_counts(0, 0) == PLAYER_0
+
+    def test_get_current_player_from_counts_player0_moved(self):
+        """Test current player determination - Player 0 moved first."""
+        assert get_current_player_from_counts(1, 0) == PLAYER_1
+
+    def test_get_current_player_from_counts_alternating(self):
+        """Test current player determination - alternating moves."""
+        assert get_current_player_from_counts(2, 2) == PLAYER_0
+        assert get_current_player_from_counts(3, 2) == PLAYER_1
+
+    def test_get_current_player_from_counts_invalid(self):
+        """Test current player determination - invalid states."""
+        import pytest
+        with pytest.raises(ValueError):
+            get_current_player_from_counts(3, 0)  # Too large gap
+        with pytest.raises(ValueError):
+            get_current_player_from_counts(0, 2)  # Player 1 ahead by too much
+
+    def test_validate_piece_counts_valid(self):
+        """Test piece count validation - valid board."""
+        bb = bb_from_qfen("A.../..../..../...B")  # 1 piece each
+        assert validate_piece_counts(bb)
+
+    def test_validate_piece_counts_max_allowed(self):
+        """Test piece count validation - at maximum."""
+        bb = bb_from_qfen("AA../..../..../..BB")  # 2 pieces each (max allowed)
+        assert validate_piece_counts(bb)
+
+    def test_validate_piece_counts_invalid(self):
+        """Test piece count validation - would be invalid if possible."""
+        # This tests the logic, but in practice we can't create invalid boards via QFEN
+        # Test with constructed bitboard
+        bb_valid = bb_from_qfen("AA../..../..../..BB") 
+        assert validate_piece_counts(bb_valid)
+        
+        # Manually construct invalid case (3 pieces of shape A for player 0)
+        bb_invalid = list(bb_valid)
+        bb_invalid[0] = 7  # 3 bits set (111 binary) = 3 pieces, exceeds MAX_PIECES_PER_SHAPE=2
+        bb_invalid = tuple(bb_invalid)
+        assert not validate_piece_counts(bb_invalid)
+
+    def test_calculate_bitboard_index(self):
+        """Test bitboard index calculation."""
+        # Player 0 shapes: 0, 1, 2, 3
+        assert calculate_bitboard_index(PLAYER_0, 0) == 0  # A
+        assert calculate_bitboard_index(PLAYER_0, 1) == 1  # B
+        assert calculate_bitboard_index(PLAYER_0, 2) == 2  # C
+        assert calculate_bitboard_index(PLAYER_0, 3) == 3  # D
+        
+        # Player 1 shapes: 4, 5, 6, 7
+        assert calculate_bitboard_index(PLAYER_1, 0) == 4  # a
+        assert calculate_bitboard_index(PLAYER_1, 1) == 5  # b
+        assert calculate_bitboard_index(PLAYER_1, 2) == 6  # c
+        assert calculate_bitboard_index(PLAYER_1, 3) == 7  # d
+
+    def test_calculate_bitboard_index_consistency(self):
+        """Test bitboard index calculation consistency with existing code."""
+        # Test that our consolidated function matches the old manual calculations
+        for player in [0, 1]:
+            for shape in range(4):
+                new_index = calculate_bitboard_index(player, shape)
+                old_index = shape if player == 0 else shape + 4
+                assert new_index == old_index
