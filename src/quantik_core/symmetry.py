@@ -121,6 +121,11 @@ class SymmetryHandler:
         D4Index.REFLAD: D4Index.REFLAD,  # reflAD <-> reflAD
     }
 
+    @classmethod
+    def get_d4_inverse(cls, d4_index: D4IndexLike) -> D4IndexLike:
+        """Get the inverse D4 transformation index."""
+        return cls._D4_INVERSES[d4_index]
+
     @staticmethod
     def rc_to_i(r: int, c: int) -> int:
         """
@@ -147,11 +152,6 @@ class SymmetryHandler:
             Tuple of (row, column)
         """
         return divmod(i, 4)
-
-    @classmethod
-    def get_d4_inverse(cls, d4_index: D4IndexLike) -> D4IndexLike:
-        """Get the inverse D4 transformation index."""
-        return cls._D4_INVERSES[d4_index]
 
     @classmethod
     def build_perm(cls, fn: Callable[[int, int], Tuple[int, int]]) -> List[int]:
