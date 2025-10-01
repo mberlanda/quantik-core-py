@@ -5,37 +5,22 @@ This module maintains backward compatibility while using the new comprehensive
 state validation system.
 """
 
-from enum import IntEnum
-from functools import lru_cache
 from typing import Tuple
-from ..game_utils import count_pieces_by_shape as _count_pieces_by_shape
+from ..game_utils import (
+    WinStatus,
+    check_game_winner as _check_game_winner,
+    count_pieces_by_shape as _count_pieces_by_shape,
+    has_winning_line as bb_has_winning_line,
+    is_game_over as _is_game_over,
+)
 from ..core import Bitboard, State
-from .endgame import bb_has_winning_line
-
-
-class WinStatus(IntEnum):
-    """Enumeration of game win states."""
-
-    NO_WIN = 0
-    PLAYER_0_WINS = 1
-    PLAYER_1_WINS = 2
 
 
 def bb_check_game_winner(bb: Bitboard) -> WinStatus:
     """
     Check if the game has been won and determine the winner.
     """
-    if not bb_has_winning_line(bb):
-        return WinStatus.NO_WIN
-
-    player0_counts, player1_counts = _count_pieces_by_shape(bb)
-    total0 = sum(player0_counts)
-    total1 = sum(player1_counts)
-
-    if total0 > total1:
-        return WinStatus.PLAYER_0_WINS
-    else:
-        return WinStatus.PLAYER_1_WINS
+    return _check_game_winner(bb)
 
 
 def count_pieces_by_shape(
@@ -61,7 +46,7 @@ def check_game_winner(state: State) -> WinStatus:
     Returns:
         WinStatus indicating the game result (NO_WIN, PLAYER_0_WINS, PLAYER_1_WINS)
     """
-    return bb_check_game_winner(state.bb)
+    return _check_game_winner(state.bb)
 
 
 def is_game_over(state: State) -> bool:
@@ -74,4 +59,4 @@ def is_game_over(state: State) -> bool:
     Returns:
         True if the game is over, False otherwise
     """
-    return check_game_winner(state) != WinStatus.NO_WIN
+    return _is_game_over(state.bb)

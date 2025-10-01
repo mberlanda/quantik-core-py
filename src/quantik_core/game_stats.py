@@ -4,7 +4,8 @@
 from typing import Dict, Tuple, List, Optional, NamedTuple, cast, Protocol
 from dataclasses import dataclass
 
-from quantik_core.plugins.validation import bb_check_game_winner, WinStatus
+from quantik_core.plugins.validation import bb_check_game_winner
+from quantik_core.game_utils import WinStatus
 
 from quantik_core import (
     Bitboard,

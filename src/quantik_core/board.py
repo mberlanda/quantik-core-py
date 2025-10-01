@@ -18,7 +18,8 @@ from .game_utils import count_pieces_by_shape_lists, count_total_pieces
 from .core import State
 from .move import Move, apply_move, validate_move
 from .commons import MAX_PIECES_PER_SHAPE, PlayerId
-from .plugins.validation import WinStatus, check_game_winner
+from .plugins.validation import check_game_winner
+from .game_utils import WinStatus
 from .state_validator import validate_game_state
 
 
