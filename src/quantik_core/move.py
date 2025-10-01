@@ -8,6 +8,7 @@ and game tree construction by defining moves and their validation.
 from dataclasses import dataclass
 from typing import Optional, List, Dict, cast, Union, overload, TYPE_CHECKING
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
+from .game_utils import count_pieces_by_shape_lists
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
 if TYPE_CHECKING:
@@ -275,6 +276,4 @@ def count_pieces_by_player_shape(bb: Bitboard) -> tuple[List[int], List[int]]:
     Returns:
         Tuple of (player0_counts, player1_counts) where each is [A_count, B_count, C_count, D_count]
     """
-    player0_counts = [bb[shape].bit_count() for shape in range(4)]
-    player1_counts = [bb[shape + 4].bit_count() for shape in range(4)]
-    return player0_counts, player1_counts
+    return count_pieces_by_shape_lists(bb)
