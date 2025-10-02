@@ -44,9 +44,9 @@ def count_pieces_by_shape(bb: Bitboard) -> Tuple[Tuple[int, ...], Tuple[int, ...
     Count pieces for each shape for each player.
 
     This is the consolidated implementation that replaces:
-    - move.count_pieces_by_player_shape()
-    - plugins.validation._count_pieces_by_shape()
-    - Various inline implementations in board.py
+    - board.get_player_inventory() / board.get_remaining_pieces()
+    - state_validator._validate_piece_counts_and_overlaps()
+    - Various scattered piece counting logic across files
 
     Args:
         bb: Bitboard tuple representing game state

@@ -270,13 +270,3 @@ def generate_legal_moves_list(
         all_moves.extend(shape_moves)
 
     return all_moves
-
-
-def count_pieces_by_player_shape(bb: Bitboard) -> tuple[List[int], List[int]]:
-    """
-    Count pieces by player and shape for analysis.
-
-    Returns:
-        Tuple of (player0_counts, player1_counts) where each is [A_count, B_count, C_count, D_count]
-    """
-    return count_pieces_by_shape_lists(bb)

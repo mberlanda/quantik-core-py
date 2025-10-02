@@ -7,6 +7,15 @@ results as the previous duplicated implementations.
 """
 
 import pytest
+"""
+Tests for game_utils module - consolidated game utilities.
+
+This test module verifies that the consolidated functions for piece counting,
+endgame detection, and game state analysis work correctly and provide the same
+results as the previous duplicated implementations.
+"""
+
+import pytest
 from src.quantik_core.game_utils import (
     count_pieces_by_shape,
     count_pieces_by_shape_lists,
@@ -157,16 +166,17 @@ class TestGameUtilsPieceCounting:
                 assert expected == actual, f"Mismatch for player {player}, shape {shape}"
 
     def test_compatibility_with_move_function(self):
-        """Test compatibility with existing move.py function."""
-        from src.quantik_core.move import count_pieces_by_player_shape
-        
+        """Test consolidated function works correctly."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
         
-        # Compare results
-        new_result = count_pieces_by_shape_lists(bb)
-        old_result = count_pieces_by_player_shape(bb)
+        # Test consolidated function result
+        result = count_pieces_by_shape_lists(bb)
         
-        assert new_result == old_result
+        # Verify the structure is correct
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert all(isinstance(player_counts, list) for player_counts in result)
+        assert all(len(player_counts) == 4 for player_counts in result)
 
     def test_compatibility_with_validation_function(self):
         """Test compatibility with existing validation.py function."""

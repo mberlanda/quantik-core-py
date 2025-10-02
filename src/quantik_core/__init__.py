@@ -11,12 +11,10 @@ from .symmetry import SymmetryHandler, SymmetryTransform
 from .qfen import bb_to_qfen, bb_from_qfen
 from .move import (
     Move,
-    MoveValidationResult,
     validate_move,
     apply_move,
     generate_legal_moves,
     generate_legal_moves_list,
-    count_pieces_by_player_shape,
 )
 from .board import (
     QuantikBoard,
@@ -31,23 +29,16 @@ __author__ = "Mauro Berlanda"
 __all__ = [
     "State",
     "Bitboard",
-    "PlayerId",
-    "VERSION",
-    "FLAG_CANON",
-    "bb_to_qfen",
-    "bb_from_qfen",
-    "get_qfen_canonical_form",
+    "CompactBitboard",
+    "UltraCompactState",
     "Move",
-    "MoveValidationResult",
     "validate_move",
     "apply_move",
     "generate_legal_moves",
     "generate_legal_moves_list",
-    "count_pieces_by_player_shape",
-    "QuantikBoard",
-    "PlayerInventory",
+    "bb_to_qfen",
+    "bb_from_qfen",
+    "ValidationResult",
+    "PlayerId",
     "GameResult",
-    "MoveRecord",
-    "SymmetryHandler",
-    "SymmetryTransform",
 ]

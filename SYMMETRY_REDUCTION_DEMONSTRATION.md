@@ -31,19 +31,6 @@ By applying symmetry reductions, we can map all first moves to just a few
 canonical positions.
 
 
-### Canonical First Move Positions:
-```
-┌───┬───┬───┬───┐
-│     │     │     │     │
-├───┼───┼───┼───┤
-│     │     │     │     │
-├───┼───┼───┼───┤
-│  8  │  9  │     │     │
-├───┼───┼───┼───┤
-│  12 │     │     │     │
-└───┴───┴───┴───┘
-```
-
 ### Position Mappings to Canonical Forms:
 
 #### Positions equivalent to (2,0):

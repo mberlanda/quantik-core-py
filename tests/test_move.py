@@ -9,8 +9,8 @@ from quantik_core.move import (
     apply_move,
     generate_legal_moves,
     generate_legal_moves_list,
-    count_pieces_by_player_shape,
 )
+from quantik_core.game_utils import count_pieces_by_shape_lists
 from quantik_core.memory.bitboard_compact import CompactBitboard
 from quantik_core.state_validator import ValidationResult
 from quantik_core.qfen import bb_from_qfen
@@ -340,7 +340,7 @@ class TestCountPiecesByPlayerShape:
     def test_empty_board_count(self):
         """Test counting on empty board."""
         bb = bb_from_qfen(EMPTY_BOARD_QFEN, validate=True)
-        player0_counts, player1_counts = count_pieces_by_player_shape(bb)
+        player0_counts, player1_counts = count_pieces_by_shape_lists(bb)
 
         assert player0_counts == [0, 0, 0, 0]
         assert player1_counts == [0, 0, 0, 0]
@@ -348,7 +348,7 @@ class TestCountPiecesByPlayerShape:
     def test_single_piece_count(self):
         """Test counting with single piece."""
         bb = bb_from_qfen("A.../..../..../....", validate=True)
-        player0_counts, player1_counts = count_pieces_by_player_shape(bb)
+        player0_counts, player1_counts = count_pieces_by_shape_lists(bb)
 
         assert player0_counts == [1, 0, 0, 0]  # One A for player 0
         assert player1_counts == [0, 0, 0, 0]
@@ -357,7 +357,7 @@ class TestCountPiecesByPlayerShape:
         """Test counting with multiple pieces."""
         # Create a valid state with multiple pieces for both players
         bb = bb_from_qfen("Ab../cD../..../....", validate=True)
-        player0_counts, player1_counts = count_pieces_by_player_shape(bb)
+        player0_counts, player1_counts = count_pieces_by_shape_lists(bb)
 
         # Player 0: A@0, D@5 -> [1,0,0,1]
         # Player 1: b@1, c@4 -> [0,1,1,0]
