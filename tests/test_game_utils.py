@@ -178,19 +178,18 @@ class TestGameUtilsPieceCounting:
         assert all(isinstance(player_counts, list) for player_counts in result)
         assert all(len(player_counts) == 4 for player_counts in result)
 
-    def test_compatibility_with_validation_function(self):
-        """Test compatibility with existing validation.py function."""
-        from src.quantik_core.plugins.validation import count_pieces_by_shape as val_count
-        from src.quantik_core import State
-        
+    def test_consolidated_functions_work_correctly(self):
+        """Test that consolidated functions work correctly."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
-        state = State(bb)
         
-        # Compare results
-        new_result = count_pieces_by_shape(bb)
-        old_result = val_count(state)
+        # Test that the main count function works
+        result = count_pieces_by_shape(bb)
         
-        assert new_result == old_result
+        # Verify the structure is correct
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert all(isinstance(player_counts, tuple) for player_counts in result)
+        assert all(len(player_counts) == 4 for player_counts in result)
 
 
 class TestGameUtilsEdgeCases:

@@ -5,11 +5,9 @@ This module maintains backward compatibility while using the new comprehensive
 state validation system.
 """
 
-from typing import Tuple
 from ..game_utils import (
     WinStatus,
     check_game_winner as _check_game_winner,
-    count_pieces_by_shape as _count_pieces_by_shape,
     has_winning_line as bb_has_winning_line,
     is_game_over as _is_game_over,
 )
@@ -21,13 +19,6 @@ def bb_check_game_winner(bb: Bitboard) -> WinStatus:
     Check if the game has been won and determine the winner.
     """
     return _check_game_winner(bb)
-
-
-def count_pieces_by_shape(
-    state: State,
-) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
-    """Public interface for counting pieces by shape."""
-    return _count_pieces_by_shape(state.bb)
 
 
 def check_game_winner(state: State) -> WinStatus:
