@@ -8,7 +8,14 @@ results as the previous duplicated implementations.
 
 import pytest
 """
-Tests for game_utils module - consolidated game utilities.
+Tests for game_ut        ongoing_bb = bb_from_qfen("ABC./..../..../....")
+        
+        # Test the consolidated functions directly
+        assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
+        
+        assert is_game_over(winning_bb) == True
+        assert is_game_over(ongoing_bb) == Falsensolidated game utilities.
 
 This test module verifies that the consolidated functions for piece counting,
 endgame detection, and game state analysis work correctly and provide the same
@@ -297,42 +304,28 @@ class TestGameUtilsEndgameDetection:
         ongoing_bb = bb_from_qfen("ABC./..../..../....")
         assert not is_game_over(ongoing_bb)
 
-    def test_compatibility_with_endgame_function(self):
-        """Test compatibility with existing endgame.py function."""
-        from src.quantik_core.plugins.endgame import bb_has_winning_line as old_fn
+    def test_consolidated_endgame_function_works(self):
+        """Test that consolidated endgame function works correctly."""
         
         winning_bb = bb_from_qfen("ABCD/..../..../....")
         ongoing_bb = bb_from_qfen("ABC./..../..../....")
         
-        # Compare results - both should delegate to the same consolidated function
-        assert has_winning_line(winning_bb) == old_fn(winning_bb)
-        assert has_winning_line(ongoing_bb) == old_fn(ongoing_bb)
+        # Test the consolidated function directly
+        assert has_winning_line(winning_bb) == True
+        assert has_winning_line(ongoing_bb) == False
 
-    def test_compatibility_with_validation_functions(self):
-        """Test compatibility with existing validation.py functions."""
-        from src.quantik_core.plugins.validation import (
-            bb_check_game_winner as old_bb_check,
-            check_game_winner as old_check,
-            is_game_over as old_is_over,
-        )
-        from src.quantik_core import State
+    def test_consolidated_validation_functions_work(self):
+        """Test that consolidated validation functions work correctly."""
         
         winning_bb = bb_from_qfen("ABCD/..../..../....")
         ongoing_bb = bb_from_qfen("ABC./..../..../....")
         
-        # Test bb-level functions
-        assert check_game_winner(winning_bb) == old_bb_check(winning_bb)
-        assert check_game_winner(ongoing_bb) == old_bb_check(ongoing_bb)
+        # Test the consolidated functions directly
+        assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
         
-        # Test State-level functions
-        winning_state = State(winning_bb)
-        ongoing_state = State(ongoing_bb)
-        
-        assert check_game_winner(winning_bb) == old_check(winning_state)
-        assert check_game_winner(ongoing_bb) == old_check(ongoing_state)
-        
-        assert is_game_over(winning_bb) == old_is_over(winning_state)
-        assert is_game_over(ongoing_bb) == old_is_over(ongoing_state)
+        assert is_game_over(winning_bb) == True
+        assert is_game_over(ongoing_bb) == False
 
 
 class TestGameUtilsConstants:

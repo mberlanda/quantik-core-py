@@ -18,8 +18,7 @@ from .game_utils import count_pieces_by_shape_lists, count_total_pieces
 from .core import State
 from .move import Move, apply_move, validate_move
 from .commons import MAX_PIECES_PER_SHAPE, PlayerId
-from .plugins.validation import check_game_winner
-from .game_utils import WinStatus, calculate_bitboard_index
+from .game_utils import WinStatus, calculate_bitboard_index, check_game_winner
 from .state_validator import validate_game_state
 
 
@@ -194,7 +193,7 @@ class QuantikBoard:
             GameResult indicating current state
         """
         # Check for wins
-        win_status = check_game_winner(self._state)
+        win_status = check_game_winner(self._state.bb)
         if win_status == WinStatus.PLAYER_0_WINS:
             return GameResult.PLAYER_0_WINS
         elif win_status == WinStatus.PLAYER_1_WINS:

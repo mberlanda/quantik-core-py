@@ -135,8 +135,7 @@ def has_winning_line(bb: Bitboard) -> bool:
     - aBcD (mixed players)
     - etc.
 
-    This is the consolidated implementation that replaces:
-    - plugins.endgame.bb_has_winning_line()
+    This is the consolidated implementation for checking winning lines.
 
     Args:
         bb: The bitboard representation of the game state
@@ -170,8 +169,7 @@ def check_game_winner(bb: Bitboard) -> WinStatus:
     ABCD/..../cd../..ab => anaylising this state will return player 1 wins
     because both players have 4 pieces, but actually player 0 made the winning move
 
-    This is the consolidated implementation that replaces:
-    - plugins.validation.bb_check_game_winner()
+    This is the consolidated implementation for determining game winners.
 
     Args:
         bb: The bitboard representation of the game state
@@ -195,9 +193,6 @@ def check_game_winner(bb: Bitboard) -> WinStatus:
 def is_game_over(bb: Bitboard) -> bool:
     """
     Check if the game is over (someone has won).
-
-    This is the consolidated implementation that replaces:
-    - plugins.validation.is_game_over()
 
     Args:
         bb: The bitboard representation of the game state
