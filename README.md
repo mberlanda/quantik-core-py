@@ -4,15 +4,6 @@
 
 A high-performance Python library for manipulating Quantik game states, optimized for Monte Carlo simulations, game analysis, and AI engines.
 
-## Recent Updates
-
-🎉 **Major Consolidation Complete** - The codebase has been thoroughly refactored to eliminate duplication:
-- ✅ **Central game utilities** in `game_utils.py` - single source of truth for all game logic
-- ✅ **Zero functional duplication** - all duplicate implementations consolidated 
-- ✅ **135+ tests passing** - full backward compatibility maintained
-- ✅ **Memory-optimized** - CompactBitboard provides 84.6% memory reduction
-- ✅ **Performance enhanced** - LRU caching for critical functions
-
 ## What is Quantik?
 
 Quantik is an elegant 4×4 abstract strategy game where players compete to complete lines with all four unique shapes.
@@ -208,7 +199,7 @@ from quantik_core import State
 
 # Create different equivalent positions
 pos1 = State.from_qfen("A.../..../..../....") 
-pos2 = State.from_qfen("..../..../..../.a..")  # Rotated + color swapped
+pos2 = State.from_qfen("..../..../..../.B..")  # Rotated + shape equivalence
 
 # Both have the same canonical representation
 assert pos1.canonical_key() == pos2.canonical_key()
