@@ -6,10 +6,9 @@ and game tree construction by defining moves and their validation.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, cast, Union, overload, TYPE_CHECKING
+from typing import Optional, List, Dict, Union, overload, TYPE_CHECKING
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
 from .game_utils import (
-    count_pieces_by_shape_lists,
     calculate_bitboard_index,
     validate_move_parameters,
     create_position_mask,
@@ -99,7 +98,7 @@ def validate_move(
         return MoveValidationResult(False, ValidationResult.NOT_PLAYER_TURN)
 
     # Check if position is empty
-    if is_position_occupied(cast(Bitboard, bb_tuple), move.position):
+    if is_position_occupied(bb_tuple, move.position):
         return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
     # Create new state with the move applied
@@ -109,7 +108,7 @@ def validate_move(
     lst_bb[bitboard_index] |= position_mask
 
     # Validate the new bitboard representation
-    new_bb: Bitboard = cast(Bitboard, tuple(lst_bb))
+    new_bb: Bitboard = tuple(lst_bb)
     _, new_validation_result = _validate_game_state_single_pass(new_bb)
 
     if new_validation_result != ValidationResult.OK:
@@ -149,13 +148,10 @@ def apply_move(
         return bb.apply_move_functional(move.player, move.shape, move.position)  # type: ignore
 
     # Handle regular tuple bitboard
-    return cast(
-        Bitboard,
-        (
-            bb[:bitboard_index]
-            + (bb[bitboard_index] | position_mask,)
-            + bb[bitboard_index + 1 :]
-        ),
+    return (
+        bb[:bitboard_index]
+        + (bb[bitboard_index] | position_mask,)
+        + bb[bitboard_index + 1 :]
     )
 
 
@@ -230,7 +226,7 @@ def generate_legal_moves(
         # For each position on the board
         for position in range(16):
             # Check if position is already occupied
-            if is_position_occupied(cast(Bitboard, bb_tuple), position):
+            if is_position_occupied(bb_tuple, position):
                 continue
 
             position_mask = create_position_mask(position)

@@ -5,7 +5,7 @@ This library provides the foundational components for building Quantik game engi
 Monte Carlo simulations, and AI analysis tools.
 """
 
-from .commons import VERSION, FLAG_CANON, Bitboard, PlayerId
+from .commons import Bitboard, PlayerId, VERSION, FLAG_CANON
 from .core import State
 from .symmetry import SymmetryHandler, SymmetryTransform
 from .qfen import bb_to_qfen, bb_from_qfen
@@ -27,6 +27,8 @@ __version__ = "0.1.0"
 __author__ = "Mauro Berlanda"
 
 __all__ = [
+    "VERSION",
+    "FLAG_CANON",
     "State",
     "Bitboard",
     "CompactBitboard",
@@ -41,4 +43,9 @@ __all__ = [
     "ValidationResult",
     "PlayerId",
     "GameResult",
+    "SymmetryHandler",
+    "SymmetryTransform",
+    "QuantikBoard",
+    "PlayerInventory",
+    "MoveRecord",
 ]

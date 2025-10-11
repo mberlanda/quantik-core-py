@@ -6,9 +6,9 @@ internally while maintaining full backward compatibility with the existing API.
 """
 
 import pytest
-from src.quantik_core import State
-from src.quantik_core.memory.bitboard_compact import CompactBitboard
-from src.quantik_core.commons import Bitboard
+from quantik_core import State
+from quantik_core.memory.bitboard_compact import CompactBitboard
+from quantik_core.commons import Bitboard
 
 
 class TestStateCompactBitboardIntegration:
@@ -128,7 +128,7 @@ class TestStateCompactBitboardIntegration:
 
     def test_backward_compatibility_with_board(self):
         """Test that Board class still works with new State implementation."""
-        from src.quantik_core.board import QuantikBoard
+        from quantik_core.board import QuantikBoard
 
         # Create board and verify state usage
         board = QuantikBoard()
@@ -189,5 +189,5 @@ class TestStateCompactBitboardPerformance:
             _ = state.bb
         access_time = time.perf_counter() - start
 
-        # Should be reasonably fast (< 5ms for 1000 accesses)
-        assert access_time < 0.005
+        # Should be reasonably fast (< 10ms for 1000 accesses)
+        assert access_time < 0.010

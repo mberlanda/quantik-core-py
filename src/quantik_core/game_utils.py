@@ -8,7 +8,7 @@ backward compatibility.
 
 from functools import lru_cache
 from enum import IntEnum
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import List, Tuple
 from .commons import Bitboard, WIN_MASKS
 
 
@@ -270,15 +270,15 @@ def calculate_bitboard_index(player: int, shape: int) -> int:
 
     Returns:
         Bitboard index (0-7)
-        
+
     Raises:
         ValueError: If player or shape is invalid
     """
     if player not in (0, 1):
         raise ValueError(f"Invalid player {player}, must be 0 or 1")
     if shape not in range(SHAPES_PER_PLAYER):
-        raise ValueError(f"Invalid shape {shape}, must be 0-{SHAPES_PER_PLAYER-1}")
-    
+        raise ValueError(f"Invalid shape {shape}, must be 0-{SHAPES_PER_PLAYER - 1}")
+
     return player * SHAPES_PER_PLAYER + shape
 
 
@@ -286,12 +286,13 @@ def calculate_bitboard_index(player: int, shape: int) -> int:
 # Validation Utilities
 # ============================================================================
 
+
 def validate_player(player: int) -> None:
     """Validate player parameter.
-    
+
     Args:
         player: Player ID to validate
-        
+
     Raises:
         ValueError: If player is invalid
     """
@@ -301,10 +302,10 @@ def validate_player(player: int) -> None:
 
 def validate_shape(shape: int) -> None:
     """Validate shape parameter.
-    
+
     Args:
         shape: Shape ID to validate
-        
+
     Raises:
         ValueError: If shape is invalid
     """
@@ -314,10 +315,10 @@ def validate_shape(shape: int) -> None:
 
 def validate_position(position: int) -> None:
     """Validate position parameter.
-    
+
     Args:
         position: Position to validate
-        
+
     Raises:
         ValueError: If position is invalid
     """
@@ -327,12 +328,12 @@ def validate_position(position: int) -> None:
 
 def validate_move_parameters(player: int, shape: int, position: int) -> None:
     """Validate all move parameters.
-    
+
     Args:
         player: Player ID to validate
         shape: Shape ID to validate
         position: Position to validate
-        
+
     Raises:
         ValueError: If any parameter is invalid
     """
@@ -345,15 +346,16 @@ def validate_move_parameters(player: int, shape: int, position: int) -> None:
 # Position and Bit Manipulation Utilities
 # ============================================================================
 
+
 def create_position_mask(position: int) -> int:
     """Create bit mask for a specific position.
-    
+
     Args:
         position: Position index (0-15)
-        
+
     Returns:
         Bit mask with only the specified position bit set
-        
+
     Raises:
         ValueError: If position is invalid
     """
@@ -363,13 +365,13 @@ def create_position_mask(position: int) -> int:
 
 def position_to_coordinates(position: int) -> tuple[int, int]:
     """Convert position index to row and column coordinates.
-    
+
     Args:
         position: Position index (0-15)
-        
+
     Returns:
         Tuple of (row, column) where both are 0-3
-        
+
     Raises:
         ValueError: If position is invalid
     """
@@ -379,14 +381,14 @@ def position_to_coordinates(position: int) -> tuple[int, int]:
 
 def coordinates_to_position(row: int, col: int) -> int:
     """Convert row and column coordinates to position index.
-    
+
     Args:
         row: Row index (0-3)
         col: Column index (0-3)
-        
+
     Returns:
         Position index (0-15)
-        
+
     Raises:
         ValueError: If coordinates are invalid
     """
@@ -399,14 +401,14 @@ def coordinates_to_position(row: int, col: int) -> int:
 
 def is_position_occupied(bb: "Bitboard", position: int) -> bool:
     """Check if any piece occupies the specified position.
-    
+
     Args:
         bb: Bitboard to check
         position: Position to check (0-15)
-        
+
     Returns:
         True if position is occupied by any piece
-        
+
     Raises:
         ValueError: If position is invalid
     """

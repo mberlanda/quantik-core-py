@@ -17,7 +17,7 @@ import struct
 from .commons import Bitboard
 from .game_utils import coordinates_to_position, position_to_coordinates
 import itertools
-from .commons import VERSION, FLAG_CANON, Bitboard
+from .commons import VERSION, FLAG_CANON
 from .qfen import bb_from_qfen, bb_to_qfen
 from .move import Move
 

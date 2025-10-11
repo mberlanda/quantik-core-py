@@ -6,24 +6,9 @@ endgame detection, and game state analysis work correctly and provide the same
 results as the previous duplicated implementations.
 """
 
-import pytest
-"""
-Tests for game_ut        ongoing_bb = bb_from_qfen("ABC./..../..../....")
-        
-        # Test the consolidated functions directly
-        assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
-        assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
-        
-        assert is_game_over(winning_bb) == True
-        assert is_game_over(ongoing_bb) == Falsensolidated game utilities.
-
-This test module verifies that the consolidated functions for piece counting,
-endgame detection, and game state analysis work correctly and provide the same
-results as the previous duplicated implementations.
-"""
-
-import pytest
-from src.quantik_core.game_utils import (
+from quantik_core.qfen import bb_from_qfen
+from quantik_core.commons import Bitboard
+from quantik_core.game_utils import (
     count_pieces_by_shape,
     count_pieces_by_shape_lists,
     count_total_pieces,
@@ -40,8 +25,6 @@ from src.quantik_core.game_utils import (
     SHAPES_PER_PLAYER,
     TOTAL_SHAPES,
     BOARD_SIZE,
-    TOTAL_POSITIONS,
-    MAX_PIECES_PER_SHAPE,
     get_current_player_from_counts,
     validate_piece_counts,
     calculate_bitboard_index,
@@ -54,8 +37,22 @@ from src.quantik_core.game_utils import (
     coordinates_to_position,
     is_position_occupied,
 )
-from src.quantik_core.commons import Bitboard
-from src.quantik_core.qfen import bb_from_qfen
+import pytest
+
+"""
+Tests for game_ut        ongoing_bb = bb_from_qfen("ABC./..../..../....")
+
+        # Test the consolidated functions directly
+        assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
+        assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
+
+        assert is_game_over(winning_bb) == True
+        assert is_game_over(ongoing_bb) == Falsensolidated game utilities.
+
+This test module verifies that the consolidated functions for piece counting,
+endgame detection, and game state analysis work correctly and provide the same
+results as the previous duplicated implementations.
+"""
 
 
 class TestGameUtilsPieceCounting:
@@ -64,9 +61,9 @@ class TestGameUtilsPieceCounting:
     def test_count_pieces_by_shape_empty_board(self):
         """Test piece counting on empty board."""
         bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
-        
+
         player0_counts, player1_counts = count_pieces_by_shape(bb)
-        
+
         assert player0_counts == (0, 0, 0, 0)
         assert player1_counts == (0, 0, 0, 0)
 
@@ -75,24 +72,24 @@ class TestGameUtilsPieceCounting:
         # Player 0: 1 A (position 0), 2 B's (positions 0,1), 1 C (position 2)
         # Player 1: 1 A (position 0), 1 D (position 3)
         bb: Bitboard = (1, 3, 4, 0, 1, 0, 0, 8)
-        
+
         player0_counts, player1_counts = count_pieces_by_shape(bb)
-        
+
         assert player0_counts == (1, 2, 1, 0)  # A=1, B=2, C=1, D=0
         assert player1_counts == (1, 0, 0, 1)  # a=1, b=0, c=0, d=1
 
     def test_count_pieces_by_shape_lists_returns_lists(self):
         """Test that lists variant returns mutable lists."""
         bb: Bitboard = (1, 2, 0, 0, 4, 0, 0, 0)
-        
+
         player0_counts, player1_counts = count_pieces_by_shape_lists(bb)
-        
+
         # Should be lists, not tuples
         assert isinstance(player0_counts, list)
         assert isinstance(player1_counts, list)
         assert player0_counts == [1, 1, 0, 0]
         assert player1_counts == [1, 0, 0, 0]
-        
+
         # Should be mutable
         player0_counts[0] = 999
         assert player0_counts[0] == 999
@@ -100,46 +97,55 @@ class TestGameUtilsPieceCounting:
     def test_count_pieces_by_shape_caching(self):
         """Test that count_pieces_by_shape uses LRU cache."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
-        
+
         # Call multiple times with same input
         result1 = count_pieces_by_shape(bb)
         result2 = count_pieces_by_shape(bb)
         result3 = count_pieces_by_shape(bb)
-        
+
         # Results should be identical
         assert result1 == result2 == result3
-        
+
         # Verify actual counts
         assert result1 == ((1, 1, 2, 1), (2, 2, 3, 1))
 
     def test_count_total_pieces(self):
         """Test total piece counting."""
-        bb: Bitboard = (1, 3, 4, 0, 1, 0, 0, 8)  # Player 0: 3 pieces, Player 1: 2 pieces
-        
+        bb: Bitboard = (
+            1,
+            3,
+            4,
+            0,
+            1,
+            0,
+            0,
+            8,
+        )  # Player 0: 3 pieces, Player 1: 2 pieces
+
         total0, total1 = count_total_pieces(bb)
-        
+
         assert total0 == 4  # 1 + 2 + 1 + 0
         assert total1 == 2  # 1 + 0 + 0 + 1
 
     def test_count_total_pieces_empty_board(self):
         """Test total piece counting on empty board."""
         bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
-        
+
         total0, total1 = count_total_pieces(bb)
-        
+
         assert total0 == 0
         assert total1 == 0
 
     def test_count_player_shape_pieces(self):
         """Test counting pieces for specific player and shape."""
         bb: Bitboard = (1, 3, 4, 0, 1, 0, 0, 8)
-        
+
         # Player 0 pieces
         assert count_player_shape_pieces(bb, 0, 0) == 1  # A = 1 piece
-        assert count_player_shape_pieces(bb, 0, 1) == 2  # B = 2 pieces  
+        assert count_player_shape_pieces(bb, 0, 1) == 2  # B = 2 pieces
         assert count_player_shape_pieces(bb, 0, 2) == 1  # C = 1 piece
         assert count_player_shape_pieces(bb, 0, 3) == 0  # D = 0 pieces
-        
+
         # Player 1 pieces
         assert count_player_shape_pieces(bb, 1, 0) == 1  # a = 1 piece
         assert count_player_shape_pieces(bb, 1, 1) == 0  # b = 0 pieces
@@ -149,36 +155,38 @@ class TestGameUtilsPieceCounting:
     def test_consistency_between_functions(self):
         """Test that different counting functions are consistent."""
         bb: Bitboard = (5, 10, 15, 3, 7, 2, 1, 12)
-        
+
         # Get counts using different methods
         tuple_counts = count_pieces_by_shape(bb)
         list_counts = count_pieces_by_shape_lists(bb)
         totals = count_total_pieces(bb)
-        
+
         # Convert list results to tuples for comparison
         list_as_tuples = (tuple(list_counts[0]), tuple(list_counts[1]))
-        
+
         # Should be equivalent
         assert tuple_counts == list_as_tuples
-        
+
         # Total should match sum of individual counts
         assert totals[0] == sum(tuple_counts[0])
         assert totals[1] == sum(tuple_counts[1])
-        
+
         # Individual piece counts should match
         for player in range(2):
             for shape in range(4):
                 expected = tuple_counts[player][shape]
                 actual = count_player_shape_pieces(bb, player, shape)
-                assert expected == actual, f"Mismatch for player {player}, shape {shape}"
+                assert (
+                    expected == actual
+                ), f"Mismatch for player {player}, shape {shape}"
 
     def test_compatibility_with_move_function(self):
         """Test consolidated function works correctly."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
-        
+
         # Test consolidated function result
         result = count_pieces_by_shape_lists(bb)
-        
+
         # Verify the structure is correct
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -188,10 +196,10 @@ class TestGameUtilsPieceCounting:
     def test_consolidated_functions_work_correctly(self):
         """Test that consolidated functions work correctly."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
-        
+
         # Test that the main count function works
         result = count_pieces_by_shape(bb)
-        
+
         # Verify the structure is correct
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -206,13 +214,13 @@ class TestGameUtilsEdgeCases:
         """Test with maximum possible piece counts."""
         # Each bitboard can have up to 16 bits set (for 4x4 board)
         bb: Bitboard = (65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)
-        
+
         player0_counts, player1_counts = count_pieces_by_shape(bb)
-        
+
         # Each shape should have 16 pieces (all positions occupied)
         assert player0_counts == (16, 16, 16, 16)
         assert player1_counts == (16, 16, 16, 16)
-        
+
         total0, total1 = count_total_pieces(bb)
         assert total0 == 64
         assert total1 == 64
@@ -220,9 +228,9 @@ class TestGameUtilsEdgeCases:
     def test_single_bits_set(self):
         """Test with single bits set in each bitboard."""
         bb: Bitboard = (1, 2, 4, 8, 16, 32, 64, 128)
-        
+
         player0_counts, player1_counts = count_pieces_by_shape(bb)
-        
+
         # Each should have exactly 1 piece
         assert player0_counts == (1, 1, 1, 1)
         assert player1_counts == (1, 1, 1, 1)
@@ -230,11 +238,11 @@ class TestGameUtilsEdgeCases:
     def test_parameter_validation_player_shape_pieces(self):
         """Test that count_player_shape_pieces handles valid inputs."""
         bb: Bitboard = (1, 2, 3, 4, 5, 6, 7, 8)
-        
+
         # Valid parameters should work
         assert count_player_shape_pieces(bb, 0, 0) == 1
         assert count_player_shape_pieces(bb, 1, 3) == 1
-        
+
         # Note: We don't validate parameters in the current implementation
         # but this test documents expected usage patterns
 
@@ -306,26 +314,26 @@ class TestGameUtilsEndgameDetection:
 
     def test_consolidated_endgame_function_works(self):
         """Test that consolidated endgame function works correctly."""
-        
+
         winning_bb = bb_from_qfen("ABCD/..../..../....")
         ongoing_bb = bb_from_qfen("ABC./..../..../....")
-        
+
         # Test the consolidated function directly
-        assert has_winning_line(winning_bb) == True
-        assert has_winning_line(ongoing_bb) == False
+        assert has_winning_line(winning_bb)
+        assert not has_winning_line(ongoing_bb)
 
     def test_consolidated_validation_functions_work(self):
         """Test that consolidated validation functions work correctly."""
-        
+
         winning_bb = bb_from_qfen("ABCD/..../..../....")
         ongoing_bb = bb_from_qfen("ABC./..../..../....")
-        
+
         # Test the consolidated functions directly
         assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
         assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
-        
-        assert is_game_over(winning_bb) == True
-        assert is_game_over(ongoing_bb) == False
+
+        assert is_game_over(winning_bb)
+        assert not is_game_over(ongoing_bb)
 
 
 class TestGameUtilsConstants:
@@ -370,6 +378,7 @@ class TestGameUtilsValidation:
     def test_get_current_player_from_counts_invalid(self):
         """Test current player determination - invalid states."""
         import pytest
+
         with pytest.raises(ValueError):
             get_current_player_from_counts(3, 0)  # Too large gap
         with pytest.raises(ValueError):
@@ -389,12 +398,14 @@ class TestGameUtilsValidation:
         """Test piece count validation - would be invalid if possible."""
         # This tests the logic, but in practice we can't create invalid boards via QFEN
         # Test with constructed bitboard
-        bb_valid = bb_from_qfen("AA../..../..../..BB") 
+        bb_valid = bb_from_qfen("AA../..../..../..BB")
         assert validate_piece_counts(bb_valid)
-        
+
         # Manually construct invalid case (3 pieces of shape A for player 0)
         bb_invalid = list(bb_valid)
-        bb_invalid[0] = 7  # 3 bits set (111 binary) = 3 pieces, exceeds MAX_PIECES_PER_SHAPE=2
+        bb_invalid[0] = (
+            7  # 3 bits set (111 binary) = 3 pieces, exceeds MAX_PIECES_PER_SHAPE=2
+        )
         bb_invalid = tuple(bb_invalid)
         assert not validate_piece_counts(bb_invalid)
 
@@ -405,7 +416,7 @@ class TestGameUtilsValidation:
         assert calculate_bitboard_index(PLAYER_0, 1) == 1  # B
         assert calculate_bitboard_index(PLAYER_0, 2) == 2  # C
         assert calculate_bitboard_index(PLAYER_0, 3) == 3  # D
-        
+
         # Player 1 shapes: 4, 5, 6, 7
         assert calculate_bitboard_index(PLAYER_1, 0) == 4  # a
         assert calculate_bitboard_index(PLAYER_1, 1) == 5  # b
@@ -422,7 +433,7 @@ class TestGameUtilsValidation:
                 assert new_index == old_index
 
 
-class TestGameUtilsValidation:
+class TestGameUtilsValidationParameterChecks:
     """Test validation utility functions."""
 
     def test_validate_player_valid(self):
@@ -488,13 +499,13 @@ class TestGameUtilsValidation:
         assert calculate_bitboard_index(0, 3) == 3
         assert calculate_bitboard_index(1, 0) == 4
         assert calculate_bitboard_index(1, 3) == 7
-        
+
         # Invalid player
         with pytest.raises(ValueError, match="Invalid player"):
             calculate_bitboard_index(-1, 0)
         with pytest.raises(ValueError, match="Invalid player"):
             calculate_bitboard_index(2, 0)
-            
+
         # Invalid shape
         with pytest.raises(ValueError, match="Invalid shape"):
             calculate_bitboard_index(0, -1)
@@ -511,7 +522,7 @@ class TestGameUtilsPositionUtilities:
         assert create_position_mask(1) == 2
         assert create_position_mask(2) == 4
         assert create_position_mask(15) == 32768  # 2^15
-        
+
     def test_create_position_mask_invalid(self):
         """Test invalid position mask creation."""
         with pytest.raises(ValueError, match="Invalid position"):
@@ -525,7 +536,7 @@ class TestGameUtilsPositionUtilities:
         assert position_to_coordinates(3) == (0, 3)
         assert position_to_coordinates(4) == (1, 0)
         assert position_to_coordinates(15) == (3, 3)
-        
+
     def test_position_to_coordinates_invalid(self):
         """Test invalid position to coordinates conversion."""
         with pytest.raises(ValueError, match="Invalid position"):
@@ -539,7 +550,7 @@ class TestGameUtilsPositionUtilities:
         assert coordinates_to_position(0, 3) == 3
         assert coordinates_to_position(1, 0) == 4
         assert coordinates_to_position(3, 3) == 15
-        
+
     def test_coordinates_to_position_invalid(self):
         """Test invalid coordinates to position conversion."""
         with pytest.raises(ValueError, match="Invalid row"):
@@ -569,7 +580,7 @@ class TestGameUtilsPositionUtilities:
         bb: Bitboard = (1, 0, 0, 0, 0, 0, 0, 0)  # bit 0 set in bitboard 0
         assert is_position_occupied(bb, 0)
         assert not is_position_occupied(bb, 1)
-        
+
         # Place piece at position 5 for player 1 shape 2
         bb = (0, 0, 0, 0, 0, 0, 32, 0)  # bit 5 set in bitboard 6 (player 1, shape 2)
         assert is_position_occupied(bb, 5)

@@ -12,7 +12,7 @@ activate_venv() {
 }
 
 lint() {
-    autopep8 --in-place --aggressive --aggressive ./examples/*.py ./src/**/*.py ./tests/**/*.py
+    autopep8 --in-place --aggressive --aggressive ./examples/*.py ./src/**/*.py ./tests/*.py
     black ./examples ./src ./tests
 }
 
