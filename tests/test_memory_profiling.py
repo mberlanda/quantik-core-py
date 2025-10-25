@@ -191,11 +191,11 @@ class TestGameTreeBenchmark:
         """Test comparing multiple implementations."""
         benchmark = GameTreeBenchmark(enable_memory_tracking=False)
 
-        def implementation_1(depth):
-            return list(range(1000))  # Accept depth parameter
+        def implementation_1(depth=1000):
+            return list(range(depth))
 
-        def implementation_2(depth):
-            return [i for i in range(1000)]  # Accept depth parameter
+        def implementation_2(depth=1000):
+            return [i for i in range(depth)]
 
         implementations = {
             "list_sum": lambda: Mock(analyze_single_depth=implementation_1),
