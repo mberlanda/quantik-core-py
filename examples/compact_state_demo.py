@@ -137,12 +137,11 @@ def demonstrate_compression_levels():
 
     for result in results:
         print(
-            f"{
-                result['level']:<10} {
-                result['size']:<8} {
-                result['ratio']:.3f}x {
-                    result['serialize_time']:.4f}s   {
-                        result['deserialize_time']:.4f}s"
+            f"{result['level']:<10} "
+            f"{result['size']:<8} "
+            f"{result['ratio']:.3f}x "
+            f"{result['serialize_time']:.4f}s   "
+            f"{result['deserialize_time']:.4f}s"
         )
 
 
