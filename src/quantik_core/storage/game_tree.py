@@ -1,12 +1,7 @@
 """
 Hybrid game state management for distributed computing.
 
-This module provides the m        # Convert to tuple for GameState constructor
-        from ..memory.bitboard_compact import CompactBitboard
-        if isinstance(new_bb, CompactBitboard):
-            new_bb_tuple = new_bb.to_tuple()
-        else:
-            new_bb_tuple = new_bbnterface for working with game states
+This module provides the main interface for working with game states
 in a way that's optimized for both computation and storage/transmission.
 """
 

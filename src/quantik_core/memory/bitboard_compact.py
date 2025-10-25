@@ -1,18 +1,14 @@
 """
-Commit 4: Bitboard Optimization
+Compact bitboard representation for memory-efficient game trees.
 
-Ultra-compact bitboard representation    def __getitem__(self, index: int) -> int:
-        # Get value at specific bitboard position.
-        if not (0 <= index < 8):
-            raise IndexError(f"Index {index} out of range [0, 7]")
-        # Unpack single value at offset
-        return int(struct.unpack("<H", self._data[index * 2 : (index + 1) * 2])[0])emory-efficient game trees.
-Replaces Tuple[int, int, int, int, int, int, int, int] with 16-byte struct.
+Ultra-compact bitboard representation that replaces
+Tuple[int, int, int, int, int, int, int, int] with 16-byte struct.
 
 This provides:
 - Significant memory reduction (224+ bytes -> 16 bytes)
 - Cache-friendly fixed-size representation
 - Direct byte-level operations
+- Fast serialization and deserialization
 - Compatibility with existing State.pack() format
 - QFEN serialization/deserialization support
 

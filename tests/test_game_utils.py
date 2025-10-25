@@ -39,21 +39,6 @@ from quantik_core.game_utils import (
 )
 import pytest
 
-"""
-Tests for game_ut        ongoing_bb = bb_from_qfen("ABC./..../..../....")
-
-        # Test the consolidated functions directly
-        assert check_game_winner(winning_bb) == WinStatus.PLAYER_0_WINS
-        assert check_game_winner(ongoing_bb) == WinStatus.NO_WIN
-
-        assert is_game_over(winning_bb) == True
-        assert is_game_over(ongoing_bb) == Falsensolidated game utilities.
-
-This test module verifies that the consolidated functions for piece counting,
-endgame detection, and game state analysis work correctly and provide the same
-results as the previous duplicated implementations.
-"""
-
 
 class TestGameUtilsPieceCounting:
     """Test consolidated piece counting utilities."""
