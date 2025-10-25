@@ -452,12 +452,20 @@ class SymmetryTable:
         """Process a single move and return the result."""
         new_bb = apply_move(parent_bb, move)
 
+        # Convert to tuple for compatibility with other functions
+        from .memory.bitboard_compact import CompactBitboard
+
+        if isinstance(new_bb, CompactBitboard):
+            new_bb_tuple = new_bb.to_tuple()
+        else:
+            new_bb_tuple = new_bb
+
         # Check for winning move
-        if bb_check_game_winner(new_bb) != WinStatus.NO_WIN:
+        if bb_check_game_winner(new_bb_tuple) != WinStatus.NO_WIN:
             return MoveProcessingResult(is_winning_move=True, new_state=None)
 
         # Find canonical form
-        canonical_bb, transformation = SymmetryHandler.find_canonical_form(new_bb)
+        canonical_bb, transformation = SymmetryHandler.find_canonical_form(new_bb_tuple)
         canonical_key = tuple(canonical_bb)
 
         # Calculate next player

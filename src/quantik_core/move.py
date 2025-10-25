@@ -1,24 +1,10 @@
 """
-Move representation and validation for Quantik game states.
-
-This module provides the foundation for game state iteration, move generation,
-and game tree construction by defining moves and their validation.
-Optimized for fast tuple-based computation in hot paths.
+Move utilities and validation for Quantik game.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict
-from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
-from .game_utils import (
-    calculate_bitboard_index,
-    validate_move_parameters,
-    create_position_mask,
-    is_position_occupied,
-)
-from .state_validator import ValidationResult, _validate_game_state_single_pass
+from typing import Optional, List, Dict, Union, TYPE_CHECKING, cast
 
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Union, overload, TYPE_CHECKING
 from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
 from .game_utils import (
     calculate_bitboard_index,
@@ -26,7 +12,10 @@ from .game_utils import (
     create_position_mask,
     is_position_occupied,
 )
-from .state_validator import ValidationResult, _validate_game_state_single_pass
+from .state_validator import (
+    ValidationResult,
+    _validate_game_state_single_pass,
+)
 
 if TYPE_CHECKING:
     from .memory.bitboard_compact import CompactBitboard
@@ -66,14 +55,6 @@ class MoveValidationResult:
         self.new_bb = new_bb
 
 
-@overload
-def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult: ...
-
-
-@overload
-def validate_move(bb: "CompactBitboard", move: Move) -> MoveValidationResult: ...
-
-
 def validate_move(
     bb: Union[Bitboard, "CompactBitboard"], move: Move
 ) -> MoveValidationResult:
@@ -92,14 +73,14 @@ def validate_move(
     Returns:
         MoveValidationResult with validation outcome and potentially new state
     """
+    from .memory.bitboard_compact import CompactBitboard
+
     # Convert CompactBitboard to tuple if needed for compatibility
     bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(
-        getattr(bb, "to_tuple", None)
-    ):  # It's a CompactBitboard
-        bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
+    if isinstance(bb, CompactBitboard):
+        bb_tuple = bb.to_tuple()
     else:
-        bb_tuple = bb  # type: ignore[assignment]
+        bb_tuple = bb
 
     # Check if it's the player's turn
     current_player, validation_result = _validate_game_state_single_pass(bb_tuple)
@@ -110,25 +91,37 @@ def validate_move(
         return MoveValidationResult(False, ValidationResult.NOT_PLAYER_TURN)
 
     # Check if position is empty
-    if hasattr(bb, "is_position_occupied"):  # CompactBitboard optimized method
-        position_occupied = bb.is_position_occupied(move.position)  # type: ignore
+    if isinstance(bb, CompactBitboard):
+        position_occupied = bb.is_position_occupied(move.position)
     else:
         position_occupied = is_position_occupied(bb_tuple, move.position)
-    
+
     if position_occupied:
         return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
     # Apply move using appropriate method
-    if hasattr(bb, "apply_move_functional"):  # CompactBitboard
-        new_bb = bb.apply_move_functional(move.player, move.shape, move.position)  # type: ignore
-        new_bb_tuple = new_bb.to_tuple()  # type: ignore
+    result_bb: Union[Bitboard, "CompactBitboard"]
+    if isinstance(bb, CompactBitboard):
+        new_bb = bb.apply_move_functional(move.player, move.shape, move.position)
+        new_bb_tuple = new_bb.to_tuple()
+        result_bb = new_bb  # Return the CompactBitboard
     else:  # Regular tuple bitboard
         lst_bb = list(bb_tuple)
         bitboard_index = calculate_bitboard_index(move.player, move.shape)
         position_mask = create_position_mask(move.position)
         lst_bb[bitboard_index] |= position_mask
-        new_bb = tuple(lst_bb)
-        new_bb_tuple = new_bb
+        result_bb_tuple: Bitboard = (
+            lst_bb[0],
+            lst_bb[1],
+            lst_bb[2],
+            lst_bb[3],
+            lst_bb[4],
+            lst_bb[5],
+            lst_bb[6],
+            lst_bb[7],
+        )
+        new_bb_tuple = result_bb_tuple
+        result_bb = result_bb_tuple  # Return the tuple
 
     # Validate the new bitboard representation
     _, new_validation_result = _validate_game_state_single_pass(new_bb_tuple)
@@ -136,15 +129,7 @@ def validate_move(
     if new_validation_result != ValidationResult.OK:
         return MoveValidationResult(False, new_validation_result)
 
-    return MoveValidationResult(True, None, new_bb)
-
-
-@overload
-def apply_move(bb: Bitboard, move: Move) -> Bitboard: ...
-
-
-@overload
-def apply_move(bb: "CompactBitboard", move: Move) -> "CompactBitboard": ...
+    return MoveValidationResult(True, None, result_bb)
 
 
 def apply_move(
@@ -162,60 +147,77 @@ def apply_move(
     Returns:
         New state with the move applied (same type as input)
     """
+    from .memory.bitboard_compact import CompactBitboard
+
     # Handle CompactBitboard with optimized method
-    if hasattr(bb, "apply_move_functional"):  # It's a CompactBitboard
-        return bb.apply_move_functional(move.player, move.shape, move.position)  # type: ignore
+    if isinstance(bb, CompactBitboard):
+        return bb.apply_move_functional(move.player, move.shape, move.position)
 
     # Handle regular tuple bitboard
     bitboard_index = calculate_bitboard_index(move.player, move.shape)
     position_mask = create_position_mask(move.position)
-    return (
-        bb[:bitboard_index]
-        + (bb[bitboard_index] | position_mask,)
-        + bb[bitboard_index + 1 :]
+    return cast(
+        Bitboard,
+        (
+            bb[:bitboard_index]
+            + (bb[bitboard_index] | position_mask,)
+            + bb[bitboard_index + 1 :]
+        ),
     )
 
 
-@overload
-def generate_legal_moves(
-    bb: Bitboard, player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
+def _is_move_legal_on_position(
+    position: int,
+    shape: int,
+    opponent_shape_bits: int,
+    bb: Union[Bitboard, "CompactBitboard"],
+    bb_tuple: Bitboard,
+) -> bool:
+    """Check if a move is legal at a specific position."""
+    from .memory.bitboard_compact import CompactBitboard
 
+    # Check if position is already occupied
+    if isinstance(bb, CompactBitboard):
+        position_occupied = bb.is_position_occupied(position)
+    else:
+        position_occupied = is_position_occupied(bb_tuple, position)
 
-@overload
-def generate_legal_moves(
-    bb: "CompactBitboard", player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
+    if position_occupied:
+        return False
+
+    position_mask = create_position_mask(position)
+
+    # Check if this position conflicts with opponent's same shape on any win line
+    for win_mask in WIN_MASKS:
+        # If this position is on a win line that has opponent's same shape, illegal
+        if (position_mask & win_mask) and (opponent_shape_bits & win_mask):
+            return False
+
+    return True
 
 
 def generate_legal_moves(
     bb: Union[Bitboard, "CompactBitboard"], player_id: Optional[PlayerId] = None
 ) -> tuple[PlayerId, Dict[int, List[Move]]]:
     """
-    Generate all legal moves for the current player in the given state.
-
-    This function applies all Quantik game constraints:
-    1. Maximum 2 pieces per shape per player
-    2. Cannot place same shape on same line (row/column/zone) as opponent
-    3. Position must be empty
-    4. Must be player's turn
+    Generate all legal moves for the current player.
 
     Args:
-        bb: Current game bitboard (tuple or CompactBitboard)
-        player_id: Optional player ID to validate against current turn
+        bb: Current game Bitboard (tuple or CompactBitboard)
+        player_id: Optional player ID to validate (if None, uses current turn)
 
     Returns:
         Tuple of (current_player, moves_by_shape) where moves_by_shape is
         a dict with keys 0-3 (shapes A-D) and values as lists of legal moves
     """
+    from .memory.bitboard_compact import CompactBitboard
+
     # Convert CompactBitboard to tuple if needed for compatibility
     bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(
-        getattr(bb, "to_tuple", None)
-    ):  # It's a CompactBitboard
-        bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
+    if isinstance(bb, CompactBitboard):
+        bb_tuple = bb.to_tuple()
     else:
-        bb_tuple = bb  # type: ignore[assignment]
+        bb_tuple = bb
 
     # First, determine whose turn it is
     current_player, validation_result = _validate_game_state_single_pass(bb_tuple)
@@ -232,7 +234,7 @@ def generate_legal_moves(
     # Use optimized access for CompactBitboard if available
     if hasattr(bb, "__getitem__"):  # CompactBitboard with fast indexing
         current_shape_counts = [
-            bb[calculate_bitboard_index(current_player, shape)].bit_count()  # type: ignore
+            bb[calculate_bitboard_index(current_player, shape)].bit_count()
             for shape in range(4)
         ]
     else:
@@ -247,8 +249,10 @@ def generate_legal_moves(
             continue  # Player already has max pieces of this shape
 
         # Get opponent's pieces of the same shape using optimized access if available
-        if hasattr(bb, "__getitem__"):  # CompactBitboard
-            opponent_shape_bits = bb[calculate_bitboard_index(1 - current_player, shape)]  # type: ignore
+        if isinstance(bb, CompactBitboard):
+            opponent_shape_bits = bb[
+                calculate_bitboard_index(1 - current_player, shape)
+            ]
         else:
             opponent_shape_bits = bb_tuple[
                 calculate_bitboard_index(1 - current_player, shape)
@@ -256,26 +260,9 @@ def generate_legal_moves(
 
         # For each position on the board
         for position in range(16):
-            # Check if position is already occupied
-            if hasattr(bb, "is_position_occupied"):  # CompactBitboard optimized method
-                position_occupied = bb.is_position_occupied(position)  # type: ignore
-            else:
-                position_occupied = is_position_occupied(bb_tuple, position)
-                
-            if position_occupied:
-                continue
-
-            position_mask = create_position_mask(position)
-
-            # Check if this position conflicts with opponent's same shape on any win line
-            is_legal = True
-            for win_mask in WIN_MASKS:
-                # If this position is on a win line that has opponent's same shape, illegal
-                if (position_mask & win_mask) and (opponent_shape_bits & win_mask):
-                    is_legal = False
-                    break
-
-            if is_legal:
+            if _is_move_legal_on_position(
+                position, shape, opponent_shape_bits, bb, bb_tuple
+            ):
                 moves_by_shape[shape].append(Move(current_player, shape, position))
 
     return current_player, moves_by_shape

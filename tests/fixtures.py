@@ -4,7 +4,7 @@ This module provides reusable test fixtures, canonical bitboards, and game state
 factories to reduce duplication across test files and ensure consistency.
 """
 
-from typing import Dict, List, Tuple, Any, Optional
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
 from quantik_core.commons import Bitboard
@@ -17,7 +17,7 @@ from quantik_core.move import Move
 @dataclass
 class GameStateFixture:
     """A complete game state fixture with metadata."""
-    
+
     name: str
     description: str
     qfen: str
@@ -25,21 +25,23 @@ class GameStateFixture:
     compact_bitboard: CompactBitboard
     state: State
     expected_player: int
-    piece_counts: Tuple[Tuple[int, int, int, int], Tuple[int, int, int, int]]  # (p0_counts, p1_counts)
+    piece_counts: Tuple[
+        Tuple[int, int, int, int], Tuple[int, int, int, int]
+    ]  # (p0_counts, p1_counts)
     is_terminal: bool = False
     winner: Optional[int] = None
 
 
 class CanonicalBitboardFactory:
     """Factory for creating canonical, valid bitboards for testing.
-    
+
     Provides common game states that are guaranteed to be:
     - Canonically valid (follow game rules)
     - Consistently formatted
     - Reusable across tests
     - Well-documented for their purpose
     """
-    
+
     @staticmethod
     def empty_board() -> GameStateFixture:
         """Empty 4x4 Quantik board."""
@@ -54,9 +56,9 @@ class CanonicalBitboardFactory:
             state=State.empty(),
             expected_player=0,
             piece_counts=((0, 0, 0, 0), (0, 0, 0, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def single_piece_corner() -> GameStateFixture:
         """Single piece in top-left corner (canonical position)."""
@@ -71,9 +73,9 @@ class CanonicalBitboardFactory:
             state=State(bb),
             expected_player=1,
             piece_counts=((1, 0, 0, 0), (0, 0, 0, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def single_piece_center() -> GameStateFixture:
         """Single piece in center position."""
@@ -88,9 +90,9 @@ class CanonicalBitboardFactory:
             state=State(bb),
             expected_player=1,
             piece_counts=((1, 0, 0, 0), (0, 0, 0, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def alternating_moves() -> GameStateFixture:
         """Alternating moves by both players."""
@@ -105,9 +107,9 @@ class CanonicalBitboardFactory:
             state=State(bb),
             expected_player=0,
             piece_counts=((1, 0, 0, 0), (0, 1, 0, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def winning_row() -> GameStateFixture:
         """Complete winning row (all four shapes)."""
@@ -123,9 +125,9 @@ class CanonicalBitboardFactory:
             expected_player=1,
             piece_counts=((1, 1, 1, 1), (0, 0, 0, 0)),
             is_terminal=True,
-            winner=0
+            winner=0,
         )
-    
+
     @staticmethod
     def winning_column() -> GameStateFixture:
         """Complete winning column (all four shapes)."""
@@ -141,9 +143,9 @@ class CanonicalBitboardFactory:
             expected_player=1,
             piece_counts=((1, 1, 1, 1), (0, 0, 0, 0)),
             is_terminal=True,
-            winner=0
+            winner=0,
         )
-    
+
     @staticmethod
     def mixed_players_winning() -> GameStateFixture:
         """Mixed players forming a winning line."""
@@ -159,9 +161,9 @@ class CanonicalBitboardFactory:
             expected_player=0,
             piece_counts=((1, 0, 0, 1), (0, 1, 1, 0)),
             is_terminal=True,
-            winner=None  # Game ends, but no single player wins
+            winner=None,  # Game ends, but no single player wins
         )
-    
+
     @staticmethod
     def complex_mid_game() -> GameStateFixture:
         """Complex mid-game position with multiple pieces."""
@@ -176,9 +178,9 @@ class CanonicalBitboardFactory:
             state=State(bb),
             expected_player=1,
             piece_counts=((1, 0, 0, 1), (1, 1, 1, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def multiple_pieces_same_shape() -> GameStateFixture:
         """Multiple pieces of the same shape (valid in Quantik)."""
@@ -193,9 +195,9 @@ class CanonicalBitboardFactory:
             state=State(bb),
             expected_player=1,
             piece_counts=((3, 0, 0, 0), (0, 0, 0, 0)),
-            is_terminal=False
+            is_terminal=False,
         )
-    
+
     @staticmethod
     def stress_test_bitboard() -> GameStateFixture:
         """High-density board for stress testing."""
@@ -211,9 +213,9 @@ class CanonicalBitboardFactory:
             expected_player=0,
             piece_counts=((4, 4, 4, 4), (4, 4, 4, 4)),
             is_terminal=True,
-            winner=None  # Multiple winning lines
+            winner=None,  # Multiple winning lines
         )
-    
+
     @classmethod
     def all_fixtures(cls) -> List[GameStateFixture]:
         """Get all available test fixtures."""
@@ -229,7 +231,7 @@ class CanonicalBitboardFactory:
             cls.multiple_pieces_same_shape(),
             cls.stress_test_bitboard(),
         ]
-    
+
     @classmethod
     def by_name(cls, name: str) -> GameStateFixture:
         """Get fixture by name."""
@@ -241,7 +243,7 @@ class CanonicalBitboardFactory:
 
 class MoveSequenceFactory:
     """Factory for creating sequences of moves for testing game progression."""
-    
+
     @staticmethod
     def simple_opening() -> List[Move]:
         """Simple opening sequence: A0, b1, B2, c3."""
@@ -251,7 +253,7 @@ class MoveSequenceFactory:
             Move(player=0, shape=1, position=2),  # B at pos 2
             Move(player=1, shape=2, position=3),  # c at pos 3
         ]
-    
+
     @staticmethod
     def winning_sequence() -> List[Move]:
         """Move sequence that leads to a win for Player 0."""
@@ -268,22 +270,21 @@ class MoveSequenceFactory:
 
 class BitboardPatterns:
     """Common bitboard patterns for testing specific scenarios."""
-    
+
     # Single bit patterns for each position
     SINGLE_BIT_PATTERNS = {
-        i: tuple(1 << i if j == 0 else 0 for j in range(8))
-        for i in range(16)
+        i: tuple(1 << i if j == 0 else 0 for j in range(8)) for i in range(16)
     }
-    
+
     # Empty bitboard
     EMPTY = (0, 0, 0, 0, 0, 0, 0, 0)
-    
+
     # Maximum density patterns
     ALL_BITS_SET = (65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535)
-    
+
     # Edge case patterns
     ALTERNATING_BITS = (0x5555, 0xAAAA, 0x5555, 0xAAAA, 0x5555, 0xAAAA, 0x5555, 0xAAAA)
-    
+
     @staticmethod
     def single_piece_at(position: int, player: int = 0, shape: int = 0) -> Bitboard:
         """Create bitboard with single piece at specified position."""
@@ -293,12 +294,12 @@ class BitboardPatterns:
             raise ValueError(f"Invalid player: {player}")
         if not (0 <= shape < 4):
             raise ValueError(f"Invalid shape: {shape}")
-        
+
         bitboard_index = player * 4 + shape
         bitboard = [0] * 8
         bitboard[bitboard_index] = 1 << position
         return tuple(bitboard)
-    
+
     @staticmethod
     def multiple_pieces(pieces: List[Tuple[int, int, int]]) -> Bitboard:
         """Create bitboard with multiple pieces. Each piece is (position, player, shape)."""
@@ -310,10 +311,10 @@ class BitboardPatterns:
                 raise ValueError(f"Invalid player: {player}")
             if not (0 <= shape < 4):
                 raise ValueError(f"Invalid shape: {shape}")
-            
+
             bitboard_index = player * 4 + shape
             bitboard[bitboard_index] |= 1 << position
-        
+
         return tuple(bitboard)
 
 
@@ -322,18 +323,18 @@ def assert_fixture_consistency(fixture: GameStateFixture) -> None:
     # QFEN roundtrip
     assert bb_to_qfen(fixture.bitboard) == fixture.qfen
     assert bb_from_qfen(fixture.qfen) == fixture.bitboard
-    
+
     # CompactBitboard consistency
     assert fixture.compact_bitboard.to_tuple() == fixture.bitboard
     assert fixture.compact_bitboard.to_qfen() == fixture.qfen
-    
+
     # State consistency
     assert fixture.state.bb == fixture.bitboard
     assert fixture.state.to_qfen() == fixture.qfen
-    
+
     # Piece counts consistency (this would require importing game utils)
     # We'll skip this for now to avoid circular imports
-    
+
     print(f"✓ Fixture '{fixture.name}' is consistent")
 
 

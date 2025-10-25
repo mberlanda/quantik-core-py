@@ -35,7 +35,7 @@ class CompactBitboard:
     """
 
     __slots__ = ("_data",)
-    
+
     # Pre-compile struct format for performance
     _STRUCT_FORMAT = "<8H"
     _STRUCT_SIZE = 16
@@ -49,7 +49,9 @@ class CompactBitboard:
         """
         if isinstance(data, (bytes, bytearray)):
             if len(data) != self._STRUCT_SIZE:
-                raise ValueError(f"Byte data must be exactly {self._STRUCT_SIZE} bytes, got {len(data)}")
+                raise ValueError(
+                    f"Byte data must be exactly {self._STRUCT_SIZE} bytes, got {len(data)}"
+                )
             self._data = bytes(data)
         elif isinstance(data, tuple):
             if len(data) != 8:
@@ -88,7 +90,8 @@ class CompactBitboard:
             raise IndexError(f"Index {index} out of range [0, 7]")
         # Optimized: unpack only the needed value
         offset = index * 2
-        return struct.unpack("<H", self._data[offset:offset + 2])[0]
+        result: int = struct.unpack("<H", self._data[offset : offset + 2])[0]
+        return result
 
     def bit_count(self, bitboard_index: int) -> int:
         """Get the number of set bits in a specific bitboard."""
@@ -115,7 +118,7 @@ class CompactBitboard:
         values = list(struct.unpack(self._STRUCT_FORMAT, self._data))
         bitboard_idx = player * 4 + shape
         values[bitboard_idx] |= 1 << position
-        
+
         return CompactBitboard(tuple(values))
 
     def is_position_occupied(self, position: int) -> bool:
@@ -137,7 +140,12 @@ class CompactBitboard:
         if isinstance(data, CompactBitboard):
             return data
         elif isinstance(data, (tuple, list)) and len(data) == 8:
-            return cls(tuple(data))
+            # Ensure we have proper int values and correct typing
+            bitboard_tuple = tuple(int(x) for x in data)
+            if len(bitboard_tuple) == 8:
+                return cls(bitboard_tuple)
+            else:
+                raise ValueError("Bitboard tuple must have exactly 8 elements")
         elif isinstance(data, (bytes, bytearray)):
             return cls.from_bytes(data)
         else:
