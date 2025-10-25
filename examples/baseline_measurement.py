@@ -126,10 +126,8 @@ def benchmark_current_implementation():
         )
         results.append(result_1)
         print(
-            f"  SUCCESS: {
-                result_1.states_processed:,    } states in {
-                result_1.execution_time:.3f}s ({
-                result_1.states_per_second:,.0f} states/sec)"
+            f"  SUCCESS: {result_1.states_processed:,} states in "
+            f"{result_1.execution_time:.3f}s ({result_1.states_per_second:,.0f} states/sec)"
         )
 
         print("Benchmarking depth 2...")
@@ -138,10 +136,8 @@ def benchmark_current_implementation():
         )
         results.append(result_2)
         print(
-            f"  SUCCESS: {
-                result_2.states_processed:,    } states in {
-                result_2.execution_time:.3f}s ({
-                result_2.states_per_second:,.0f} states/sec)"
+            f"  SUCCESS: {result_2.states_processed:,} states in "
+            f"{result_2.execution_time:.3f}s ({result_2.states_per_second:,.0f} states/sec)"
         )
 
         print("Benchmarking depth 3...")
@@ -150,10 +146,8 @@ def benchmark_current_implementation():
         )
         results.append(result_3)
         print(
-            f"  SUCCESS: {
-                result_3.states_processed:,    } states in {
-                result_3.execution_time:.3f}s ({
-                result_3.states_per_second:,.0f} states/sec)"
+            f"  SUCCESS: {result_3.states_processed:,} states in "
+            f"{result_3.execution_time:.3f}s ({result_3.states_per_second:,.0f} states/sec)"
         )
 
         # Estimate time for depth 8
