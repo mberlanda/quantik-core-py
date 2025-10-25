@@ -17,20 +17,6 @@ from .game_utils import (
 )
 from .state_validator import ValidationResult, _validate_game_state_single_pass
 
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Union, overload, TYPE_CHECKING
-from .commons import Bitboard, PlayerId, WIN_MASKS, MAX_PIECES_PER_SHAPE
-from .game_utils import (
-    calculate_bitboard_index,
-    validate_move_parameters,
-    create_position_mask,
-    is_position_occupied,
-)
-from .state_validator import ValidationResult, _validate_game_state_single_pass
-
-if TYPE_CHECKING:
-    from .memory.bitboard_compact import CompactBitboard
-
 
 @dataclass(frozen=True)
 class Move:
@@ -59,24 +45,14 @@ class MoveValidationResult:
         self,
         is_valid: bool,
         error: Optional[ValidationResult] = None,
-        new_bb: Optional[Union[Bitboard, "CompactBitboard"]] = None,
+        new_bb: Optional[Bitboard] = None,
     ):
         self.is_valid = is_valid
         self.error = error
         self.new_bb = new_bb
 
 
-@overload
-def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult: ...
-
-
-@overload
-def validate_move(bb: "CompactBitboard", move: Move) -> MoveValidationResult: ...
-
-
-def validate_move(
-    bb: Union[Bitboard, "CompactBitboard"], move: Move
-) -> MoveValidationResult:
+def validate_move(bb: Bitboard, move: Move) -> MoveValidationResult:
     """
     Validate if a move can be applied to the given state.
 
@@ -86,23 +62,14 @@ def validate_move(
     3. If the resulting bitboard would be valid
 
     Args:
-        bb: Current game bitboard (tuple or CompactBitboard)
+        bb: Current game bitboard tuple
         move: Move to validate
 
     Returns:
         MoveValidationResult with validation outcome and potentially new state
     """
-    # Convert CompactBitboard to tuple if needed for compatibility
-    bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(
-        getattr(bb, "to_tuple", None)
-    ):  # It's a CompactBitboard
-        bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
-    else:
-        bb_tuple = bb  # type: ignore[assignment]
-
     # Check if it's the player's turn
-    current_player, validation_result = _validate_game_state_single_pass(bb_tuple)
+    current_player, validation_result = _validate_game_state_single_pass(bb)
     if validation_result != ValidationResult.OK:
         return MoveValidationResult(False, validation_result)
 
@@ -110,28 +77,18 @@ def validate_move(
         return MoveValidationResult(False, ValidationResult.NOT_PLAYER_TURN)
 
     # Check if position is empty
-    if hasattr(bb, "is_position_occupied"):  # CompactBitboard optimized method
-        position_occupied = bb.is_position_occupied(move.position)  # type: ignore
-    else:
-        position_occupied = is_position_occupied(bb_tuple, move.position)
-    
-    if position_occupied:
+    if is_position_occupied(bb, move.position):
         return MoveValidationResult(False, ValidationResult.PIECE_OVERLAP)
 
-    # Apply move using appropriate method
-    if hasattr(bb, "apply_move_functional"):  # CompactBitboard
-        new_bb = bb.apply_move_functional(move.player, move.shape, move.position)  # type: ignore
-        new_bb_tuple = new_bb.to_tuple()  # type: ignore
-    else:  # Regular tuple bitboard
-        lst_bb = list(bb_tuple)
-        bitboard_index = calculate_bitboard_index(move.player, move.shape)
-        position_mask = create_position_mask(move.position)
-        lst_bb[bitboard_index] |= position_mask
-        new_bb = tuple(lst_bb)
-        new_bb_tuple = new_bb
+    # Create new state with the move applied
+    lst_bb = list(bb)
+    bitboard_index = calculate_bitboard_index(move.player, move.shape)
+    position_mask = create_position_mask(move.position)
+    lst_bb[bitboard_index] |= position_mask
 
     # Validate the new bitboard representation
-    _, new_validation_result = _validate_game_state_single_pass(new_bb_tuple)
+    new_bb: Bitboard = tuple(lst_bb)
+    _, new_validation_result = _validate_game_state_single_pass(new_bb)
 
     if new_validation_result != ValidationResult.OK:
         return MoveValidationResult(False, new_validation_result)
@@ -139,36 +96,22 @@ def validate_move(
     return MoveValidationResult(True, None, new_bb)
 
 
-@overload
-def apply_move(bb: Bitboard, move: Move) -> Bitboard: ...
-
-
-@overload
-def apply_move(bb: "CompactBitboard", move: Move) -> "CompactBitboard": ...
-
-
-def apply_move(
-    bb: Union[Bitboard, "CompactBitboard"], move: Move
-) -> Union[Bitboard, "CompactBitboard"]:
+def apply_move(bb: Bitboard, move: Move) -> Bitboard:
     """
     Apply a move to a bitboard, returning the new bitboard.
 
     This function assumes the move is valid. Use validate_move() first if unsure.
 
     Args:
-        bb: Current game Bitboard (tuple or CompactBitboard)
+        bb: Current game bitboard tuple
         move: Move to apply
 
     Returns:
-        New state with the move applied (same type as input)
+        New bitboard tuple with the move applied
     """
-    # Handle CompactBitboard with optimized method
-    if hasattr(bb, "apply_move_functional"):  # It's a CompactBitboard
-        return bb.apply_move_functional(move.player, move.shape, move.position)  # type: ignore
-
-    # Handle regular tuple bitboard
     bitboard_index = calculate_bitboard_index(move.player, move.shape)
     position_mask = create_position_mask(move.position)
+    
     return (
         bb[:bitboard_index]
         + (bb[bitboard_index] | position_mask,)
@@ -176,20 +119,8 @@ def apply_move(
     )
 
 
-@overload
 def generate_legal_moves(
     bb: Bitboard, player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
-
-
-@overload
-def generate_legal_moves(
-    bb: "CompactBitboard", player_id: Optional[PlayerId] = None
-) -> tuple[PlayerId, Dict[int, List[Move]]]: ...
-
-
-def generate_legal_moves(
-    bb: Union[Bitboard, "CompactBitboard"], player_id: Optional[PlayerId] = None
 ) -> tuple[PlayerId, Dict[int, List[Move]]]:
     """
     Generate all legal moves for the current player in the given state.
@@ -201,24 +132,15 @@ def generate_legal_moves(
     4. Must be player's turn
 
     Args:
-        bb: Current game bitboard (tuple or CompactBitboard)
+        bb: Current game bitboard tuple
         player_id: Optional player ID to validate against current turn
 
     Returns:
         Tuple of (current_player, moves_by_shape) where moves_by_shape is
         a dict with keys 0-3 (shapes A-D) and values as lists of legal moves
     """
-    # Convert CompactBitboard to tuple if needed for compatibility
-    bb_tuple: Bitboard
-    if hasattr(bb, "to_tuple") and callable(
-        getattr(bb, "to_tuple", None)
-    ):  # It's a CompactBitboard
-        bb_tuple = bb.to_tuple()  # type: ignore[union-attr]
-    else:
-        bb_tuple = bb  # type: ignore[assignment]
-
     # First, determine whose turn it is
-    current_player, validation_result = _validate_game_state_single_pass(bb_tuple)
+    current_player, validation_result = _validate_game_state_single_pass(bb)
     if validation_result != ValidationResult.OK or current_player is None:
         return 0, {}  # Invalid state, no legal moves
 
@@ -229,40 +151,23 @@ def generate_legal_moves(
     moves_by_shape: Dict[int, List[Move]] = {0: [], 1: [], 2: [], 3: []}  # A, B, C, D
 
     # Count existing pieces for current player by shape (for max pieces constraint)
-    # Use optimized access for CompactBitboard if available
-    if hasattr(bb, "__getitem__"):  # CompactBitboard with fast indexing
-        current_shape_counts = [
-            bb[calculate_bitboard_index(current_player, shape)].bit_count()  # type: ignore
-            for shape in range(4)
-        ]
-    else:
-        current_shape_counts = [
-            bb_tuple[calculate_bitboard_index(current_player, shape)].bit_count()
-            for shape in range(4)
-        ]
+    current_shape_counts = [
+        bb[calculate_bitboard_index(current_player, shape)].bit_count()
+        for shape in range(4)
+    ]
 
     # For each shape that the player can still place
     for shape in range(4):
         if current_shape_counts[shape] >= MAX_PIECES_PER_SHAPE:
             continue  # Player already has max pieces of this shape
 
-        # Get opponent's pieces of the same shape using optimized access if available
-        if hasattr(bb, "__getitem__"):  # CompactBitboard
-            opponent_shape_bits = bb[calculate_bitboard_index(1 - current_player, shape)]  # type: ignore
-        else:
-            opponent_shape_bits = bb_tuple[
-                calculate_bitboard_index(1 - current_player, shape)
-            ]
+        # Get opponent's pieces of the same shape
+        opponent_shape_bits = bb[calculate_bitboard_index(1 - current_player, shape)]
 
         # For each position on the board
         for position in range(16):
             # Check if position is already occupied
-            if hasattr(bb, "is_position_occupied"):  # CompactBitboard optimized method
-                position_occupied = bb.is_position_occupied(position)  # type: ignore
-            else:
-                position_occupied = is_position_occupied(bb_tuple, position)
-                
-            if position_occupied:
+            if is_position_occupied(bb, position):
                 continue
 
             position_mask = create_position_mask(position)
@@ -282,13 +187,13 @@ def generate_legal_moves(
 
 
 def generate_legal_moves_list(
-    bb: Union[Bitboard, "CompactBitboard"], player_id: Optional[PlayerId] = None
+    bb: Bitboard, player_id: Optional[PlayerId] = None
 ) -> List[Move]:
     """
     Generate all legal moves as a flat list (for backward compatibility).
 
     Args:
-        bb: Current game state bitboard (tuple or CompactBitboard)
+        bb: Current game state bitboard tuple
         player_id: Optional player ID to validate against current turn
 
     Returns:

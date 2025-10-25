@@ -35,6 +35,10 @@ class CompactBitboard:
     """
 
     __slots__ = ("_data",)
+    
+    # Pre-compile struct format for performance
+    _STRUCT_FORMAT = "<8H"
+    _STRUCT_SIZE = 16
 
     def __init__(self, data: Union[bytes, bytearray, Bitboard]):
         """
@@ -44,8 +48,8 @@ class CompactBitboard:
             data: Either 16-byte bytes/bytearray or 8-tuple of integers (0-65535)
         """
         if isinstance(data, (bytes, bytearray)):
-            if len(data) != 16:
-                raise ValueError(f"Byte data must be exactly 16 bytes, got {len(data)}")
+            if len(data) != self._STRUCT_SIZE:
+                raise ValueError(f"Byte data must be exactly {self._STRUCT_SIZE} bytes, got {len(data)}")
             self._data = bytes(data)
         elif isinstance(data, tuple):
             if len(data) != 8:
@@ -54,7 +58,7 @@ class CompactBitboard:
             for val in data:
                 if not (0 <= val <= 65535):
                     raise ValueError(f"All values must be 0-65535, got {val}")
-            self._data = struct.pack("<8H", *data)  # 8 unsigned shorts, little-endian
+            self._data = struct.pack(self._STRUCT_FORMAT, *data)
         else:
             raise TypeError(
                 f"Data must be bytes, bytearray, or 8-tuple, got {type(data)}"
@@ -72,11 +76,19 @@ class CompactBitboard:
 
     def to_tuple(self) -> Bitboard:
         """Convert to traditional bitboard tuple format."""
-        return struct.unpack("<8H", self._data)  # Unpack 8 unsigned shorts
+        return struct.unpack(self._STRUCT_FORMAT, self._data)
 
     def to_bytes(self) -> bytes:
         """Get raw byte representation."""
         return self._data
+
+    def __getitem__(self, index: int) -> int:
+        """Get value at specific bitboard position with optimized access."""
+        if not (0 <= index < 8):
+            raise IndexError(f"Index {index} out of range [0, 7]")
+        # Optimized: unpack only the needed value
+        offset = index * 2
+        return struct.unpack("<H", self._data[offset:offset + 2])[0]
 
     def bit_count(self, bitboard_index: int) -> int:
         """Get the number of set bits in a specific bitboard."""
@@ -86,9 +98,11 @@ class CompactBitboard:
 
     def get_occupied_mask(self) -> int:
         """Get a mask of all occupied positions across all bitboards."""
+        # Unpack once and iterate
+        values = struct.unpack(self._STRUCT_FORMAT, self._data)
         occupied = 0
-        for i in range(8):
-            occupied |= self[i]
+        for value in values:
+            occupied |= value
         return occupied
 
     def apply_move_functional(
@@ -97,25 +111,12 @@ class CompactBitboard:
         """Apply a move and return a new CompactBitboard (functional approach)."""
         validate_move_parameters(player, shape, position)
 
-        # Convert to tuple, apply move, convert back
-        bb_tuple = list(self.to_tuple())
+        # Optimized: minimal conversions
+        values = list(struct.unpack(self._STRUCT_FORMAT, self._data))
         bitboard_idx = player * 4 + shape
-        bb_tuple[bitboard_idx] |= 1 << position
-        # Ensure we have exactly 8 values for the tuple
-        if len(bb_tuple) != 8:
-            raise ValueError(f"Expected 8 bitboard values, got {len(bb_tuple)}")
-        return CompactBitboard.from_tuple(
-            (
-                bb_tuple[0],
-                bb_tuple[1],
-                bb_tuple[2],
-                bb_tuple[3],
-                bb_tuple[4],
-                bb_tuple[5],
-                bb_tuple[6],
-                bb_tuple[7],
-            )
-        )
+        values[bitboard_idx] |= 1 << position
+        
+        return CompactBitboard(tuple(values))
 
     def is_position_occupied(self, position: int) -> bool:
         """Check if a position is occupied by any piece."""
@@ -125,8 +126,8 @@ class CompactBitboard:
 
     def __iter__(self) -> Iterator[int]:
         """Iterate over the 8 bitboard values."""
-        for i in range(8):
-            yield self[i]
+        values = struct.unpack(self._STRUCT_FORMAT, self._data)
+        return iter(values)
 
     @classmethod
     def from_any(
@@ -136,30 +137,11 @@ class CompactBitboard:
         if isinstance(data, CompactBitboard):
             return data
         elif isinstance(data, (tuple, list)) and len(data) == 8:
-            # Ensure we have the correct type for from_tuple
-            return cls.from_tuple(
-                (
-                    data[0],
-                    data[1],
-                    data[2],
-                    data[3],
-                    data[4],
-                    data[5],
-                    data[6],
-                    data[7],
-                )
-            )
+            return cls(tuple(data))
         elif isinstance(data, (bytes, bytearray)):
             return cls.from_bytes(data)
         else:
             raise TypeError(f"Cannot create CompactBitboard from {type(data)}")
-
-    def __getitem__(self, index: int) -> int:
-        """Get value at specific bitboard position."""
-        if not (0 <= index < 8):
-            raise IndexError(f"Index {index} out of range [0, 7]")
-        # Unpack single value at offset
-        return int(struct.unpack("<H", self._data[index * 2 : (index + 1) * 2])[0])
 
     def __len__(self) -> int:
         """Always returns 8 for bitboard positions."""
@@ -188,8 +170,8 @@ class CompactBitboard:
 
     @property
     def memory_size(self) -> int:
-        """Get memory size in bytes (16 bytes data + object overhead)."""
-        return 16 + 24  # 16 bytes data + minimal object overhead
+        """Get memory size in bytes (16 bytes data + minimal object overhead)."""
+        return 16 + 24  # 16 bytes data + object overhead
 
     def pack(self) -> bytes:
         """Pack into bytes for serialization (compatible with State.pack format)."""
