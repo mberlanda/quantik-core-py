@@ -13,8 +13,11 @@ from typing import Dict, List, Tuple, Callable, Union
 from dataclasses import dataclass
 from enum import IntEnum
 import struct
+
+from .commons import Bitboard
+from .game_utils import coordinates_to_position, position_to_coordinates
 import itertools
-from .commons import VERSION, FLAG_CANON, Bitboard
+from .commons import VERSION, FLAG_CANON
 from .qfen import bb_from_qfen, bb_to_qfen
 from .move import Move
 
@@ -121,6 +124,11 @@ class SymmetryHandler:
         D4Index.REFLAD: D4Index.REFLAD,  # reflAD <-> reflAD
     }
 
+    @classmethod
+    def get_d4_inverse(cls, d4_index: D4IndexLike) -> D4IndexLike:
+        """Get the inverse D4 transformation index."""
+        return cls._D4_INVERSES[d4_index]
+
     @staticmethod
     def rc_to_i(r: int, c: int) -> int:
         """
@@ -133,7 +141,7 @@ class SymmetryHandler:
         Returns:
             Integer index from 0-15
         """
-        return r * 4 + c
+        return coordinates_to_position(r, c)
 
     @staticmethod
     def i_to_rc(i: int) -> Tuple[int, int]:
@@ -146,12 +154,7 @@ class SymmetryHandler:
         Returns:
             Tuple of (row, column)
         """
-        return divmod(i, 4)
-
-    @classmethod
-    def get_d4_inverse(cls, d4_index: D4IndexLike) -> D4IndexLike:
-        """Get the inverse D4 transformation index."""
-        return cls._D4_INVERSES[d4_index]
+        return position_to_coordinates(i)
 
     @classmethod
     def build_perm(cls, fn: Callable[[int, int], Tuple[int, int]]) -> List[int]:

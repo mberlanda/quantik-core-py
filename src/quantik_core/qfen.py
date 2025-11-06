@@ -66,6 +66,7 @@ Examples:
 
 from .commons import Bitboard, ValidationError
 from .state_validator import ValidationResult, _validate_game_state_single_pass
+from .game_utils import coordinates_to_position
 
 # Shape letters for QFEN notation
 SHAPE_LETTERS = "ABCD"
@@ -82,7 +83,7 @@ def rc_to_i(r: int, c: int) -> int:
     Returns:
         Integer index from 0-15
     """
-    return r * 4 + c
+    return coordinates_to_position(r, c)
 
 
 def bb_to_qfen(bb: Bitboard) -> str:

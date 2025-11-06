@@ -1,40 +1,71 @@
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, TYPE_CHECKING
 import struct
 from .commons import VERSION, Bitboard
 from .symmetry import SymmetryHandler
 from .qfen import bb_to_qfen, bb_from_qfen
 
+if TYPE_CHECKING:
+    from .memory.bitboard_compact import CompactBitboard
+
 
 @dataclass(frozen=True)
 class State:
-    # bitboards in order C0S0..C0S3, C1S0..C1S3 (each uint16)
-    bb: Bitboard
+    # Internal storage: CompactBitboard for memory efficiency
+    _compact_bb: "CompactBitboard"
 
-    def __post_init__(self) -> None:
-        # Validate that bb has exactly 8 elements for type safety
-        if len(self.bb) != 8:
-            raise ValueError("Invalid bitboard data")
+    def __init__(self, bb: Union[Bitboard, "CompactBitboard"]) -> None:
+        """
+        Initialize State with either traditional Bitboard tuple or CompactBitboard.
+
+        Args:
+            bb: Bitboard tuple (8 integers) or CompactBitboard instance
+        """
+        from .memory.bitboard_compact import CompactBitboard
+
+        if isinstance(bb, CompactBitboard):
+            object.__setattr__(self, "_compact_bb", bb)
+        else:
+            # Convert tuple to CompactBitboard
+            if len(bb) != 8:
+                raise ValueError("Invalid bitboard data")
+            object.__setattr__(self, "_compact_bb", CompactBitboard.from_tuple(bb))
+
+    @property
+    def bb(self) -> Bitboard:
+        """
+        Backward compatibility property returning traditional Bitboard tuple.
+
+        Returns:
+            8-tuple of integers representing the bitboards
+        """
+        return self._compact_bb.to_tuple()
 
     @staticmethod
     def empty() -> "State":
-        empty_bb: Bitboard = (0, 0, 0, 0, 0, 0, 0, 0)
+        from .memory.bitboard_compact import CompactBitboard
+
+        empty_bb = CompactBitboard.from_tuple((0, 0, 0, 0, 0, 0, 0, 0))
         return State(empty_bb)
 
     # ----- binary core (18 bytes: B B 8H) ------------------------------------
     def pack(self, flags: int = 0) -> bytes:
-        return struct.pack("<BB8H", VERSION, flags, *self.bb)
+        bb_tuple = self._compact_bb.to_tuple()
+        return struct.pack("<BB8H", VERSION, flags, *bb_tuple)
 
     @staticmethod
     def unpack(data: bytes) -> "State":
+        from .memory.bitboard_compact import CompactBitboard
+
         if len(data) < 18:
             raise ValueError("Buffer too small for v1 core (18 bytes).")
         ver, flags, *rest = struct.unpack("<BB8H", data[:18])
         if ver != VERSION:
             raise ValueError(f"Unsupported version {ver}")
-        bb: Bitboard = tuple(int(x) & 0xFFFF for x in rest)  # type: ignore
+        bb_tuple: Bitboard = tuple(int(x) & 0xFFFF for x in rest)  # type: ignore
 
-        return State(bb)
+        compact_bb = CompactBitboard.from_tuple(bb_tuple)
+        return State(compact_bb)
 
     # ----- human-friendly (QFEN) ---------------------------------------------
     SHAPE_LETTERS = "ABCD"
@@ -46,7 +77,7 @@ class State:
         Returns:
             QFEN string representation of the board state
         """
-        return bb_to_qfen(self.bb)
+        return bb_to_qfen(self._compact_bb.to_tuple())
 
     @staticmethod
     def from_qfen(qfen: str, validate: bool = False) -> "State":
@@ -137,7 +168,7 @@ class State:
         Returns:
             16-byte canonical payload
         """
-        return SymmetryHandler.get_canonical_payload(self.bb)
+        return SymmetryHandler.get_canonical_payload(self._compact_bb.to_tuple())
 
     def canonical_key(self) -> bytes:
         """
@@ -146,7 +177,7 @@ class State:
         Returns:
             18-byte canonical key (version + flag + payload)
         """
-        return SymmetryHandler.get_canonical_key(self.bb)
+        return SymmetryHandler.get_canonical_key(self._compact_bb.to_tuple())
 
     # TODO: provide a plugin architecture for serialization registering
     # ----- CBOR wrappers (portable, self-describing) -------------------------
@@ -158,7 +189,8 @@ class State:
             import cbor2
         except ImportError:
             raise RuntimeError("Please install cbor2 (pip install cbor2)")
-        payload = struct.pack("<8H", *self.bb)
+        bb_tuple = self._compact_bb.to_tuple()
+        payload = struct.pack("<8H", *bb_tuple)
         m: Dict[str, Any] = {"v": VERSION, "canon": bool(canon), "bb": payload}
         if mc is not None:
             m["mc"] = int(mc)
@@ -189,8 +221,4 @@ class State:
         Returns:
             A 16-bit integer where each set bit represents an occupied position
         """
-        # OR together all bitboards to get occupied positions
-        occupied = 0
-        for i in range(8):  # All 8 bitboards (both players, all shapes)
-            occupied |= self.bb[i]
-        return occupied
+        return self._compact_bb.get_occupied_mask()

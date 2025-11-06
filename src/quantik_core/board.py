@@ -14,10 +14,11 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Iterator, cast
 from enum import IntEnum
 
+from .game_utils import count_pieces_by_shape_lists, count_total_pieces
 from .core import State
 from .move import Move, apply_move, validate_move
 from .commons import MAX_PIECES_PER_SHAPE, PlayerId
-from .plugins.validation import WinStatus, check_game_winner
+from .game_utils import WinStatus, calculate_bitboard_index, check_game_winner
 from .state_validator import validate_game_state
 
 
@@ -192,7 +193,7 @@ class QuantikBoard:
             GameResult indicating current state
         """
         # Check for wins
-        win_status = check_game_winner(self._state)
+        win_status = check_game_winner(self._state.bb)
         if win_status == WinStatus.PLAYER_0_WINS:
             return GameResult.PLAYER_0_WINS
         elif win_status == WinStatus.PLAYER_1_WINS:
@@ -377,14 +378,12 @@ class QuantikBoard:
             Dictionary with 'on_board' and 'in_inventory' counts per player/shape
         """
         # Count pieces on board
+        # Count pieces on board using consolidated utility
+        player0_counts, player1_counts = count_pieces_by_shape_lists(self._state.bb)
         on_board = {
-            "player_0": [0, 0, 0, 0],  # A, B, C, D
-            "player_1": [0, 0, 0, 0],  # a, b, c, d
+            "player_0": player0_counts,
+            "player_1": player1_counts,
         }
-
-        for shape in range(4):
-            on_board["player_0"][shape] = self._state.bb[shape].bit_count()
-            on_board["player_1"][shape] = self._state.bb[shape + 4].bit_count()
 
         # Count pieces in inventory
         in_inventory = {
@@ -416,13 +415,8 @@ class QuantikBoard:
 
     def _calculate_current_player(self) -> PlayerId:
         """Calculate current player from game state based on turn balance."""
-        # Count total pieces played by each player
-        player_0_pieces = sum(
-            self._state.bb[i].bit_count() for i in range(4)
-        )  # A, B, C, D
-        player_1_pieces = sum(
-            self._state.bb[i].bit_count() for i in range(4, 8)
-        )  # a, b, c, d
+        # Count total pieces played by each player using consolidated utility
+        player_0_pieces, player_1_pieces = count_total_pieces(self._state.bb)
 
         # In Quantik, player 0 always goes first
         # If pieces are equal, it's player 0's turn
@@ -447,7 +441,7 @@ class QuantikBoard:
         for player in range(2):
             shape_counts = []
             for shape in range(4):
-                bitboard_idx = shape if player == 0 else shape + 4
+                bitboard_idx = calculate_bitboard_index(player, shape)
                 used_count = state.bb[bitboard_idx].bit_count()
                 remaining = MAX_PIECES_PER_SHAPE - used_count
                 shape_counts.append(remaining)
@@ -462,7 +456,7 @@ class QuantikBoard:
         for player in range(2):
             inventory = self._inventories[player]
             for shape in range(4):
-                bitboard_idx = shape if player == 0 else shape + 4
+                bitboard_idx = calculate_bitboard_index(player, shape)
                 on_board = self._state.bb[bitboard_idx].bit_count()
                 in_inventory = inventory.get_shape_count(shape)
 

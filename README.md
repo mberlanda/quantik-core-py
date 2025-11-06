@@ -2,7 +2,6 @@
 
 [![codecov](https://codecov.io/github/mberlanda/quantik-core-py/graph/badge.svg?token=CDLH126DO2)](https://codecov.io/github/mberlanda/quantik-core-py)
 
-
 A high-performance Python library for manipulating Quantik game states, optimized for Monte Carlo simulations, game analysis, and AI engines.
 
 ## What is Quantik?
@@ -200,7 +199,7 @@ from quantik_core import State
 
 # Create different equivalent positions
 pos1 = State.from_qfen("A.../..../..../....") 
-pos2 = State.from_qfen("..../..../..../.a..")  # Rotated + color swapped
+pos2 = State.from_qfen("..../..../..../.B..")  # Rotated + shape equivalence
 
 # Both have the same canonical representation
 assert pos1.canonical_key() == pos2.canonical_key()
