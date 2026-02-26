@@ -11,7 +11,6 @@ from enum import IntEnum
 from typing import List, Tuple
 from .commons import Bitboard, WIN_MASKS
 
-
 # ===== GAME CONSTANTS =====
 
 # Player identifiers - consolidated from scattered definitions
