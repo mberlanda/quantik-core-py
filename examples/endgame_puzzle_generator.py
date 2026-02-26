@@ -120,7 +120,7 @@ class EndgamePuzzleGenerator:
 
         return stats
 
-    def _explore_position(
+    def _explore_position(  # noqa: C901
         self, bb: tuple, depth: int, move_sequence: List[Move]
     ) -> Optional[WinStatus]:
         """
@@ -355,12 +355,12 @@ def demo_reproducible_seeds():
     # Generate puzzles twice with same seed
     print("First run:")
     gen1 = EndgamePuzzleGenerator(config)
-    stats1 = gen1.generate_puzzles()
+    gen1.generate_puzzles()
     puzzles1 = [p.qfen for p in gen1.get_puzzles()]
 
     print("\nSecond run (same seed):")
     gen2 = EndgamePuzzleGenerator(config)
-    stats2 = gen2.generate_puzzles()
+    gen2.generate_puzzles()
     puzzles2 = [p.qfen for p in gen2.get_puzzles()]
 
     print(f"\nPuzzles match: {puzzles1 == puzzles2}")
