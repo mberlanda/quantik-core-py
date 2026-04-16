@@ -269,10 +269,10 @@ def demo_canonical_deduplication():
 
         # Create several symmetric positions
         test_positions = [
-            "A.../..../..../...."  # Top-left
-            ".A../..../..../...."  # Slightly right
-            "..A./..../..../...."  # More right
-            "...A/..../..../...."  # Top-right
+            "A.../..../..../....",  # A at top-left corner
+            "...A/..../..../....",  # A at top-right corner (D4 rotation)
+            "..../..../..../A...",  # A at bottom-left corner (D4 rotation)
+            "..../..../..../...A",  # A at bottom-right corner (D4 rotation)
         ]
 
         print("\nAdding potentially symmetric positions...")
@@ -414,7 +414,9 @@ def demo_lookup_best_move():
 
             if entry and entry.best_moves:
                 shape, position = entry.best_moves[0]
-                move = Move(player=0, shape=shape, position=position)
+
+                current_player, _ = generate_legal_moves(state.bb)
+                move = Move(player=current_player, shape=shape, position=position)
 
                 shape_name = chr(ord("A") + shape)
                 row, col = position // 4, position % 4

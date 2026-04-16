@@ -153,8 +153,9 @@ def demo_tactical_position():
     """Demonstrate MCTS on tactical position."""
     config = MCTSConfig(max_iterations=2000, random_seed=42, exploration_weight=1.414)
 
-    # Position where Player 0 can win soon
-    state = State.from_qfen("AB../..../..../....")
+    # P0: A at (0,0), B at (0,1); P1: c at (0,2), d at (1,0)
+    # Row 0 has shapes A, B, C — P0 can win by placing D at (0,3)
+    state = State.from_qfen("ABc./d.../..../....")
     perform_search(
         state, config, "DEMO 2: Tactical Position Analysis (Near Win for P0)"
     )
@@ -269,10 +270,17 @@ def demo_game_playout():
                 print("Draw!")
             break
 
-        # Determine current player
+        # Determine current player and check for stalemate
         from quantik_core import generate_legal_moves
 
-        current_player, _ = generate_legal_moves(state.bb)
+        current_player, moves_by_shape = generate_legal_moves(state.bb)
+        all_moves = []
+        for shape_moves in moves_by_shape.values():
+            all_moves.extend(shape_moves)
+
+        if not all_moves:
+            print("Stalemate - no legal moves available!")
+            break
 
         # Perform search
         engine = MCTSEngine(config)

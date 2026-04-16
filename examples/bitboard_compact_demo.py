@@ -257,9 +257,9 @@ if __name__ == "__main__":
     print(
         f"Memory reduction: {stats['reduction']} bytes ({stats['savings_percent']:.1f}% savings)"
     )
-    print("Compression ratio: {stats['ratio']:.1f}x smaller")
-    print("Creation overhead: {perf_stats['creation_ratio']:.2f}x")
-    print("Access overhead: {perf_stats['access_ratio']:.2f}x")
+    print(f"Compression ratio: {stats['ratio']:.1f}x smaller")
+    print(f"Creation overhead: {perf_stats['creation_ratio']:.2f}x")
+    print(f"Access overhead: {perf_stats['access_ratio']:.2f}x")
     print("\nKey features:")
     print("- 28x memory reduction vs traditional tuples")
     print("- QFEN serialization/deserialization support")

@@ -39,6 +39,8 @@ class PuzzleConfig:
     dropout_rate: float = 0.7  # Fraction of moves to drop after dropout_depth
     min_puzzle_depth: int = 3  # Minimum depth to consider a position as puzzle
     max_puzzles: int = 100  # Maximum number of puzzles to generate
+    max_positions: int = 500_000  # Safety cap on positions to explore
+    max_time_seconds: float = 30.0  # Time limit for generation
     player_filter: Optional[int] = None  # Filter for specific player (0 or 1)
 
 
@@ -82,6 +84,8 @@ class EndgamePuzzleGenerator:
         self.positions_by_depth: Dict[int, int] = defaultdict(int)
         self.puzzles: List[Puzzle] = []
         self.seen_positions: Set[bytes] = set()
+        self._start_time: float = 0.0
+        self._should_stop = False
 
     def generate_puzzles(
         self, starting_qfen: str = "..../..../..../...."
@@ -102,13 +106,24 @@ class EndgamePuzzleGenerator:
         )
         print(f"Starting position: {starting_qfen}\n")
 
-        start_time = time.time()
+        self._start_time = time.time()
+        self._should_stop = False
 
         # Start exploration from initial position
         starting_state = State.from_qfen(starting_qfen)
         self._explore_position(starting_state.bb, depth=0, move_sequence=[])
 
-        generation_time = time.time() - start_time
+        generation_time = time.time() - self._start_time
+
+        if self._should_stop:
+            reason = []
+            if len(self.puzzles) >= self.config.max_puzzles:
+                reason.append(f"found {self.config.max_puzzles} puzzles")
+            if self.positions_explored >= self.config.max_positions:
+                reason.append(f"reached {self.config.max_positions:,} position limit")
+            if generation_time >= self.config.max_time_seconds:
+                reason.append(f"reached {self.config.max_time_seconds}s time limit")
+            print(f"Search stopped: {', '.join(reason)}")
 
         # Create statistics
         stats = PuzzleStats(
@@ -129,9 +144,28 @@ class EndgamePuzzleGenerator:
         Returns:
             WinStatus if position leads to forced win, None otherwise
         """
+        # Check stop conditions
+        if self._should_stop:
+            return None
+
         # Track statistics
         self.positions_explored += 1
         self.positions_by_depth[depth] += 1
+
+        if self.positions_explored % 10_000 == 0:
+            elapsed = time.time() - self._start_time
+            print(
+                f"  Progress: {self.positions_explored:,} positions, "
+                f"{len(self.puzzles)} puzzles, {elapsed:.1f}s"
+            )
+
+        # Check limits
+        if self.positions_explored >= self.config.max_positions:
+            self._should_stop = True
+            return None
+        if time.time() - self._start_time >= self.config.max_time_seconds:
+            self._should_stop = True
+            return None
 
         # Check depth limit
         if depth >= self.config.max_depth:
@@ -170,6 +204,9 @@ class EndgamePuzzleGenerator:
         drawn_moves = []
 
         for move in all_moves:
+            if self._should_stop:
+                break
+
             new_bb = apply_move(bb, move)
             result = self._explore_position(new_bb, depth + 1, move_sequence + [move])
 
@@ -269,22 +306,25 @@ class EndgamePuzzleGenerator:
 
 
 def demo_basic_puzzle_generation():
-    """Demonstrate basic puzzle generation from empty board."""
+    """Demonstrate basic puzzle generation from a midgame position."""
     print("=" * 80)
-    print("DEMO 1: Basic Puzzle Generation from Empty Board")
+    print("DEMO 1: Basic Puzzle Generation from Midgame Position")
     print("=" * 80)
 
     config = PuzzleConfig(
         seed=42,
         max_depth=6,
-        dropout_depth=4,
-        dropout_rate=0.6,
-        min_puzzle_depth=3,
+        dropout_depth=2,
+        dropout_rate=0.7,
+        min_puzzle_depth=1,
         max_puzzles=20,
+        max_positions=200_000,
+        max_time_seconds=15.0,
     )
 
+    # Start from a midgame position (4 pieces placed, P0's turn)
     generator = EndgamePuzzleGenerator(config)
-    stats = generator.generate_puzzles()
+    stats = generator.generate_puzzles(starting_qfen="A.../.B../..c./...d")
 
     generator.print_stats(stats)
     generator.print_puzzles(max_display=5)
@@ -298,15 +338,18 @@ def demo_deep_search_with_dropout():
 
     config = PuzzleConfig(
         seed=123,
-        max_depth=8,
-        dropout_depth=4,
-        dropout_rate=0.8,  # Drop 80% of moves after depth 4
-        min_puzzle_depth=4,
+        max_depth=7,
+        dropout_depth=2,
+        dropout_rate=0.85,
+        min_puzzle_depth=2,
         max_puzzles=15,
+        max_positions=200_000,
+        max_time_seconds=15.0,
     )
 
+    # Start from an advanced midgame position (6 pieces placed, P0's turn)
     generator = EndgamePuzzleGenerator(config)
-    stats = generator.generate_puzzles()
+    stats = generator.generate_puzzles(starting_qfen="A..d/cB../..C./...b")
 
     generator.print_stats(stats)
     generator.print_puzzles(max_display=5)
@@ -318,16 +361,18 @@ def demo_midgame_puzzle_generation():
     print("DEMO 3: Puzzle Generation from Midgame Position")
     print("=" * 80)
 
-    # Start from a specific midgame position
-    starting_position = "A.b./..C./d.../...a"
+    # P0: A at (0,0), C at (1,1); P1: b at (0,2), d at (1,3). P0's turn.
+    starting_position = "A.b./.C.d/..../...."\
 
     config = PuzzleConfig(
         seed=456,
-        max_depth=7,
-        dropout_depth=3,
-        dropout_rate=0.5,
-        min_puzzle_depth=2,
+        max_depth=6,
+        dropout_depth=2,
+        dropout_rate=0.6,
+        min_puzzle_depth=1,
         max_puzzles=25,
+        max_positions=200_000,
+        max_time_seconds=15.0,
     )
 
     generator = EndgamePuzzleGenerator(config)
@@ -346,21 +391,25 @@ def demo_reproducible_seeds():
     config = PuzzleConfig(
         seed=999,
         max_depth=5,
-        dropout_depth=3,
+        dropout_depth=2,
         dropout_rate=0.7,
-        min_puzzle_depth=2,
+        min_puzzle_depth=1,
         max_puzzles=5,
+        max_positions=100_000,
+        max_time_seconds=10.0,
     )
 
-    # Generate puzzles twice with same seed
+    # Generate puzzles twice with same seed from a midgame position
+    starting_qfen = "A.../.B../..c./...d"
+
     print("First run:")
     gen1 = EndgamePuzzleGenerator(config)
-    gen1.generate_puzzles()
+    gen1.generate_puzzles(starting_qfen=starting_qfen)
     puzzles1 = [p.qfen for p in gen1.get_puzzles()]
 
     print("\nSecond run (same seed):")
     gen2 = EndgamePuzzleGenerator(config)
-    gen2.generate_puzzles()
+    gen2.generate_puzzles(starting_qfen=starting_qfen)
     puzzles2 = [p.qfen for p in gen2.get_puzzles()]
 
     print(f"\nPuzzles match: {puzzles1 == puzzles2}")
