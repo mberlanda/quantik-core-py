@@ -211,9 +211,14 @@ class MCTSEngine:
             all_moves.extend(shape_moves)
 
         if not all_moves:
-            # No legal moves - stalemate
+            # No legal moves - the player who cannot move loses (opponent wins)
             node.flags = np.uint8(node.flags | NODE_FLAG_TERMINAL)
-            node.terminal_value = np.float32(0.0)
+            if int(node.player_turn) == 0:
+                node.flags = np.uint8(node.flags | NODE_FLAG_WINNING_P1)
+                node.terminal_value = np.float32(-1.0)
+            else:
+                node.flags = np.uint8(node.flags | NODE_FLAG_WINNING_P0)
+                node.terminal_value = np.float32(1.0)
             self.tree.storage.store_node(node_id, node)
             return None
 
@@ -290,7 +295,8 @@ class MCTSEngine:
                 all_moves.extend(shape_moves)
 
             if not all_moves:
-                return 0.0  # Stalemate
+                # No legal moves: player who cannot move loses
+                return -1.0 if current_player == 0 else 1.0
 
             # Pick random move
             move = random.choice(all_moves)
