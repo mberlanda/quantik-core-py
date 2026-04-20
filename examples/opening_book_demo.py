@@ -18,14 +18,11 @@ from quantik_core import State, Move, generate_legal_moves, apply_move
 from quantik_core.opening_book import (
     OpeningBookDatabase,
     OpeningBookConfig,
-    OpeningBookEntry,
 )
 from quantik_core.game_utils import check_game_winner, WinStatus
 
 
-def explore_positions(
-    bb: tuple, depth: int, max_depth: int, positions: dict
-) -> None:
+def explore_positions(bb: tuple, depth: int, max_depth: int, positions: dict) -> None:
     """
     Recursively explore positions and collect statistics.
 
@@ -161,7 +158,7 @@ def demo_build_opening_book():
 
         # Show statistics
         stats = db.get_statistics()
-        print(f"\nOpening Book Statistics:")
+        print("\nOpening Book Statistics:")
         print(f"  Total positions: {stats['total_positions']:,}")
         print(f"  Unique depths: {stats['unique_depths']}")
         print(f"  Total visits: {stats['total_visits']:,}")
@@ -172,7 +169,7 @@ def demo_build_opening_book():
 
         # Show positions by depth
         depth_counts = db.get_positions_by_depth()
-        print(f"\nPositions by depth:")
+        print("\nPositions by depth:")
         for depth in sorted(depth_counts.keys()):
             print(f"  Depth {depth}: {depth_counts[depth]:,} positions")
 
@@ -185,7 +182,7 @@ def demo_build_opening_book():
 
 def demo_query_positions():
     """Demonstrate querying positions from opening book."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 2: Querying Positions from Opening Book")
     print("=" * 80)
 
@@ -235,7 +232,7 @@ def demo_query_positions():
             print("Position not found in opening book")
 
         # Query by depth
-        print(f"\nQuerying positions at depth 2 (top 5)...")
+        print("\nQuerying positions at depth 2 (top 5)...")
         entries = db.query_by_depth(depth=2, limit=5)
         print(f"Found {len(entries)} positions at depth 2")
 
@@ -256,7 +253,7 @@ def demo_query_positions():
 
 def demo_canonical_deduplication():
     """Demonstrate canonical deduplication."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 3: Canonical Position Deduplication")
     print("=" * 80)
 
@@ -298,7 +295,7 @@ def demo_canonical_deduplication():
             )
 
         stats = db.get_statistics()
-        print(f"\nResults:")
+        print("\nResults:")
         print(f"  Input positions: {len(test_positions)}")
         print(f"  Unique canonical forms: {len(canonical_keys)}")
         print(f"  Stored in database: {stats['total_positions']}")
@@ -314,7 +311,7 @@ def demo_canonical_deduplication():
 
 def demo_export():
     """Demonstrate exporting opening book."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 4: Exporting Opening Book")
     print("=" * 80)
 
@@ -356,7 +353,7 @@ def demo_export():
         with open(export_path) as f:
             lines = f.readlines()
 
-        print(f"Export complete! Preview (first 10 lines):")
+        print("Export complete! Preview (first 10 lines):")
         for line in lines[:10]:
             print(f"  {line.rstrip()}")
 
@@ -371,7 +368,7 @@ def demo_export():
 
 def demo_lookup_best_move():
     """Demonstrate looking up best moves from opening book."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 5: Best Move Lookup During Game")
     print("=" * 80)
 
@@ -466,9 +463,9 @@ def main():
     demo_export()
     demo_lookup_best_move()
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("ALL DEMONSTRATIONS COMPLETE")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
 
 if __name__ == "__main__":

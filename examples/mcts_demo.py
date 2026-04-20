@@ -11,13 +11,11 @@ Demonstrates:
 """
 
 import time
-from typing import List, Tuple
 from dataclasses import dataclass
 
 from quantik_core import State, Move, apply_move
 from quantik_core.mcts import MCTSEngine, MCTSConfig
 from quantik_core.game_utils import check_game_winner, WinStatus
-from quantik_core.qfen import bb_to_qfen
 
 
 @dataclass
@@ -57,18 +55,16 @@ def print_board(state: State):
     print()
 
 
-def perform_search(
-    state: State, config: MCTSConfig, description: str
-) -> SearchResult:
+def perform_search(state: State, config: MCTSConfig, description: str) -> SearchResult:
     """Perform MCTS search and return results."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"{description}")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     print(f"\nPosition: {state.to_qfen()}")
     print_board(state)
 
-    print(f"Search parameters:")
+    print("Search parameters:")
     print(f"  Iterations: {config.max_iterations}")
     print(f"  Exploration weight: {config.exploration_weight}")
     print(f"  Max depth: {config.max_depth}")
@@ -92,7 +88,7 @@ def perform_search(
     print(f"Win probability (P0): {win_prob:.2%}")
 
     # Show top moves if available
-    print(f"\nMove evaluation:")
+    print("\nMove evaluation:")
     root_id = engine.root_id
     children = engine.tree.get_children(root_id)
 
@@ -163,9 +159,9 @@ def demo_tactical_position():
 
 def demo_exploration_comparison():
     """Compare different exploration parameters."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 3: Comparison of Exploration Parameters")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     state = State.from_qfen("A.../b.../..../....")
 
@@ -200,9 +196,9 @@ def demo_exploration_comparison():
             (exploration_weight, move, win_prob, stats["nodes_created"], search_time)
         )
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("COMPARISON SUMMARY")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(
         f"{'Exploration':<12} {'Move':<20} {'Win Prob':<12} {'Nodes':<10} {'Time (s)'}"
     )
@@ -214,9 +210,9 @@ def demo_exploration_comparison():
 
 def demo_performance_scaling():
     """Demonstrate performance with different iteration counts."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 4: Performance Scaling")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     state = State.from_qfen("..../..../..../....")
 
@@ -245,9 +241,9 @@ def demo_performance_scaling():
 
 def demo_game_playout():
     """Demonstrate full game using MCTS."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 5: Full Game Playout with MCTS")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     config = MCTSConfig(max_iterations=500, random_seed=42, exploration_weight=1.414)
 
@@ -302,9 +298,9 @@ def demo_game_playout():
 
 def demo_tree_statistics():
     """Show detailed tree statistics."""
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("DEMO 6: Tree Statistics and Analysis")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
     config = MCTSConfig(max_iterations=2000, random_seed=42, exploration_weight=1.414)
 
@@ -317,21 +313,21 @@ def demo_tree_statistics():
     stats = engine.get_statistics()
     tree_stats = stats["tree_stats"]
 
-    print(f"\nTree Statistics:")
+    print("\nTree Statistics:")
     print(f"  Total nodes: {tree_stats['node_count']:,}")
     print(f"  Capacity: {tree_stats['capacity']:,}")
     print(f"  Utilization: {tree_stats['utilization_percent']}%")
     print(f"  Memory usage: {stats['memory_usage']:,} bytes")
     print(f"  Bytes per node: {stats['memory_usage'] / tree_stats['node_count']:.1f}")
 
-    print(f"\nSearch Results:")
+    print("\nSearch Results:")
     print(f"  Best move: {format_move(move)}")
     print(f"  Win probability: {win_prob:.2%}")
     print(f"  Total iterations: {stats['iterations']:,}")
 
     # Analyze root node
     root = engine.tree.get_node(engine.root_id)
-    print(f"\nRoot Node Statistics:")
+    print("\nRoot Node Statistics:")
     print(f"  Visit count: {root.visit_count:,}")
     print(f"  Best value: {root.best_value:.3f}")
     print(f"  P0 wins: {root.win_count_p0:,}")
@@ -359,9 +355,9 @@ def main():
     demo_game_playout()
     demo_tree_statistics()
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print("ALL DEMONSTRATIONS COMPLETE")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
 
 
 if __name__ == "__main__":

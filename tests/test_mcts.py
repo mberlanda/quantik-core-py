@@ -1,9 +1,16 @@
 """Tests for MCTS implementation."""
 
+from unittest.mock import patch
+
 import pytest
 import numpy as np
 from quantik_core import State, Move
 from quantik_core.mcts import MCTSEngine, MCTSConfig
+from quantik_core.memory.compact_tree import (
+    NODE_FLAG_TERMINAL,
+    NODE_FLAG_WINNING_P0,
+    NODE_FLAG_WINNING_P1,
+)
 from quantik_core.game_utils import WinStatus
 
 
@@ -250,7 +257,7 @@ class TestMCTSEngine:
 
         # Add some children
         for i in range(3):
-            child_state = State.from_qfen(f"{chr(ord('A')+i)}.../..../..../....")
+            child_state = State.from_qfen(f"{chr(ord('A') + i)}.../..../..../....")
             engine.tree.add_child_node(root_id, child_state)
 
         # Select should return a node
@@ -274,16 +281,12 @@ class TestMCTSEngine:
         state = State.from_qfen("..../..../..../....")
 
         # Low exploration (more exploitation)
-        config1 = MCTSConfig(
-            exploration_weight=0.5, max_iterations=100, random_seed=42
-        )
+        config1 = MCTSConfig(exploration_weight=0.5, max_iterations=100, random_seed=42)
         engine1 = MCTSEngine(config1)
         move1, prob1 = engine1.search(state)
 
         # High exploration
-        config2 = MCTSConfig(
-            exploration_weight=2.0, max_iterations=100, random_seed=42
-        )
+        config2 = MCTSConfig(exploration_weight=2.0, max_iterations=100, random_seed=42)
         engine2 = MCTSEngine(config2)
         move2, prob2 = engine2.search(state)
 
@@ -324,6 +327,84 @@ class TestMCTSEngine:
         except ValueError:
             # Acceptable if no moves available
             pass
+
+    def test_expand_stalemate_player0_loses(self):
+        """Test _expand marks node terminal when player 0 has no legal moves."""
+        config = MCTSConfig(random_seed=42)
+        engine = MCTSEngine(config)
+
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        with (
+            patch("quantik_core.mcts.check_game_winner", return_value=WinStatus.NO_WIN),
+            patch("quantik_core.mcts.generate_legal_moves", return_value=(0, {})),
+        ):
+            result = engine._expand(root_id)
+
+        assert result is None
+        node = engine.tree.get_node(root_id)
+        assert node.flags & NODE_FLAG_TERMINAL
+        assert node.flags & NODE_FLAG_WINNING_P1
+        assert float(node.terminal_value) == pytest.approx(-1.0)
+
+    def test_expand_stalemate_player1_loses(self):
+        """Test _expand marks node terminal when player 1 has no legal moves."""
+        config = MCTSConfig(random_seed=42)
+        engine = MCTSEngine(config)
+
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        # Create a child node so player_turn == 1
+        child_state = State.from_qfen("A.../..../..../....")
+        child_id = engine.tree.add_child_node(root_id, child_state)
+
+        with (
+            patch("quantik_core.mcts.check_game_winner", return_value=WinStatus.NO_WIN),
+            patch("quantik_core.mcts.generate_legal_moves", return_value=(1, {})),
+        ):
+            result = engine._expand(child_id)
+
+        assert result is None
+        node = engine.tree.get_node(child_id)
+        assert node.flags & NODE_FLAG_TERMINAL
+        assert node.flags & NODE_FLAG_WINNING_P0
+        assert float(node.terminal_value) == pytest.approx(1.0)
+
+    def test_simulate_stalemate_player0(self):
+        """Test _simulate returns correct value when player 0 has no moves."""
+        config = MCTSConfig(max_depth=16, random_seed=42)
+        engine = MCTSEngine(config)
+
+        state = State.from_qfen("..../..../..../....")
+        node_id = engine.tree.create_root_node(state)
+
+        with (
+            patch("quantik_core.mcts.check_game_winner", return_value=WinStatus.NO_WIN),
+            patch("quantik_core.mcts.generate_legal_moves", return_value=(0, {})),
+        ):
+            value = engine._simulate(node_id)
+
+        assert value == -1.0
+
+    def test_simulate_stalemate_player1(self):
+        """Test _simulate returns correct value when player 1 has no moves."""
+        config = MCTSConfig(max_depth=16, random_seed=42)
+        engine = MCTSEngine(config)
+
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+        child_state = State.from_qfen("A.../..../..../....")
+        child_id = engine.tree.add_child_node(root_id, child_state)
+
+        with (
+            patch("quantik_core.mcts.check_game_winner", return_value=WinStatus.NO_WIN),
+            patch("quantik_core.mcts.generate_legal_moves", return_value=(1, {})),
+        ):
+            value = engine._simulate(child_id)
+
+        assert value == 1.0
 
 
 class TestMCTSIntegration:

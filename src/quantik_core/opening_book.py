@@ -6,11 +6,21 @@ with support for canonical form deduplication and efficient lookups.
 """
 
 import sqlite3
-from typing import Optional, List, Dict, Tuple
+from typing import Any, Optional, List, Dict, Tuple, Type
 from dataclasses import dataclass
 from pathlib import Path
+from types import TracebackType
 
 from quantik_core import State, Move
+
+
+class TerminalStatus:
+    """Terminal status codes for positions in the opening book."""
+
+    INTERIOR = 0  # Non-terminal position (game continues)
+    WIN_P0 = 1  # Player 0 has won
+    WIN_P1 = 2  # Player 1 has won
+    STALEMATE = 3  # No legal moves remaining (draw)
 
 
 @dataclass
@@ -26,6 +36,10 @@ class OpeningBookEntry:
     win_count_p0: int  # Player 0 wins from this position
     win_count_p1: int  # Player 1 wins from this position
     draw_count: int  # Draws from this position
+    is_terminal: int = (
+        TerminalStatus.INTERIOR
+    )  # 0=interior, 1=win_p0, 2=win_p1, 3=stalemate
+    symmetry_count: int = 0  # Number of distinct boards mapping to this canonical form
 
 
 @dataclass
@@ -49,12 +63,11 @@ class OpeningBookDatabase:
         """Initialize opening book database."""
         self.config = config
         self.db_path = Path(config.database_path)
-        self.conn: Optional[sqlite3.Connection] = None
+        self.conn: sqlite3.Connection = sqlite3.connect(str(self.db_path))
         self._initialize_database()
 
     def _initialize_database(self) -> None:
         """Create database tables if they don't exist."""
-        self.conn = sqlite3.connect(str(self.db_path))
 
         # Set performance pragmas
         self.conn.execute(f"PRAGMA cache_size = -{self.config.cache_size_mb * 1024}")
@@ -73,9 +86,19 @@ class OpeningBookDatabase:
                 win_count_p0 INTEGER NOT NULL,
                 win_count_p1 INTEGER NOT NULL,
                 draw_count INTEGER NOT NULL,
+                is_terminal INTEGER NOT NULL DEFAULT 0,
+                symmetry_count INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Migrate existing databases: add new columns if missing
+        self._migrate_add_column(
+            "positions", "is_terminal", "INTEGER NOT NULL DEFAULT 0"
+        )
+        self._migrate_add_column(
+            "positions", "symmetry_count", "INTEGER NOT NULL DEFAULT 0"
+        )
 
         # Create best_moves table
         self.conn.execute("""
@@ -90,21 +113,40 @@ class OpeningBookDatabase:
         """)
 
         # Create indices for efficient queries
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_depth
             ON positions(depth)
-        """
-        )
+        """)
 
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_visit_count
             ON positions(visit_count DESC)
-        """
-        )
+        """)
+
+        # DAG edges: parent -> child canonical key relationships
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS position_edges (
+                parent_key BLOB NOT NULL,
+                child_key  BLOB NOT NULL,
+                PRIMARY KEY (parent_key, child_key),
+                FOREIGN KEY (parent_key) REFERENCES positions(canonical_key),
+                FOREIGN KEY (child_key)  REFERENCES positions(canonical_key)
+            )
+        """)
+
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_edges_child
+            ON position_edges(child_key)
+        """)
 
         self.conn.commit()
+
+    def _migrate_add_column(self, table: str, column: str, col_type: str) -> None:
+        """Add a column to an existing table if it doesn't already exist."""
+        cursor = self.conn.execute(f"PRAGMA table_info({table})")
+        existing = {row[1] for row in cursor.fetchall()}
+        if column not in existing:
+            self.conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
 
     def add_position(
         self,
@@ -116,6 +158,8 @@ class OpeningBookDatabase:
         draw_count: int,
         best_moves: List[Move],
         depth: int,
+        is_terminal: int = TerminalStatus.INTERIOR,
+        symmetry_count: int = 0,
     ) -> None:
         """
         Add or update a position in the opening book.
@@ -129,6 +173,8 @@ class OpeningBookDatabase:
             draw_count: Draw count
             best_moves: List of best moves (up to 5)
             depth: Ply depth
+            is_terminal: Terminal status (0=interior, 1=win_p0, 2=win_p1, 3=stalemate)
+            symmetry_count: Number of distinct boards mapping to this canonical form
         """
         canonical_key = state.canonical_key()
         qfen = state.to_qfen()
@@ -138,8 +184,8 @@ class OpeningBookDatabase:
             """
             INSERT OR REPLACE INTO positions
             (canonical_key, qfen, depth, evaluation, visit_count,
-             win_count_p0, win_count_p1, draw_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             win_count_p0, win_count_p1, draw_count, is_terminal, symmetry_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 canonical_key,
@@ -150,6 +196,8 @@ class OpeningBookDatabase:
                 win_count_p0,
                 win_count_p1,
                 draw_count,
+                is_terminal,
+                symmetry_count,
             ),
         )
 
@@ -190,7 +238,8 @@ class OpeningBookDatabase:
         cursor = self.conn.execute(
             """
             SELECT qfen, depth, evaluation, visit_count,
-                   win_count_p0, win_count_p1, draw_count
+                   win_count_p0, win_count_p1, draw_count,
+                   is_terminal, symmetry_count
             FROM positions
             WHERE canonical_key = ?
         """,
@@ -224,11 +273,11 @@ class OpeningBookDatabase:
             win_count_p1=row[5],
             draw_count=row[6],
             best_moves=best_moves,
+            is_terminal=row[7],
+            symmetry_count=row[8],
         )
 
-    def query_by_depth(
-        self, depth: int, limit: int = 100
-    ) -> List[OpeningBookEntry]:
+    def query_by_depth(self, depth: int, limit: int = 100) -> List[OpeningBookEntry]:
         """
         Query positions at specific depth.
 
@@ -242,7 +291,8 @@ class OpeningBookDatabase:
         cursor = self.conn.execute(
             """
             SELECT canonical_key, qfen, depth, evaluation, visit_count,
-                   win_count_p0, win_count_p1, draw_count
+                   win_count_p0, win_count_p1, draw_count,
+                   is_terminal, symmetry_count
             FROM positions
             WHERE depth = ?
             ORDER BY visit_count DESC
@@ -281,10 +331,54 @@ class OpeningBookDatabase:
                     win_count_p1=row[6],
                     draw_count=row[7],
                     best_moves=best_moves,
+                    is_terminal=row[8],
+                    symmetry_count=row[9],
                 )
             )
 
         return entries
+
+    # ----- DAG edge queries ---------------------------------------------------
+
+    def add_edges(self, edges: List[Tuple[bytes, bytes]]) -> None:
+        """
+        Bulk-insert parent -> child edges.
+
+        Args:
+            edges: list of (parent_canonical_key, child_canonical_key)
+        """
+        if not edges:
+            return
+        self.conn.executemany(
+            "INSERT OR IGNORE INTO position_edges (parent_key, child_key) "
+            "VALUES (?, ?)",
+            edges,
+        )
+        self.conn.commit()
+
+    def get_children(self, canonical_key: bytes) -> List[bytes]:
+        """Return canonical keys of all children reachable from *canonical_key*."""
+        cursor = self.conn.execute(
+            "SELECT child_key FROM position_edges WHERE parent_key = ?",
+            (canonical_key,),
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    def get_parents(self, canonical_key: bytes) -> List[bytes]:
+        """Return canonical keys of all parents that lead to *canonical_key*."""
+        cursor = self.conn.execute(
+            "SELECT parent_key FROM position_edges WHERE child_key = ?",
+            (canonical_key,),
+        )
+        return [row[0] for row in cursor.fetchall()]
+
+    def get_edge_count(self) -> int:
+        """Return total number of edges in the DAG."""
+        cursor = self.conn.execute("SELECT COUNT(*) FROM position_edges")
+        result: Any = cursor.fetchone()[0]
+        return int(result)
+
+    # ----- statistics --------------------------------------------------------
 
     def get_statistics(self) -> Dict[str, int]:
         """Get database statistics."""
@@ -300,31 +394,44 @@ class OpeningBookDatabase:
         cursor = self.conn.execute("SELECT MAX(depth) FROM positions")
         max_depth = cursor.fetchone()[0] or 0
 
+        # Terminal position breakdown
+        cursor = self.conn.execute(
+            "SELECT is_terminal, COUNT(*) FROM positions GROUP BY is_terminal"
+        )
+        terminal_counts = dict(cursor.fetchall())
+
         # Get file size
         file_size = self.db_path.stat().st_size if self.db_path.exists() else 0
+
+        edge_count = self.get_edge_count()
 
         return {
             "total_positions": total_positions,
             "unique_depths": unique_depths,
             "total_visits": total_visits,
             "max_depth": max_depth,
+            "total_edges": edge_count,
+            "terminal_interior": terminal_counts.get(TerminalStatus.INTERIOR, 0),
+            "terminal_win_p0": terminal_counts.get(TerminalStatus.WIN_P0, 0),
+            "terminal_win_p1": terminal_counts.get(TerminalStatus.WIN_P1, 0),
+            "terminal_stalemate": terminal_counts.get(TerminalStatus.STALEMATE, 0),
             "file_size_bytes": file_size,
         }
 
     def get_positions_by_depth(self) -> Dict[int, int]:
         """Get count of positions at each depth."""
-        cursor = self.conn.execute(
-            """
+        cursor = self.conn.execute("""
             SELECT depth, COUNT(*) as count
             FROM positions
             GROUP BY depth
             ORDER BY depth
-        """
-        )
+        """)
 
         return {depth: count for depth, count in cursor.fetchall()}
 
-    def export_to_file(self, output_path: str, depth_limit: Optional[int] = None):
+    def export_to_file(
+        self, output_path: str, depth_limit: Optional[int] = None
+    ) -> None:
         """
         Export positions to a text file.
 
@@ -334,7 +441,9 @@ class OpeningBookDatabase:
         """
         with open(output_path, "w") as f:
             f.write("# Quantik Opening Book Export\n")
-            f.write("# Format: QFEN | Depth | Eval | Visits | P0Wins | P1Wins | Draws\n\n")
+            f.write(
+                "# Format: QFEN | Depth | Eval | Visits | P0Wins | P1Wins | Draws\n\n"
+            )
 
             if depth_limit:
                 cursor = self.conn.execute(
@@ -348,30 +457,31 @@ class OpeningBookDatabase:
                     (depth_limit,),
                 )
             else:
-                cursor = self.conn.execute(
-                    """
+                cursor = self.conn.execute("""
                     SELECT qfen, depth, evaluation, visit_count,
                            win_count_p0, win_count_p1, draw_count
                     FROM positions
                     ORDER BY depth, visit_count DESC
-                """
-                )
+                """)
 
             for row in cursor.fetchall():
                 f.write(
                     f"{row[0]} | {row[1]} | {row[2]:.3f} | {row[3]} | {row[4]} | {row[5]} | {row[6]}\n"
                 )
 
-    def close(self):
+    def close(self) -> None:
         """Close database connection."""
-        if self.conn:
-            self.conn.close()
-            self.conn = None
+        self.conn.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "OpeningBookDatabase":
         """Context manager support."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         """Context manager cleanup."""
         self.close()

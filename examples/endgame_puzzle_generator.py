@@ -362,8 +362,7 @@ def demo_midgame_puzzle_generation():
     print("=" * 80)
 
     # P0: A at (0,0), C at (1,1); P1: b at (0,2), d at (1,3). P0's turn.
-    starting_position = "A.b./.C.d/..../...."\
-
+    starting_position = "A.b./.C.d/..../...."
     config = PuzzleConfig(
         seed=456,
         max_depth=6,

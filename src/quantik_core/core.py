@@ -179,6 +179,18 @@ class State:
         """
         return SymmetryHandler.get_canonical_key(self._compact_bb.to_tuple())
 
+    def symmetry_count(self) -> int:
+        """
+        Count how many distinct board orientations map to this canonical form.
+
+        Useful for weighting: a position with symmetry_count=8 represents 8x
+        more concrete game states than one with symmetry_count=1.
+
+        Returns:
+            Orbit size under the symmetry group (1..192)
+        """
+        return SymmetryHandler.count_orbit_size(self._compact_bb.to_tuple())
+
     # TODO: provide a plugin architecture for serialization registering
     # ----- CBOR wrappers (portable, self-describing) -------------------------
     # { "v":1, "canon":bool, "bb": h'16bytes', ? "mc":uint, ? "meta":{...} }

@@ -12,10 +12,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from quantik_core import State, Move, generate_legal_moves, apply_move
+from quantik_core.commons import Bitboard
 from quantik_core.game_utils import check_game_winner, WinStatus
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
-    CompactGameTreeNode,
     NODE_FLAG_TERMINAL,
     NODE_FLAG_WINNING_P0,
     NODE_FLAG_WINNING_P1,
@@ -194,11 +194,9 @@ class MCTSEngine:
             if winner == WinStatus.PLAYER_0_WINS:
                 flags |= NODE_FLAG_WINNING_P0
                 node.terminal_value = np.float32(1.0)
-            elif winner == WinStatus.PLAYER_1_WINS:
+            else:
                 flags |= NODE_FLAG_WINNING_P1
                 node.terminal_value = np.float32(-1.0)
-            else:
-                node.terminal_value = np.float32(0.0)
 
             node.flags = np.uint8(flags)
             self.tree.storage.store_node(node_id, node)
@@ -273,7 +271,7 @@ class MCTSEngine:
 
         # Start simulation from this state
         state = self.tree.get_state(node_id)
-        current_bb = state.bb
+        current_bb: Bitboard = state.bb
         depth = int(node.depth)
 
         # Random playout until terminal or max depth
@@ -283,10 +281,8 @@ class MCTSEngine:
             if winner != WinStatus.NO_WIN:
                 if winner == WinStatus.PLAYER_0_WINS:
                     return 1.0
-                elif winner == WinStatus.PLAYER_1_WINS:
-                    return -1.0
                 else:
-                    return 0.0
+                    return -1.0
 
             # Generate legal moves
             current_player, moves_by_shape = generate_legal_moves(current_bb)
@@ -300,7 +296,7 @@ class MCTSEngine:
 
             # Pick random move
             move = random.choice(all_moves)
-            current_bb = apply_move(current_bb, move)
+            current_bb = apply_move(current_bb, move)  # type: ignore[assignment]
             depth += 1
 
         # Reached max depth without resolution
@@ -345,7 +341,7 @@ class MCTSEngine:
             parent_id = int(node.parent_id)
             current_id = parent_id
 
-    def _get_best_move(self) -> Tuple[Move, float]:
+    def _get_best_move(self) -> Tuple[Move, float]:  # noqa: C901
         """
         Extract best move from root node.
 
@@ -355,7 +351,6 @@ class MCTSEngine:
         if self.root_id is None:
             raise ValueError("No search performed yet")
 
-        root = self.tree.get_node(self.root_id)
         root_state = self.tree.get_state(self.root_id)
 
         # Get all children
@@ -372,7 +367,7 @@ class MCTSEngine:
             return all_moves[0], 0.5
 
         # Find child with most visits (robust child selection)
-        best_child_id = None
+        best_child_id: int = children[0]
         best_visits = -1
         best_win_rate = 0.0
 
