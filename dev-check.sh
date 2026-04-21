@@ -24,7 +24,7 @@ fi
 pytest tests/ -v --cov=quantik_core
 
 # Check code formatting with black
-black --diff .
+black --check --diff .
 
 # Run flake8 linting (critical errors only)
 flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics

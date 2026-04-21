@@ -154,7 +154,7 @@ class MCTSEngine:
                 wins = child.win_count_p0
             else:
                 wins = child.win_count_p1
-            return wins / child.visit_count
+            return float(wins / child.visit_count)
 
         # Calculate win rate from perspective of current player
         player = int(child.player_turn)
@@ -171,7 +171,7 @@ class MCTSEngine:
             math.log(parent.visit_count) / child.visit_count
         )
 
-        return exploitation + exploration
+        return float(exploitation + exploration)
 
     def _expand(self, node_id: int) -> Optional[int]:
         """
@@ -379,7 +379,7 @@ class MCTSEngine:
 
                 # Calculate win rate for player 0
                 if child.visit_count > 0:
-                    best_win_rate = child.win_count_p0 / child.visit_count
+                    best_win_rate = float(child.win_count_p0 / child.visit_count)
 
         # Find the move that leads to best child
         best_child_state = self.tree.get_state(best_child_id)
