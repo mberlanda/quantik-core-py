@@ -20,7 +20,6 @@ from quantik_core import (
 )
 from quantik_core.commons import MAX_PIECES_PER_SHAPE
 
-
 # STALEMATE_QFEN "A..C/bbd./CD.A/.adB" used for testing
 
 

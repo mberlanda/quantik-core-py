@@ -342,6 +342,48 @@ class SymmetryHandler:
         return best_bb, best_transform
 
     @classmethod
+    def count_orbit_size(cls, bb: Bitboard) -> int:
+        """
+        Count how many distinct board states map to the same canonical form.
+
+        This is the size of the orbit under the symmetry group
+        (8 D4 spatial x 24 shape permutations = 192 total).
+        By the orbit-stabilizer theorem: orbit_size = |G| / |stabilizer|.
+
+        Use this to weight positions in probability calculations: a canonical
+        position with orbit_size=8 represents 8x more actual game states than
+        one with orbit_size=1.
+
+        Args:
+            bb: 8-element bitboard
+
+        Returns:
+            Number of distinct boards in this position's equivalence class (1..192)
+        """
+        B = [[bb[c * 4 + s] for s in range(4)] for c in range(2)]
+        seen: set[bytes] = set()
+
+        for d4_idx in range(8):
+            G0 = [cls.permute16(B[0][s], d4_idx) for s in range(4)]
+            G1 = [cls.permute16(B[1][s], d4_idx) for s in range(4)]
+
+            for perm in cls.ALL_SHAPE_PERMS:
+                candidate = struct.pack(
+                    "<8H",
+                    G0[perm[0]],
+                    G0[perm[1]],
+                    G0[perm[2]],
+                    G0[perm[3]],
+                    G1[perm[0]],
+                    G1[perm[1]],
+                    G1[perm[2]],
+                    G1[perm[3]],
+                )
+                seen.add(candidate)
+
+        return len(seen)
+
+    @classmethod
     def get_canonical_payload(cls, bb: Bitboard) -> bytes:
         """
         Get the canonical payload bytes for a bitboard.
