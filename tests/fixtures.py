@@ -755,7 +755,7 @@ class TestCaseFactory:
 
     @staticmethod
     def create_parameterized_test_data(
-        test_cases: List[TestCase], fields: List[str] = None
+        test_cases: List[TestCase], fields: Optional[List[str]] = None
     ) -> List[Tuple]:
         """Create data for parameterized tests (pytest.mark.parametrize)."""
         if fields is None:
@@ -918,8 +918,7 @@ class CanonicalBitboardFactory:
 
     @staticmethod
     def multiple_pieces_same_shape() -> GameStateFixture:
-        """Multiple pieces of the same shape (valid in Quantik)."""
-        # Invalid scenario - only two pieces of same sape allowed per player and turn balance
+        """Invalid state: three A pieces for player 0 exceeds per-shape inventory limit."""
         qfen = "A.../..../A.../...A"
         bb = bb_from_qfen(qfen)
         return GameStateFixture(
