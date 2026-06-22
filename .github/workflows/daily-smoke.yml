@@ -1,0 +1,51 @@
+name: Daily PyPI Smoke Tests
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: ${{ matrix.optional || false }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- quick demos: must pass ---
+          - example: basic_usage.py
+          - example: bitboard_compact_demo.py
+          - example: compact_state_demo.py
+          - example: compact_tree_demo.py
+          - example: legal_moves_demo.py
+          - example: opening_book_demo.py
+          - example: win_probability_analysis.py
+          - example: symmetry_reduction.py
+          # --- heavier examples: best-effort within 5 min ---
+          - example: mcts_demo.py
+            optional: true
+          - example: baseline_measurement.py
+            optional: true
+          - example: generate_puzzles.py
+            optional: true
+          - example: endgame_puzzle_generator.py
+            optional: true
+          # --- book generator: capped at depth 1 so it exits fast ---
+          - example: generate_opening_book.py
+            args: "--max-depth 1 --workers 1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install latest quantik-core from PyPI
+        run: pip install quantik-core
+
+      - name: Run ${{ matrix.example }}
+        run: python examples/${{ matrix.example }} ${{ matrix.args || '' }}
