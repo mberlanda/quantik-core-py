@@ -105,7 +105,7 @@ class State:
         Examples:
 
         1. Starting position:
-           QFEN: "..../..../..../....."
+           QFEN: "..../..../..../...."
            Visual:
            ┌─────┬─────┬─────┬─────┐
            │  .  │  .  │  .  │  .  │
@@ -131,7 +131,7 @@ class State:
            └─────┴─────┴─────┴─────┘
 
         3. Winning position (row):
-           QFEN: "AbCd/..../..../....."
+           QFEN: "AbCd/..../..../...."
            Visual:
            ┌─────┬─────┬─────┬─────┐
            │  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in row

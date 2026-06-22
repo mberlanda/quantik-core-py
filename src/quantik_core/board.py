@@ -215,7 +215,7 @@ class QuantikBoard:
 
     def has_legal_moves(self, player: Optional[PlayerId] = None) -> bool:
         """Check if player has any legal moves."""
-        player = player or self._current_player
+        player = self._current_player if player is None else player
         # Use next() with a default to avoid generating the full list
         try:
             next(self.generate_legal_moves(player))
@@ -249,7 +249,7 @@ class QuantikBoard:
         Yields:
             Legal moves respecting inventory constraints
         """
-        player = player or self._current_player
+        player = self._current_player if player is None else player
         inventory = self._inventories[player]
 
         # Get occupied positions once to avoid repeated checks

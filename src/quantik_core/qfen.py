@@ -25,7 +25,7 @@ Shape Notation:
 Examples:
 
 1. Starting position:
-   QFEN: "..../..../..../....."
+   QFEN: "..../..../..../...."
    Visual:
    ┌─────┬─────┬─────┬─────┐
    │  .  │  .  │  .  │  .  │
@@ -51,7 +51,7 @@ Examples:
    └─────┴─────┴─────┴─────┘
 
 3. Winning position (row):
-   QFEN: "AbCd/..../..../....."
+   QFEN: "AbCd/..../..../...."
    Visual:
    ┌─────┬─────┬─────┬─────┐
    │  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in row

@@ -10,6 +10,7 @@ from quantik_core.commons import (
 )
 
 ShapesMap = Tuple[int, int, int, int]  # Counts of shapes A, B, C, D
+BOARD_MASK = 0xFFFF
 
 
 class ValidationResult(IntEnum):
@@ -52,6 +53,9 @@ def _validate_piece_counts_and_overlaps(
     # Single pass through all bitboard elements
     for i in range(8):
         bb_value = bb[i]
+        if not isinstance(bb_value, int) or bb_value < 0 or bb_value > BOARD_MASK:
+            return ValidationResult.INVALID_POSITION, [], 0, 0
+
         piece_count = bb_value.bit_count()
 
         # 1. Piece count validation (check immediately)

@@ -517,6 +517,26 @@ class TestQFENCompatibility:
             QuantikBoard.from_qfen("AAAAA/..../..../..../....", validate=True)
 
 
+class TestExplicitPlayerQueries:
+    """Regression tests for explicit player IDs that are falsey."""
+
+    def test_generate_legal_moves_respects_explicit_player_zero_when_current_is_one(
+        self,
+    ):
+        board = QuantikBoard.from_qfen("A.../..../..../....")
+
+        assert board.current_player == 1
+        assert list(board.generate_legal_moves(0)) == []
+        assert all(move.player == 1 for move in board.generate_legal_moves())
+
+    def test_has_legal_moves_respects_explicit_player_zero_when_current_is_one(self):
+        board = QuantikBoard.from_qfen("A.../..../..../....")
+
+        assert board.current_player == 1
+        assert board.has_legal_moves(0) is False
+        assert board.has_legal_moves(1) is True
+
+
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
