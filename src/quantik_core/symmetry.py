@@ -174,8 +174,8 @@ class SymmetryHandler:
             m[i] = cls.rc_to_i(r2, c2)
         return m
 
-    # Pre-compute the D4 mappings (will be set in _initialize_class())
-    D4_MAPPINGS = None  # type: List[List[int]]
+    # Pre-compute the D4 mappings lazily on first permutation/canonicalization use.
+    D4_MAPPINGS: List[List[int]] = []
 
     # Pre-compute LUT for fast 16-bit permutation
     @classmethod
@@ -213,15 +213,26 @@ class SymmetryHandler:
 
     # Static LUT: ~1.0MB RAM, provides very fast permutations (will be set in _initialize_class())
     _PERM16_LUT: List[List[int]] = []
+    _initialized = False
 
     @classmethod
     def _initialize_class(cls) -> None:
         """Initialize class-level data structures that depend on class methods."""
+        if cls._initialized:
+            return
+
         # Initialize D4 mappings
         cls.D4_MAPPINGS = [cls.build_perm(fn) for _, fn in cls.D4]
 
         # Initialize permutation lookup table
         cls._PERM16_LUT = cls._build_perm16_lut()
+        cls._initialized = True
+
+    @classmethod
+    def _ensure_initialized(cls) -> None:
+        """Build lookup tables on first use."""
+        if not cls._initialized:
+            cls._initialize_class()
 
     @classmethod
     def permute16(cls, mask: int, d4_index: D4IndexLike) -> int:
@@ -235,7 +246,8 @@ class SymmetryHandler:
         Returns:
             Transformed 16-bit mask
         """
-        return cls._PERM16_LUT[d4_index][mask]
+        cls._ensure_initialized()
+        return cls._PERM16_LUT[int(d4_index)][mask]
 
     @classmethod
     def apply_symmetry(cls, bb: Bitboard, transform: SymmetryTransform) -> Bitboard:
@@ -466,7 +478,3 @@ class SymmetryHandler:
         bb = bb_from_qfen(qfen)
         canonical_bb, _ = cls.find_canonical_form(bb)
         return bb_to_qfen(canonical_bb)
-
-
-# Initialize class structures on module load
-SymmetryHandler._initialize_class()
