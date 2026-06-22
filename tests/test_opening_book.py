@@ -32,8 +32,7 @@ class TestOpeningBookSchema:
         import sqlite3
 
         conn = sqlite3.connect(db_path)
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE positions (
                 canonical_key BLOB PRIMARY KEY,
                 qfen TEXT NOT NULL,
@@ -45,10 +44,8 @@ class TestOpeningBookSchema:
                 draw_count INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """
-        )
-        conn.execute(
-            """
+        """)
+        conn.execute("""
             CREATE TABLE best_moves (
                 canonical_key BLOB NOT NULL,
                 move_rank INTEGER NOT NULL,
@@ -56,8 +53,7 @@ class TestOpeningBookSchema:
                 position INTEGER NOT NULL,
                 PRIMARY KEY (canonical_key, move_rank)
             )
-        """
-        )
+        """)
         conn.commit()
         conn.close()
 

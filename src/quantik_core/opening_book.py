@@ -76,8 +76,7 @@ class OpeningBookDatabase:
         self.conn.execute("PRAGMA synchronous = NORMAL")
 
         # Create positions table
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE TABLE IF NOT EXISTS positions (
                 canonical_key BLOB PRIMARY KEY,
                 qfen TEXT NOT NULL,
@@ -91,8 +90,7 @@ class OpeningBookDatabase:
                 symmetry_count INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """
-        )
+        """)
 
         # Migrate existing databases: add new columns if missing
         self._migrate_add_column(
@@ -103,8 +101,7 @@ class OpeningBookDatabase:
         )
 
         # Create best_moves table
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE TABLE IF NOT EXISTS best_moves (
                 canonical_key BLOB NOT NULL,
                 move_rank INTEGER NOT NULL,
@@ -113,27 +110,21 @@ class OpeningBookDatabase:
                 FOREIGN KEY (canonical_key) REFERENCES positions(canonical_key),
                 PRIMARY KEY (canonical_key, move_rank)
             )
-        """
-        )
+        """)
 
         # Create indices for efficient queries
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_depth
             ON positions(depth)
-        """
-        )
+        """)
 
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_visit_count
             ON positions(visit_count DESC)
-        """
-        )
+        """)
 
         # DAG edges: parent -> child canonical key relationships
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE TABLE IF NOT EXISTS position_edges (
                 parent_key BLOB NOT NULL,
                 child_key  BLOB NOT NULL,
@@ -141,15 +132,12 @@ class OpeningBookDatabase:
                 FOREIGN KEY (parent_key) REFERENCES positions(canonical_key),
                 FOREIGN KEY (child_key)  REFERENCES positions(canonical_key)
             )
-        """
-        )
+        """)
 
-        self.conn.execute(
-            """
+        self.conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_edges_child
             ON position_edges(child_key)
-        """
-        )
+        """)
 
         self.conn.commit()
 
@@ -432,14 +420,12 @@ class OpeningBookDatabase:
 
     def get_positions_by_depth(self) -> Dict[int, int]:
         """Get count of positions at each depth."""
-        cursor = self.conn.execute(
-            """
+        cursor = self.conn.execute("""
             SELECT depth, COUNT(*) as count
             FROM positions
             GROUP BY depth
             ORDER BY depth
-        """
-        )
+        """)
 
         return {depth: count for depth, count in cursor.fetchall()}
 
@@ -471,14 +457,12 @@ class OpeningBookDatabase:
                     (depth_limit,),
                 )
             else:
-                cursor = self.conn.execute(
-                    """
+                cursor = self.conn.execute("""
                     SELECT qfen, depth, evaluation, visit_count,
                            win_count_p0, win_count_p1, draw_count
                     FROM positions
                     ORDER BY depth, visit_count DESC
-                """
-                )
+                """)
 
             for row in cursor.fetchall():
                 f.write(
