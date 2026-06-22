@@ -62,7 +62,7 @@ rank1/rank2/rank3/rank4
 
 #### 1. Empty Board
 ```
-QFEN: "..../..../..../....."
+QFEN: "..../..../..../...."
 
 ┌─────┬─────┬─────┬─────┐
 │  .  │  .  │  .  │  .  │
@@ -92,7 +92,7 @@ QFEN: "A.bC/..../d..B/...a"
 
 #### 3. Winning Position (Complete Row)
 ```
-QFEN: "AbCd/..../..../....."
+QFEN: "AbCd/..../..../...."
 
 ┌─────┬─────┬─────┬─────┐
 │  A  │  b  │  C  │  d  │ ← WIN! All 4 shapes in top row
@@ -170,11 +170,11 @@ print(state.to_qfen())  # Output: ..../..../..../....
 
 # Create positions using QFEN notation (see QFEN section for visual examples)
 state = State.from_qfen("A.bC/..../d.B./...a")  # Mixed position
-state = State.from_qfen("ABCD/..../..../.....")  # Player 0 wins with top row
+state = State.from_qfen("ABCD/..../..../....")  # Player 0 wins with top row
 
 # Convert to human-readable format
 qfen = state.to_qfen()
-print(f"Position: {qfen}")  # Output: ABCD/..../..../.....
+print(f"Position: {qfen}")  # Output: ABCD/..../..../....
 
 # Get canonical representation for symmetry analysis
 canonical_key = state.canonical_key()
