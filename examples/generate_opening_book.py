@@ -69,17 +69,21 @@ def format_time(s: float) -> str:
 
 def _ensure_checkpoint_tables(conn) -> None:
     """Create checkpoint tables if they don't exist."""
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS generation_meta (
             key   TEXT PRIMARY KEY,
             value TEXT NOT NULL
         )
-    """)
-    conn.execute("""
+    """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS frontier (
             qfen TEXT PRIMARY KEY
         )
-    """)
+    """
+    )
     conn.commit()
 
 

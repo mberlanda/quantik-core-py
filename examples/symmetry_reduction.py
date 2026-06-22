@@ -185,10 +185,14 @@ def write_introduction(writer: MarkdownWriter, empty: Bitboard) -> None:
     """Write introduction section."""
     writer.heading(1, "QUANTIK SYMMETRY REDUCTION DEMONSTRATION")
 
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
         This document demonstrates how symmetry handling can dramatically reduce
         the complexity of the Quantik game search space.
-        """))
+        """
+        )
+    )
 
     # Show the empty board
     writer.write(board_to_markdown(empty, "Empty Board"))
@@ -199,13 +203,17 @@ def write_first_move_section(
 ) -> None:
     """Write first move canonicalization section."""
     writer.heading(2, "First Move Canonicalization")
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
         In Quantik, the first player has 64 possible moves (4 shapes × 16 positions).
         However, due to symmetries, many of these are equivalent.
 
         By applying symmetry reductions, we can map all first moves to just a few
         canonical positions.
-        """))
+        """
+        )
+    )
 
 
 def compute_position_mappings(
@@ -362,11 +370,15 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
     """Write determinism testing section."""
     # Add discussion on determinism of canonical representation
     writer.heading(2, "Is Canonical Representation Deterministic?")
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
     A critical property of any canonical representation system is determinism -
     the same game state must always map to the same canonical form, regardless of
     how that state was reached. Let's verify this property:
-    """))
+    """
+        )
+    )
 
     # Create two equivalent states through different move sequences
     writer.writeln("\n### Testing Determinism")
@@ -429,7 +441,9 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
         writer.writeln(f"Canonical QFEN 1: `{bb_to_qfen(canonical_bb1)}`")
         writer.writeln(f"Canonical QFEN 2: `{bb_to_qfen(canonical_bb2)}`")
 
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
     ### Implications for Game Search
 
     The deterministic property of our canonical representation is crucial for:
@@ -442,7 +456,9 @@ def write_determinism_test(writer: MarkdownWriter) -> None:
 
     3. **Consistency:** Game analysis and search will be consistent and reliable across
        different move sequences that lead to equivalent positions.
-    """))
+    """
+        )
+    )
 
 
 def write_dynamic_symmetry_reduction(
@@ -450,11 +466,15 @@ def write_dynamic_symmetry_reduction(
 ) -> None:
     """Write dynamic symmetry analysis section using comprehensive game tree analysis."""
     writer.heading(2, "Dynamic Symmetry Reduction Analysis")
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
         Let's analyze how symmetry reduction works dynamically by examining the reduction
         at different move depths. This shows how the game tree complexity is reduced
         at each level through canonical representation, including winning positions analysis.
-        """))
+        """
+        )
+    )
 
     # Perform comprehensive game tree analysis
     writer.writeln("Computing comprehensive game tree analysis...")
@@ -462,7 +482,9 @@ def write_dynamic_symmetry_reduction(
     symmetry_table.analyze_game_tree(max_depth=5)
     writer.writeln(symmetry_table.generate_table())
 
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
         ### Key Insights
 
         This dynamic analysis demonstrates:
@@ -472,13 +494,17 @@ def write_dynamic_symmetry_reduction(
         - **Computational savings**: The space savings percentage shows the efficiency gained
         - **Search optimization**: These reductions directly translate to smaller search trees
         - **Complete game analysis**: All legal games are computed showing the full game tree complexity
-        """))
+        """
+        )
+    )
 
 
 def write_conclusion(writer: MarkdownWriter) -> None:
     """Write conclusion section."""
     writer.heading(2, "CONCLUSION")
-    writer.writeln(textwrap.dedent("""
+    writer.writeln(
+        textwrap.dedent(
+            """
     We've demonstrated how symmetry handling can dramatically reduce the complexity
     of the Quantik game search space. The main benefits are:
 
@@ -500,7 +526,9 @@ def write_conclusion(writer: MarkdownWriter) -> None:
     - Analyze a much smaller search space
     - Still recover the actual moves through symmetry transformations
     - Build reliable opening books and transposition tables
-    """))
+    """
+        )
+    )
 
 
 def write_symmetry_table(output_file: str) -> None:
