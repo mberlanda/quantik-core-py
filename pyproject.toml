@@ -16,8 +16,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Games/Entertainment :: Board Games",
@@ -25,10 +23,10 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 keywords = [
-    "quantik", "board-games", "game-ai", "monte-carlo", "bitboards", 
+    "quantik", "board-games", "game-ai", "monte-carlo", "bitboards",
     "game-engine", "mcts", "game-theory", "combinatorial-games"
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "psutil>=7.0,<8",
     "numpy>=2.0,<3",
@@ -77,7 +75,7 @@ quantik_core = ["py.typed"]
 
 [tool.black]
 line-length = 88
-target-version = ['py310']
+target-version = ['py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -108,9 +106,6 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-[[tool.mypy.overrides]]
-module = ["numpy", "numpy.*"]
-ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
