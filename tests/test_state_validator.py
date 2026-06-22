@@ -43,6 +43,25 @@ class TestGameStateValidation:
         state = State.from_qfen("A.b./c.D./..../.B..", validate=False)
         _assert_game_state_validation(state, 1, ValidationResult.OK)
 
+    def test_rejects_bits_outside_4x4_board(self):
+        player, result = validate_game_state((1 << 16, 0, 0, 0, 0, 0, 0, 0))
+
+        assert player is None
+        assert result == ValidationResult.INVALID_POSITION
+
+    @pytest.mark.parametrize(
+        "bad_bb",
+        [
+            (-1, 0, 0, 0, 0, 0, 0, 0),
+            (0, 0, 0, 0, 0, 0, 0, 0x10000),
+        ],
+    )
+    def test_rejects_non_16_bit_values(self, bad_bb):
+        player, result = validate_game_state(bad_bb)
+
+        assert player is None
+        assert result == ValidationResult.INVALID_POSITION
+
     def test_invalid_game_states(self):
         """Test various invalid game states."""
         # Too many pieces of same shape
