@@ -9,34 +9,30 @@ set -euo pipefail
 if [ ! -d ".venv" ]; then
     # Create virtual environment
     python -m venv .venv
-    
-    # Activate virtual environment
-    source .venv/bin/activate
-    
+
     # Install development dependencies
-    pip install -e ".[dev,cbor]"
-else
-    # Activate virtual environment
-    source .venv/bin/activate
+    .venv/bin/python -m pip install -e ".[dev,cbor]"
 fi
 
+PYTHON=".venv/bin/python"
+
 # Run pytest with coverage
-pytest tests/ -v --cov=quantik_core
+"${PYTHON}" -m pytest tests/ -v --cov=quantik_core
 
 # Check code formatting with black
-black --check --diff .
+"${PYTHON}" -m black --check --diff src tests examples validate_qfen_fixtures.py
 
 # Run flake8 linting (critical errors only)
-flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+"${PYTHON}" -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
 # Run flake8 linting (full check with warnings)
-flake8 . --count --exit-zero --statistics
+"${PYTHON}" -m flake8 . --count --exit-zero --statistics
 
 # Run mypy type checking
-mypy src/quantik_core/
+"${PYTHON}" -m mypy src/quantik_core/
 
 # Build the package
-python -m build
+"${PYTHON}" -m build
 
 # Check package with twine
-twine check dist/*
+"${PYTHON}" -m twine check dist/*
