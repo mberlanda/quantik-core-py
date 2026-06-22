@@ -1,14 +1,12 @@
-"""
-Quantik Core - High-performance game state manipulation library.
+"""Quantik Core - high-performance game state manipulation library."""
 
-This library provides the foundational components for building Quantik game engines,
-Monte Carlo simulations, and AI analysis tools.
-"""
+from importlib.metadata import PackageNotFoundError, version
 
 from .commons import Bitboard, PlayerId, VERSION, FLAG_CANON
 from .core import State
 from .symmetry import SymmetryHandler, SymmetryTransform
 from .qfen import bb_to_qfen, bb_from_qfen
+from .state_validator import ValidationResult
 from .move import (
     Move,
     validate_move,
@@ -23,7 +21,11 @@ from .board import (
     MoveRecord,
 )
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("quantik-core")
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "0+editable"
+
 __author__ = "Mauro Berlanda"
 
 __all__ = [
@@ -31,8 +33,6 @@ __all__ = [
     "FLAG_CANON",
     "State",
     "Bitboard",
-    "CompactBitboard",
-    "UltraCompactState",
     "Move",
     "validate_move",
     "apply_move",
