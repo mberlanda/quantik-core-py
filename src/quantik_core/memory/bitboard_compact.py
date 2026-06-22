@@ -68,9 +68,9 @@ class CompactBitboard:
         return cls(bitboard)
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> "CompactBitboard":
+    def from_bytes(cls, data: Union[bytes, bytearray]) -> "CompactBitboard":
         """Create from 8-byte representation."""
-        return cls(data)
+        return cls(bytes(data) if isinstance(data, bytearray) else data)
 
     def to_tuple(self) -> Bitboard:
         """Convert to traditional bitboard tuple format."""
