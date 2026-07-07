@@ -2,6 +2,14 @@
 
 All notable changes to `quantik-core` are documented here.
 
+## Unreleased
+
+### Added
+
+- Added `BeamSearchEngine`, a parametrizable, memory-bounded beam search that guarantees reaching true terminal Quantik states (win/loss by blocked player) by deduplicating candidates per depth via `State.canonical_key()`, ranking them mover-relative, and pruning to a configurable `beam_width` while sharing the `CompactGameTree` structure used by MCTS.
+- Added `examples/beam_search_demo.py` showcasing full-depth terminal reachability, tactical win detection, a beam-width memory sweep, and a pluggable custom evaluator.
+- Added `docs/BEAM_SEARCH.md` documenting the algorithm, configuration, result fields, memory model, and the caveats of sharing a `CompactGameTree` with `MCTSEngine`.
+
 ## 1.0.0 - 2026-06-22
 
 ### Added

@@ -43,3 +43,16 @@ best_move, win_probability = engine.search(state)
 assert best_move is not None
 assert 0.0 <= win_probability <= 1.0
 ```
+
+## Beam Search
+
+```python
+from quantik_core import State
+from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+state = State.from_qfen("ABc./..../..../...a")
+engine = BeamSearchEngine(BeamSearchConfig(beam_width=4, max_depth=2, random_seed=1))
+result = engine.search(state)
+assert result.best_leaf is not None
+assert result.best_leaf.is_terminal
+```
