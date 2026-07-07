@@ -4,7 +4,7 @@ from typing import List
 
 import pytest
 
-from quantik_core import State, apply_move
+from quantik_core import State, apply_move, generate_legal_moves
 from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine, BeamLeaf
 from quantik_core.mcts import MCTSEngine, MCTSConfig
 from quantik_core.memory.compact_tree import (
@@ -276,6 +276,53 @@ class TestBeamSearchEngine:
             and leaf.moves[0].position == 3
             for leaf in winning_moves
         )
+
+    def test_pruning_uses_mover_relative_score(self):
+        """_score_and_prune must rank candidates mover-relative, not P0-fixed.
+
+        Regression test: with only depth-1 TERMINAL wins exercised elsewhere,
+        a mutant that drops the P1 sign flip (`score = raw_value` instead of
+        `score = raw_value if mover == 0 else -raw_value`) still passes every
+        other test in this file. This fixture forces every depth-1 reply to
+        be NON-terminal, so the survivor must come from the mover-relative
+        ranking in `_score_and_prune`, not from terminal-leaf handling.
+        """
+        # P0 has already placed A at (0,0); it is P1's turn. With only 2
+        # pieces on the board after any reply, no line can be completed, so
+        # every depth-1 candidate is non-terminal.
+        root_state = State.from_qfen("A.../..../..../....")
+        root_player, moves_by_shape = generate_legal_moves(root_state.bb)
+        assert root_player == 1
+        all_moves = [m for ms in moves_by_shape.values() for m in ms]
+        assert len(all_moves) > 1
+
+        # Assign each resulting state a distinct, known P0-perspective value.
+        value_by_bb = {}
+        for i, move in enumerate(all_moves):
+            new_bb = apply_move(root_state.bb, move)
+            value_by_bb[new_bb] = -1.0 + (2.0 * i) / len(all_moves)
+
+        min_value = min(value_by_bb.values())
+        max_value = max(value_by_bb.values())
+        assert min_value != max_value  # sanity: evaluator actually discriminates
+
+        def evaluator(state: State) -> float:
+            return value_by_bb[state.bb]
+
+        config = BeamSearchConfig(
+            beam_width=1, max_depth=1, evaluator=evaluator, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(root_state)
+
+        # P1 is the mover; P1 wants the most negative P0-perspective value.
+        # A correct mover-relative score keeps exactly that survivor. A
+        # P0-fixed (unsigned) score would instead keep the candidate with
+        # max_value, which is what this test guards against.
+        assert result.best_leaf is not None
+        assert not result.best_leaf.is_terminal
+        assert result.best_leaf.value == pytest.approx(min_value)
+        assert result.best_leaf.value != pytest.approx(max_value)
 
     def test_shared_tree_integration(self):
         """Passing an existing CompactGameTree writes terminal data into it."""

@@ -83,7 +83,13 @@ class BeamSearchEngine:
             tree: Optional existing `CompactGameTree` to reuse (e.g. an
                 `MCTSEngine`'s tree), so results from both engines enrich
                 the same transposition structure. A fresh tree is created
-                when omitted.
+                when omitted. Note: `CompactGameTree.create_root_node`
+                hardcodes the root's `player_turn` to 0 and alternates from
+                there, so when sharing a tree with an `MCTSEngine`, root the
+                beam search at a position where player 0 is to move —
+                otherwise every node's `player_turn` is inverted, which
+                would corrupt MCTS's UCB calculation if that engine later
+                resumes on the same tree.
 
         Raises:
             ValueError: if any configuration value is out of range.
@@ -240,9 +246,16 @@ class BeamSearchEngine:
                     if winner == WinStatus.PLAYER_0_WINS
                     else NODE_FLAG_WINNING_P1
                 )
+                # add_child_node keys transpositions on the literal
+                # State.pack() bytes (its "canonical_state_data" field is
+                # not symmetry-reduced), while beam dedup above/below keys
+                # on the coarser State.canonical_key(); two different
+                # parents can therefore merge into one tree node here.
+                nodes_before = self.tree.storage.node_count
                 child_id = self.tree.add_child_node(node_id, new_state)
                 self._mark_terminal(child_id, extra_flag, value)
-                stats["nodes_inserted"] += 1
+                if self.tree.storage.node_count > nodes_before:
+                    stats["nodes_inserted"] += 1
                 terminal_leaves.append(
                     BeamLeaf(
                         moves=child_moves, value=value, depth=depth, is_terminal=True
@@ -274,12 +287,14 @@ class BeamSearchEngine:
         next_frontier: List[_FrontierEntry] = []
         for _, _, key, raw_value in survivors:
             parent_id, bb, moves, _ = candidates[key]
+            nodes_before = self.tree.storage.node_count
             child_id = self.tree.add_child_node(parent_id, State(bb))
             node = self.tree.get_node(child_id)
             node.best_value = np.float32(raw_value)
             node.visit_count = np.uint32(node.visit_count + 1)
             self.tree.storage.store_node(child_id, node)
-            stats["nodes_inserted"] += 1
+            if self.tree.storage.node_count > nodes_before:
+                stats["nodes_inserted"] += 1
             next_frontier.append((child_id, bb, moves, raw_value))
 
         return next_frontier
