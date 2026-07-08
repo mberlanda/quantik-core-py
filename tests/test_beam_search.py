@@ -982,3 +982,89 @@ class TestSymmetryMultiplicity:
             leaf for leaf in terminal_leaves if leaf.value == pytest.approx(-1.0)
         ]
         assert sorted(leaf.multiplicity for leaf in matching_leaves) == [5, 7]
+
+
+class TestRolloutSchedule:
+    """Per-depth rollout budget for the built-in evaluator."""
+
+    def test_default_is_none(self):
+        assert BeamSearchConfig().rollout_schedule is None
+
+    def test_invalid_rollout_schedule_empty(self):
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(rollout_schedule=[]))
+
+    def test_invalid_rollout_schedule_zero_entry(self):
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(rollout_schedule=[2, 0]))
+
+    def test_flat_equivalence_with_rollouts_per_candidate(self):
+        """rollout_schedule=[n] must behave exactly like a flat n."""
+        flat = BeamSearchEngine(
+            BeamSearchConfig(
+                beam_width=4, max_depth=3, rollouts_per_candidate=3, random_seed=5
+            )
+        ).search(State.from_qfen("..../..../..../...."))
+        scheduled = BeamSearchEngine(
+            BeamSearchConfig(
+                beam_width=4,
+                max_depth=3,
+                rollouts_per_candidate=3,
+                rollout_schedule=[3],
+                random_seed=5,
+            )
+        ).search(State.from_qfen("..../..../..../...."))
+
+        assert scheduled.best_leaf is not None and flat.best_leaf is not None
+        assert scheduled.best_leaf.moves == flat.best_leaf.moves
+        assert scheduled.best_leaf.value == pytest.approx(flat.best_leaf.value)
+        assert scheduled.stats == flat.stats
+
+    def test_exact_rollout_count_pins_depth_indexing(self):
+        """beam_schedule=[3,51] + rollout_schedule=[1,5] performs exactly
+        3x1 + 51x5 = 258 playouts; an off-by-one depth indexing would give
+        3x5 + 51x1 = 66 and must fail here."""
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51],
+            max_depth=2,
+            rollout_schedule=[1, 5],
+            random_seed=0,
+        )
+        result = BeamSearchEngine(config).search(State.from_qfen("..../..../..../...."))
+        assert result.stats["evaluations"] == 3 + 51
+        assert result.stats["rollouts"] == 3 * 1 + 51 * 5
+
+    def test_last_entry_extends_to_deeper_levels(self):
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51, 4],
+            max_depth=3,
+            rollout_schedule=[2],
+            random_seed=1,
+        )
+        result = BeamSearchEngine(config).search(State.from_qfen("..../..../..../...."))
+        assert result.stats["rollouts"] == 2 * result.stats["evaluations"]
+
+    def test_custom_evaluator_ignores_rollout_schedule(self):
+        def evaluator(state: State) -> float:
+            return 0.25
+
+        base = BeamSearchConfig(
+            beam_width=4, max_depth=2, evaluator=evaluator, random_seed=9
+        )
+        with_schedule = BeamSearchConfig(
+            beam_width=4,
+            max_depth=2,
+            evaluator=evaluator,
+            rollout_schedule=[7, 7],
+            random_seed=9,
+        )
+        result_a = BeamSearchEngine(base).search(State.from_qfen("..../..../..../...."))
+        result_b = BeamSearchEngine(with_schedule).search(
+            State.from_qfen("..../..../..../....")
+        )
+
+        assert result_a.stats["rollouts"] == 0
+        assert result_b.stats["rollouts"] == 0
+        assert result_a.stats == result_b.stats
+        assert result_a.best_leaf is not None and result_b.best_leaf is not None
+        assert result_a.best_leaf.moves == result_b.best_leaf.moves

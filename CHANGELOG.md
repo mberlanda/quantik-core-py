@@ -8,6 +8,7 @@ All notable changes to `quantik-core` are documented here.
 
 - Added `BeamSearchEngine`, a parametrizable, memory-bounded beam search that guarantees reaching true terminal Quantik states (win/loss by blocked player) by deduplicating candidates per depth via `State.canonical_key()`, ranking them mover-relative, and pruning to a configurable `beam_width` while sharing the `CompactGameTree` structure used by MCTS.
 - Added `BeamSearchResult.root_player` and `BeamSearchResult.frontier_leaves` (the live, non-terminal leaves remaining at `max_depth_reached`).
+- Added `BeamSearchConfig.rollout_schedule` for a depth-dependent playout budget in the built-in evaluator (pairing with `beam_schedule` to be wide-and-cheap on exhaustive levels and precise on the pruned tail), plus a `stats["rollouts"]` counter exposing the exact playout spend.
 - Added `BeamSearchResult.ranked_root_moves()`, aggregating every collected leaf by its first move from the root into `RankedRootMove` entries (`best_value`, `mean_value`, `win_probability`, `leaf_count`, `has_terminal_win`) for ranking multiple midgame options.
 - Added `examples/beam_search_demo.py` showcasing full-depth terminal reachability, tactical win detection with the full winning principal variation, a beam-width memory sweep, a pluggable custom evaluator, and ranked root move statistics from a midgame position.
 - Added `docs/BEAM_SEARCH.md` documenting the algorithm, configuration, result fields, ranked root moves, memory model, and the caveats of sharing a `CompactGameTree` with `MCTSEngine`.

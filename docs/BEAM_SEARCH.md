@@ -49,8 +49,9 @@ print(f"Value (P0 perspective): {result.best_leaf.value}")
 | `evaluator` | `Callable[[State], float]`\|None | None | Custom evaluator; falls back to random-rollout scoring when omitted |
 | `initial_tree_capacity` | int | 4096 | Initial `CompactGameTree` node capacity |
 | `beam_schedule` | `Sequence[int]`\|None | None | Depth-dependent beam width (see Tuning below); `None` uses the flat `beam_width` everywhere |
+| `rollout_schedule` | `Sequence[int]`\|None | None | Depth-dependent rollout budget for the **built-in** evaluator only (custom evaluators ignore it); same indexing semantics as `beam_schedule`; `None` uses the flat `rollouts_per_candidate` everywhere |
 
-Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`, an empty `beam_schedule`, or any `beam_schedule` entry `< 1`) raise `ValueError` from `BeamSearchEngine.__init__`.
+Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`, an empty or non-positive `beam_schedule` or `rollout_schedule`) raise `ValueError` from `BeamSearchEngine.__init__`.
 
 ### Evaluator Contract
 
@@ -70,7 +71,18 @@ config = BeamSearchConfig(beam_schedule=schedule, max_depth=16)
 
 Width at depth `d` resolves to `beam_schedule[min(d - 1, len(beam_schedule) - 1)]`, so the schedule's last entry extends to every deeper level. A single-entry schedule (e.g. `beam_schedule=[8]`) is exactly equivalent to `beam_width=8`.
 
-**Cost model**: evaluations at level `d + 1` are proportional to `width(d) x branching_factor x rollouts_per_candidate` (or a single evaluator call each, if using a custom evaluator). An exhaustive prefix is cheap while the canonical count is small (3, then 51) but grows fast — by depth 4 (10,946 unique states) exhaustive search is usually no longer worth it; that's the point at which a schedule typically switches to a fixed guided width.
+**Cost model**: evaluations at level `d + 1` are proportional to `width(d) x branching_factor x rollouts(d + 1)` (or a single evaluator call each, if using a custom evaluator). An exhaustive prefix is cheap while the canonical count is small (3, then 51) but grows fast — by depth 4 (10,946 unique states) exhaustive search is usually no longer worth it; that's the point at which a schedule typically switches to a fixed guided width.
+
+**Wide-and-cheap early, narrow-and-precise late**: on a level where the width meets or exceeds the canonical state count, *nothing is pruned*, so evaluation precision there is wasted budget. `rollout_schedule` pairs with `beam_schedule` to spend playouts only where pruning decisions actually happen:
+
+```python
+config = BeamSearchConfig(
+    beam_schedule=[3, 51, 726, 64],   # exhaustive plies 1-3, width-64 tail
+    rollout_schedule=[1, 1, 1, 8],    # 1 playout on exhaustive levels, 8 after
+)
+```
+
+The exact playout spend is observable as `stats["rollouts"]` (0 when a custom evaluator is used).
 
 See `examples/beam_search_demo.py` (DEMO 3) for a worked comparison of a scheduled vs. flat-width run.
 

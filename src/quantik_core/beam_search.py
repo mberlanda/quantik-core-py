@@ -44,6 +44,17 @@ class BeamSearchConfig:
     # exhaustive shallow prefix followed by guided sampling, e.g.:
     #   schedule = [UNIQUE_CANONICAL_STATES_PER_DEPTH[d] for d in (1, 2, 3)] + [64]
     beam_schedule: Optional[Sequence[int]] = None
+    # Depth-dependent rollout budget for the BUILT-IN random-rollout
+    # evaluator only — a custom `evaluator` callable keeps its plain
+    # `State -> float` signature and ignores this entirely. Semantics
+    # mirror `beam_schedule`: rollouts at depth d = rollout_schedule[min(
+    # d-1, len(rollout_schedule)-1)], so the last entry extends to all
+    # deeper levels. None (default) applies the flat
+    # `rollouts_per_candidate` everywhere. Lets a search be
+    # wide-and-cheap early (few rollouts while beam_schedule keeps many
+    # candidates) and narrow-and-precise late, e.g. rollout_schedule=
+    # [1, 1, 1, 8] alongside beam_schedule=[3, 51, 726, 64].
+    rollout_schedule: Optional[Sequence[int]] = None
 
 
 @dataclass
@@ -236,6 +247,11 @@ class BeamSearchEngine:
                 raise ValueError("beam_schedule must not be empty")
             if any(width < 1 for width in config.beam_schedule):
                 raise ValueError("beam_schedule entries must all be >= 1")
+        if config.rollout_schedule is not None:
+            if len(config.rollout_schedule) == 0:
+                raise ValueError("rollout_schedule must not be empty")
+            if any(count < 1 for count in config.rollout_schedule):
+                raise ValueError("rollout_schedule entries must all be >= 1")
 
         self.config = config
         self.tree = (
@@ -268,6 +284,7 @@ class BeamSearchEngine:
             "nodes_inserted": 0,
             "nodes_pruned": 0,
             "evaluations": 0,
+            "rollouts": 0,
         }
         terminal_leaves: List[BeamLeaf] = []
         frontier: List[_FrontierEntry] = [(root_id, initial_state.bb, (), 0.0, 1)]
@@ -279,7 +296,8 @@ class BeamSearchEngine:
 
             candidates = self._expand_frontier(frontier, depth, stats, terminal_leaves)
             beam_width = self._beam_width_for_depth(depth)
-            frontier = self._score_and_prune(candidates, stats, beam_width)
+            rollouts = self._rollouts_for_depth(depth)
+            frontier = self._score_and_prune(candidates, stats, beam_width, rollouts)
             max_depth_reached = depth
 
         stats["memory_usage"] = self.tree.memory_usage()
@@ -335,6 +353,20 @@ class BeamSearchEngine:
         schedule = self.config.beam_schedule
         if schedule is None:
             return self.config.beam_width
+        index = min(depth - 1, len(schedule) - 1)
+        return schedule[index]
+
+    def _rollouts_for_depth(self, depth: int) -> int:
+        """Resolve the built-in evaluator's rollout count at a depth (1-indexed).
+
+        Mirrors `_beam_width_for_depth`: without a `rollout_schedule` the
+        flat `rollouts_per_candidate` applies everywhere; with one, `depth`
+        indexes into it clamped to the last entry. Irrelevant when a custom
+        `evaluator` is configured.
+        """
+        schedule = self.config.rollout_schedule
+        if schedule is None:
+            return self.config.rollouts_per_candidate
         index = min(depth - 1, len(schedule) - 1)
         return schedule[index]
 
@@ -474,16 +506,19 @@ class BeamSearchEngine:
         candidates: Dict[bytes, _Candidate],
         stats: Dict[str, int],
         beam_width: int,
+        rollouts: int,
     ) -> List[_FrontierEntry]:
         """Evaluate candidates, keep the top `beam_width`, insert survivors.
 
         Scoring and pruning are purely value-based; each candidate's
         multiplicity is carried through unweighted and only affects the
         statistics attached to the resulting tree node and frontier entry.
+        `rollouts` is the per-candidate playout budget for the built-in
+        evaluator at this depth (ignored by a custom evaluator).
         """
         scored: List[Tuple[float, int, bytes, float]] = []
         for index, (key, (_, bb, _, mover, _)) in enumerate(candidates.items()):
-            raw_value = self._evaluate(State(bb))
+            raw_value = self._evaluate(State(bb), rollouts, stats)
             stats["evaluations"] += 1
             score = raw_value if mover == 0 else -raw_value
             scored.append((score, index, key, raw_value))
@@ -518,20 +553,28 @@ class BeamSearchEngine:
         node.visit_count = np.uint32(node.visit_count + 1)
         self.tree.storage.store_node(node_id, node)
 
-    def _evaluate(self, state: State) -> float:
-        """Evaluate a state from player 0's perspective, clamped to [-1, 1]."""
+    def _evaluate(self, state: State, rollouts: int, stats: Dict[str, int]) -> float:
+        """Evaluate a state from player 0's perspective, clamped to [-1, 1].
+
+        A custom evaluator is called as-is (its cost model is its own, so
+        `rollouts` is ignored and `stats["rollouts"]` stays untouched);
+        otherwise the built-in evaluator runs `rollouts` playouts.
+        """
         if self.config.evaluator is not None:
             raw_value = self.config.evaluator(state)
         else:
-            raw_value = self._default_evaluate(state)
+            raw_value = self._default_evaluate(state, rollouts, stats)
         return max(-1.0, min(1.0, float(raw_value)))
 
-    def _default_evaluate(self, state: State) -> float:
-        """Mean of `rollouts_per_candidate` random playouts to a true terminal."""
+    def _default_evaluate(
+        self, state: State, rollouts: int, stats: Dict[str, int]
+    ) -> float:
+        """Mean of `rollouts` random playouts to a true terminal."""
         total = 0.0
-        for _ in range(self.config.rollouts_per_candidate):
+        for _ in range(rollouts):
             total += self._rollout(state.bb)
-        return total / self.config.rollouts_per_candidate
+        stats["rollouts"] += rollouts
+        return total / rollouts
 
     def _rollout(self, bb: Bitboard) -> float:
         """Play uniformly random legal moves until a terminal state.
