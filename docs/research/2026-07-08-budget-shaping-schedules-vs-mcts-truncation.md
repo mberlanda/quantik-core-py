@@ -135,14 +135,51 @@ than a choice:
    generate opening-book entries (canonical key, weighted values,
    multiplicities, PV edges). Online: UCT plays from book exits.
 
-## 6. Status and pending validation
+## 6. Empirical validation
 
-`beam_schedule` is implemented and tested (flat-equivalence, last-entry
-extension, exhaustive-prefix zero-pruning, off-by-one mutation tests);
-`rollout_schedule` is specified as above and being implemented with the
-same test discipline, including the exact 258-playout anchor. A scheduled
-vs. flat benchmark (recipe of §2 against flat width/rollouts at equal
-wall-clock) will be appended to this series once both knobs are merged.
+Both knobs are implemented and mutation-tested (flat-equivalence,
+last-entry extension, exhaustive-prefix zero-pruning, off-by-one anchors
+including the exact 258-playout count). Benchmark from the empty board,
+`max_depth = 16`, seeds {0, 1}, all runs fully resolved to terminal
+frontiers:
+
+| config | time (s) | evaluations | playouts | ply-4 terminal mass (exact: 6,912) | openings with substantial mass |
+|---|---:|---:|---:|---:|:--:|
+| flat width 64, rollouts 2 | ~16 | ~10.1k | ~20.3k | 768 (11%) | 1 of 3 |
+| sched `[3,51,726,64]`, rollouts `[1,1,1,2]` | ~38 | ~19.0k | ~37.1k | **6,912 (100%)** | 1 of 3 |
+| sched `[3,51,726,64]`, rollouts `[1,1,1,8]` | ~122 | ~18.9k | ~145.8k | **6,912 (100%)** | **3 of 3** |
+
+Findings:
+
+1. **Exactness confirmed.** Every exhaustive-prefix run reproduces the
+   enumeration's ply-4 terminal mass to the digit (6,912 first-player-loss
+   sequences), while the flat beam sees 11% of it. The multiplicity
+   accounting behaves as specified: exact where exhaustive, a lower bound
+   where pruned.
+2. **The schedule buys guaranteed shallow coverage for ~2×.** Exhaustive
+   plies 1–3 plus a width-64 tail costs ~38 s versus ~16 s flat at equal
+   tail precision — and converts "whatever the beam happened to keep" into
+   a complete summary of the early game.
+3. **Tail precision buys scenario diversity, not just ranking accuracy.**
+   With cheap tails (2 rollouts — flat or scheduled), the surviving deep
+   lines collapse onto a single canonical opening: one root move carries
+   >99% of the collected terminal mass. With `[1,1,1,8]`, all three
+   canonical openings retain substantial multiplicity-weighted mass
+   (e.g. seed 1: ~101k / ~181k / ~174k raw sequences). Noisy evaluation
+   doesn't merely misrank survivors — it silently *narrows* what the beam
+   explores, because early lucky rollouts snowball level after level.
+4. **Root values remain honestly undecided.** Multiplicity-weighted win
+   probabilities for the three openings span 0.36–0.54 across seeds under
+   the random-play model — consistent with UCT's ~0.49 root estimate and
+   with the opening not being trivially winning; seed-to-seed ordering of
+   the three openings still fluctuates at this budget, so publishing
+   opening *rankings* would need either more tail rollouts or a stronger
+   evaluator.
+
+The practical recipe stands, refined: spend width on the exhaustive
+prefix (cheap, exact), spend rollouts on the tail — and if the goal is
+*scenario diversity* rather than a single line, the tail rollouts are the
+knob that prevents beam collapse.
 
 ## References
 
