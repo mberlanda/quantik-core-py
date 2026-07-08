@@ -1022,8 +1022,8 @@ class TestRolloutSchedule:
 
     def test_exact_rollout_count_pins_depth_indexing(self):
         """beam_schedule=[3,51] + rollout_schedule=[1,5] performs exactly
-        3x1 + 51x5 = 258 playouts; an off-by-one depth indexing would give
-        3x5 + 51x1 = 66 and must fail here."""
+        3x1 + 51x5 = 258 playouts; an off-by-one depth indexing (e.g.
+        min(depth, len-1)) would give 3x5 + 51x5 = 270 and must fail here."""
         config = BeamSearchConfig(
             beam_schedule=[3, 51],
             max_depth=2,
