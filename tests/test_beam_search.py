@@ -1,6 +1,6 @@
 """Tests for the parametrizable beam search engine."""
 
-from typing import List
+from typing import Dict, List
 
 import pytest
 
@@ -795,3 +795,190 @@ class TestBeamSchedule:
         # 3 + 51 + 726 unique canonical survivors across the three depths
         # (no wins are possible this early, so nothing is a terminal leaf).
         assert result.stats["nodes_inserted"] == 3 + 51 + 726
+
+
+class TestSymmetryMultiplicity:
+    """Test path-multiplicity accounting for beam-visible symmetry orbits.
+
+    A constant evaluator (`lambda s: 0.0`) is used throughout so exhaustive
+    shallow-depth runs stay cheap (no rollouts).
+    """
+
+    def test_depth_1_exact_orbits(self):
+        """64 raw depth-1 moves split into 3 canonical orbits of size 16/16/32."""
+        config = BeamSearchConfig(
+            beam_schedule=[3], max_depth=1, evaluator=lambda s: 0.0, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert len(result.frontier_leaves) == 3
+        multiplicities = sorted(leaf.multiplicity for leaf in result.frontier_leaves)
+        assert multiplicities == [16, 16, 32]
+        assert sum(multiplicities) == 64
+
+    def test_depth_2_exact_multiplicity_sum(self):
+        """Depth-2 multiplicities sum to the 3,392 total legal moves at depth 2."""
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51], max_depth=2, evaluator=lambda s: 0.0, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert len(result.frontier_leaves) == 51
+        assert sum(leaf.multiplicity for leaf in result.frontier_leaves) == 3392
+
+    def test_depth_3_exact_multiplicity_sum(self):
+        """Depth-3 multiplicities sum to the 167,552 total legal moves at depth 3."""
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51, 726],
+            max_depth=3,
+            evaluator=lambda s: 0.0,
+            random_seed=1,
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert len(result.frontier_leaves) == 726
+        assert sum(leaf.multiplicity for leaf in result.frontier_leaves) == 167552
+
+    @pytest.mark.slow
+    def test_depth_4_exact_terminal_and_frontier_mass(self):
+        """Depth-4 terminal mass (all P1 wins) plus frontier mass sum to the
+        6,776,960 total legal moves at depth 4 (per GAME_TREE_ANALYSIS.md)."""
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51, 726, 10946],
+            max_depth=4,
+            evaluator=lambda s: 0.0,
+            random_seed=1,
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        depth_4_terminals = [leaf for leaf in result.terminal_leaves if leaf.depth == 4]
+        assert sum(leaf.multiplicity for leaf in depth_4_terminals) == 6912
+        assert all(leaf.value == -1.0 for leaf in depth_4_terminals)
+
+        assert len(result.frontier_leaves) == 10946
+        assert (
+            sum(leaf.multiplicity for leaf in result.frontier_leaves) == 6776960 - 6912
+        )
+
+    def test_every_leaf_multiplicity_at_least_one(self):
+        """Regression: every collected leaf has multiplicity >= 1."""
+        config = BeamSearchConfig(
+            beam_width=6, max_depth=4, rollouts_per_candidate=1, random_seed=3
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        for leaf in (*result.terminal_leaves, *result.frontier_leaves):
+            assert leaf.multiplicity >= 1
+
+    def test_ranked_root_moves_weighted_mean_differs_from_unweighted(self):
+        """Multiplicity-weighted mean must differ from a naive unweighted mean.
+
+        Mutation guard: if `ranked_root_moves` reverted to an unweighted
+        `sum(values) / len(values)`, this test's exact mean_value assertion
+        would fail.
+        """
+        move = Move(player=0, shape=0, position=0)
+        leaf_light = BeamLeaf(
+            moves=(move,), value=1.0, depth=1, is_terminal=False, multiplicity=1
+        )
+        leaf_heavy = BeamLeaf(
+            moves=(move,), value=-1.0, depth=1, is_terminal=False, multiplicity=9
+        )
+
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[],
+            reached_terminal=False,
+            max_depth_reached=1,
+            stats={},
+            root_player=0,
+            frontier_leaves=[leaf_light, leaf_heavy],
+        )
+
+        ranked = result.ranked_root_moves()
+        assert len(ranked) == 1
+        entry = ranked[0]
+
+        # Weighted mean: (1 * 1.0 + 9 * -1.0) / 10 = -0.8
+        assert entry.mean_value == pytest.approx(-0.8)
+        assert entry.total_multiplicity == 10
+
+        unweighted_mean = (1.0 + -1.0) / 2  # 0.0 - a materially different number
+        assert entry.mean_value != pytest.approx(unweighted_mean)
+
+    def test_tree_node_multiplicity_matches_leaf(self):
+        """Survivor tree nodes are inserted with their accumulated multiplicity."""
+        config = BeamSearchConfig(
+            beam_schedule=[3], max_depth=1, evaluator=lambda s: 0.0, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        state = State.from_qfen(EMPTY_QFEN)
+        result = engine.search(state)
+
+        assert len(result.frontier_leaves) == 3
+        children = engine.tree.get_children(engine.tree.root_id)
+        assert len(children) == 3
+
+        leaf_multiplicity_by_key = {}
+        for leaf in result.frontier_leaves:
+            child_bb = apply_move(state.bb, leaf.moves[0])
+            leaf_multiplicity_by_key[State(child_bb).canonical_key()] = (
+                leaf.multiplicity
+            )
+
+        for child_id in children:
+            child_state = engine.tree.get_state(child_id)
+            node = engine.tree.get_node(child_id)
+            expected = leaf_multiplicity_by_key[child_state.canonical_key()]
+            assert int(node.multiplicity) == expected
+
+    def test_tree_multiplicity_merges_across_parents(self):
+        """Two different parents whose completing moves reach the exact same
+        literal terminal board have their multiplicities summed on the
+        merged tree node (CompactGameTree.add_child_node's own additive
+        transposition-merge semantics)."""
+        config = BeamSearchConfig(evaluator=lambda s: 0.0, random_seed=1)
+        engine = BeamSearchEngine(config)
+
+        # Both miss exactly one piece of the same row-0 win "AbCd"; P1 to
+        # move in both, completing with the piece each is missing.
+        predecessor_1 = State.from_qfen("A.Cd/..../..../....")  # missing b@1
+        predecessor_2 = State.from_qfen("AbC./..../..../....")  # missing d@3
+
+        node_1 = engine.tree.create_root_node(predecessor_1)
+        node_2 = engine.tree.create_root_node(predecessor_2)
+
+        stats: Dict[str, int] = {
+            "candidates_generated": 0,
+            "candidates_deduped": 0,
+            "nodes_inserted": 0,
+            "nodes_pruned": 0,
+            "evaluations": 0,
+        }
+        terminal_leaves: List[BeamLeaf] = []
+        frontier = [
+            (node_1, predecessor_1.bb, (), 0.0, 5),
+            (node_2, predecessor_2.bb, (), 0.0, 7),
+        ]
+        engine._expand_frontier(frontier, 1, stats, terminal_leaves)
+
+        winning_bb = apply_move(predecessor_1.bb, Move(player=1, shape=1, position=1))
+        merged_id = engine.tree.storage.find_node_by_canonical_state(
+            State(winning_bb).pack(), 1
+        )
+        assert merged_id is not None
+        merged_node = engine.tree.get_node(merged_id)
+        assert int(merged_node.multiplicity) == 5 + 7
+
+        # Both raw completions were recorded as their own terminal leaves,
+        # each carrying only its own parent's multiplicity (not the merged
+        # total) — the merge happens on the shared tree node, not the leaf.
+        matching_leaves = [
+            leaf for leaf in terminal_leaves if leaf.value == pytest.approx(-1.0)
+        ]
+        assert sorted(leaf.multiplicity for leaf in matching_leaves) == [5, 7]

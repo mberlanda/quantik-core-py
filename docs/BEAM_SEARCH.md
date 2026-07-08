@@ -83,6 +83,7 @@ class BeamLeaf:
     value: float              # P0 perspective; +/-1.0 for terminal leaves
     depth: int
     is_terminal: bool
+    multiplicity: int = 1      # raw move sequences this leaf represents
 
 @dataclass
 class BeamSearchResult:
@@ -126,14 +127,36 @@ Each `RankedRootMove` has:
 |-------|-------------|
 | `move` | The first move from the root |
 | `best_value` | Max leaf value reached via this move (root-player perspective, `[-1, 1]`) |
-| `mean_value` | Mean leaf value via this move (root-player perspective) |
+| `mean_value` | **Multiplicity-weighted** mean leaf value via this move (root-player perspective) |
 | `win_probability` | Heuristic rescaling `(mean_value + 1) / 2`, in `[0, 1]` |
-| `leaf_count` | Number of collected leaves supporting this move |
+| `leaf_count` | Number of collected leaves supporting this move (unweighted) |
+| `total_multiplicity` | Sum of `multiplicity` over supporting leaves — see Symmetry Multiplicity below |
 | `has_terminal_win` | A proven root-player-winning terminal exists via this move |
 
 Entries are sorted by `best_value`, then `mean_value`, then `leaf_count` (all descending), with a deterministic tiebreak on the move itself.
 
 **Important caveat**: these are beam-sampled statistics over whichever leaves this particular run happened to discover and keep — not a minimax-proven guarantee. A move can have `best_value == 1.0` (a winning line exists via it) alongside a low `win_probability` if most of the *other* leaves discovered via that move were mediocre; `win_probability` is a heuristic rescaling of `mean_value`, not a calibrated probability.
+
+## Symmetry Multiplicity
+
+Canonical deduplication (algorithm step 3) collapses whole symmetry orbits — rotations, reflections, and shape/color permutations — down to one representative per depth. That's essential for the memory bound, but it also means a naive leaf count under-represents how much of the raw game tree a move actually covers: a corner-adjacent move might stand in for 16 raw move sequences while an edge move stands in for 32, yet both count as "1 leaf" without multiplicity tracking.
+
+`BeamLeaf.multiplicity` restores that mass via **path-count accumulation**, not orbit-size math: the root starts at multiplicity 1, and every raw legal move carries its parent's multiplicity forward — accumulating (summing) whenever multiple raw moves collapse onto the same canonical child at a given depth. Terminal leaves and tree nodes (`CompactGameTreeNode.multiplicity`, via `add_child_node`'s existing additive transposition-merge) both get their share of this weight.
+
+```python
+from quantik_core.beam_search import UNIQUE_CANONICAL_STATES_PER_DEPTH
+
+config = BeamSearchConfig(beam_schedule=[3], max_depth=1, evaluator=lambda s: 0.0)
+result = BeamSearchEngine(config).search(State.from_qfen("..../..../..../...."))
+
+multiplicities = sorted(leaf.multiplicity for leaf in result.frontier_leaves)
+assert multiplicities == [16, 16, 32]  # corner/center orbits (4 pos x 4 shapes)
+assert sum(multiplicities) == 64        #  and the edge orbit (8 pos x 4 shapes)
+```
+
+This accounting is **exact when the beam was exhaustive at that depth** (e.g. a `beam_schedule` prefix matching `UNIQUE_CANONICAL_STATES_PER_DEPTH`) — the multiplicities then sum to the depth's true total legal-move count. Otherwise it's a **lower bound**: mass belonging to any canonical candidate that got pruned before its multiplicity could be counted is simply lost, not redistributed.
+
+Multiplicity is statistics only — it never influences scoring or pruning, which remain strictly value-based.
 
 ## Memory Model
 

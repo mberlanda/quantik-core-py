@@ -54,6 +54,11 @@ class BeamLeaf:
     value: float  # P0 perspective; +/-1.0 for terminal leaves
     depth: int
     is_terminal: bool
+    # Number of raw (pre-canonicalization) move sequences this leaf stands
+    # in for, accumulated by summing parent multiplicities across every
+    # dedup hit on the path from the root. 1 for a leaf whose whole PV was
+    # never merged with a symmetric sibling.
+    multiplicity: int = 1
 
 
 @dataclass
@@ -64,14 +69,18 @@ class RankedRootMove:
     leaves this particular engine run happened to discover and keep — they
     are **not** a minimax-proven guarantee, just a summary of the lines the
     beam actually explored. `win_probability` is a heuristic rescaling of
-    `mean_value` into `[0, 1]`, not a calibrated probability.
+    `mean_value` into `[0, 1]`, not a calibrated probability. `mean_value`
+    is weighted by each leaf's `multiplicity` — the number of raw move
+    sequences it represents (beam-visible only: mass belonging to pruned
+    branches is lost unless the beam was exhaustive at that depth).
     """
 
     move: Move
     best_value: float  # max leaf value via this move, root-player perspective
-    mean_value: float  # mean leaf value via this move, root-player perspective
+    mean_value: float  # multiplicity-weighted mean, root-player perspective
     win_probability: float  # heuristic rescaling: (mean_value + 1) / 2
     leaf_count: int  # number of collected leaves supporting this move
+    total_multiplicity: int  # sum of multiplicity over supporting leaves
     has_terminal_win: bool  # a proven root-player-winning terminal exists
 
 
@@ -124,8 +133,13 @@ class BeamSearchResult:
         ranked: List[RankedRootMove] = []
         for group_key, leaves in groups.items():
             values = [root_perspective(leaf) for leaf in leaves]
+            weights = [leaf.multiplicity for leaf in leaves]
+            total_multiplicity = sum(weights)
             best_value = max(values)
-            mean_value = sum(values) / len(values)
+            mean_value = (
+                sum(value * weight for value, weight in zip(values, weights))
+                / total_multiplicity
+            )
             has_terminal_win = any(
                 leaf.is_terminal and value == 1.0 for leaf, value in zip(leaves, values)
             )
@@ -136,6 +150,7 @@ class BeamSearchResult:
                     mean_value=mean_value,
                     win_probability=(mean_value + 1.0) / 2.0,
                     leaf_count=len(leaves),
+                    total_multiplicity=total_multiplicity,
                     has_terminal_win=has_terminal_win,
                 )
             )
@@ -155,14 +170,15 @@ class BeamSearchResult:
 
 
 # Frontier entry: node id in the tree, its bitboard, the move sequence from
-# the root, and its evaluated value (player-0 perspective; 0.0 for the root,
-# which is never scored).
-_FrontierEntry = Tuple[int, Bitboard, Tuple[Move, ...], float]
+# the root, its evaluated value (player-0 perspective; 0.0 for the root,
+# which is never scored), and its accumulated multiplicity (see BeamLeaf).
+_FrontierEntry = Tuple[int, Bitboard, Tuple[Move, ...], float, int]
 
 # Candidate entry keyed by `State.canonical_key()`: parent node id, the
-# candidate's bitboard, its move sequence from the root, and the id of the
-# player who made the move leading to it.
-_Candidate = Tuple[int, Bitboard, Tuple[Move, ...], int]
+# candidate's bitboard, its move sequence from the root, the id of the
+# player who made the move leading to it, and its accumulated multiplicity
+# (summed across every raw move that dedups onto this same canonical key).
+_Candidate = Tuple[int, Bitboard, Tuple[Move, ...], int, int]
 
 
 UNIQUE_CANONICAL_STATES_PER_DEPTH: Dict[int, int] = {
@@ -254,7 +270,7 @@ class BeamSearchEngine:
             "evaluations": 0,
         }
         terminal_leaves: List[BeamLeaf] = []
-        frontier: List[_FrontierEntry] = [(root_id, initial_state.bb, (), 0.0)]
+        frontier: List[_FrontierEntry] = [(root_id, initial_state.bb, (), 0.0, 1)]
         max_depth_reached = 0
 
         for depth in range(1, self.config.max_depth + 1):
@@ -273,9 +289,13 @@ class BeamSearchEngine:
 
         frontier_leaves: List[BeamLeaf] = [
             BeamLeaf(
-                moves=moves, value=value, depth=max_depth_reached, is_terminal=False
+                moves=moves,
+                value=value,
+                depth=max_depth_reached,
+                is_terminal=False,
+                multiplicity=multiplicity,
             )
-            for _, _, moves, value in frontier
+            for _, _, moves, value, multiplicity in frontier
         ]
         leaves = list(terminal_leaves) + frontier_leaves
         best_leaf = max(leaves, key=root_perspective) if leaves else None
@@ -328,7 +348,7 @@ class BeamSearchEngine:
         """Expand every frontier entry, recording terminals and candidates."""
         candidates: Dict[bytes, _Candidate] = {}
 
-        for node_id, bb, moves, _ in frontier:
+        for node_id, bb, moves, _, multiplicity in frontier:
             current_player, moves_by_shape = generate_legal_moves(bb)
             all_moves = [
                 m for shape_moves in moves_by_shape.values() for m in shape_moves
@@ -345,14 +365,26 @@ class BeamSearchEngine:
                 self._mark_terminal(node_id, extra_flag, value)
                 terminal_leaves.append(
                     BeamLeaf(
-                        moves=moves, value=value, depth=depth - 1, is_terminal=True
+                        moves=moves,
+                        value=value,
+                        depth=depth - 1,
+                        is_terminal=True,
+                        multiplicity=multiplicity,
                     )
                 )
                 continue
 
             stats["candidates_generated"] += len(all_moves)
             self._expand_moves(
-                node_id, bb, moves, all_moves, depth, stats, terminal_leaves, candidates
+                node_id,
+                bb,
+                moves,
+                all_moves,
+                depth,
+                stats,
+                terminal_leaves,
+                candidates,
+                multiplicity,
             )
 
         return candidates
@@ -367,8 +399,18 @@ class BeamSearchEngine:
         stats: Dict[str, int],
         terminal_leaves: List[BeamLeaf],
         candidates: Dict[bytes, _Candidate],
+        multiplicity: int,
     ) -> None:
-        """Apply each legal move, splitting terminal children from candidates."""
+        """Apply each legal move, splitting terminal children from candidates.
+
+        Every raw legal move contributes the parent's `multiplicity` to
+        whatever it produces: its own terminal `BeamLeaf`, or — on a
+        canonical dedup hit — accumulated into the existing candidate's
+        multiplicity (the first-encountered move/parent is kept for the
+        principal variation; only the weight accumulates). Multiplicity is
+        pure statistics: scoring and pruning below remain value-based and
+        unaffected by it.
+        """
         for move in all_moves:
             new_bb: Bitboard = apply_move(bb, move)  # type: ignore[assignment]
             new_state = State(new_bb)
@@ -386,15 +428,23 @@ class BeamSearchEngine:
                 # State.pack() bytes (its "canonical_state_data" field is
                 # not symmetry-reduced), while beam dedup above/below keys
                 # on the coarser State.canonical_key(); two different
-                # parents can therefore merge into one tree node here.
+                # parents can therefore merge into one tree node here. Its
+                # multiplicity= merges additively on such a hit, matching
+                # the path-count semantics used throughout this method.
                 nodes_before = self.tree.storage.node_count
-                child_id = self.tree.add_child_node(node_id, new_state)
+                child_id = self.tree.add_child_node(
+                    node_id, new_state, multiplicity=multiplicity
+                )
                 self._mark_terminal(child_id, extra_flag, value)
                 if self.tree.storage.node_count > nodes_before:
                     stats["nodes_inserted"] += 1
                 terminal_leaves.append(
                     BeamLeaf(
-                        moves=child_moves, value=value, depth=depth, is_terminal=True
+                        moves=child_moves,
+                        value=value,
+                        depth=depth,
+                        is_terminal=True,
+                        multiplicity=multiplicity,
                     )
                 )
                 continue
@@ -402,8 +452,22 @@ class BeamSearchEngine:
             key = new_state.canonical_key()
             if key in candidates:
                 stats["candidates_deduped"] += 1
+                (
+                    existing_node_id,
+                    existing_bb,
+                    existing_moves,
+                    existing_mover,
+                    existing_multiplicity,
+                ) = candidates[key]
+                candidates[key] = (
+                    existing_node_id,
+                    existing_bb,
+                    existing_moves,
+                    existing_mover,
+                    existing_multiplicity + multiplicity,
+                )
                 continue
-            candidates[key] = (node_id, new_bb, child_moves, move.player)
+            candidates[key] = (node_id, new_bb, child_moves, move.player, multiplicity)
 
     def _score_and_prune(
         self,
@@ -411,9 +475,14 @@ class BeamSearchEngine:
         stats: Dict[str, int],
         beam_width: int,
     ) -> List[_FrontierEntry]:
-        """Evaluate candidates, keep the top `beam_width`, insert survivors."""
+        """Evaluate candidates, keep the top `beam_width`, insert survivors.
+
+        Scoring and pruning are purely value-based; each candidate's
+        multiplicity is carried through unweighted and only affects the
+        statistics attached to the resulting tree node and frontier entry.
+        """
         scored: List[Tuple[float, int, bytes, float]] = []
-        for index, (key, (_, bb, _, mover)) in enumerate(candidates.items()):
+        for index, (key, (_, bb, _, mover, _)) in enumerate(candidates.items()):
             raw_value = self._evaluate(State(bb))
             stats["evaluations"] += 1
             score = raw_value if mover == 0 else -raw_value
@@ -425,16 +494,18 @@ class BeamSearchEngine:
 
         next_frontier: List[_FrontierEntry] = []
         for _, _, key, raw_value in survivors:
-            parent_id, bb, moves, _ = candidates[key]
+            parent_id, bb, moves, _, multiplicity = candidates[key]
             nodes_before = self.tree.storage.node_count
-            child_id = self.tree.add_child_node(parent_id, State(bb))
+            child_id = self.tree.add_child_node(
+                parent_id, State(bb), multiplicity=multiplicity
+            )
             node = self.tree.get_node(child_id)
             node.best_value = np.float32(raw_value)
             node.visit_count = np.uint32(node.visit_count + 1)
             self.tree.storage.store_node(child_id, node)
             if self.tree.storage.node_count > nodes_before:
                 stats["nodes_inserted"] += 1
-            next_frontier.append((child_id, bb, moves, raw_value))
+            next_frontier.append((child_id, bb, moves, raw_value, multiplicity))
 
         return next_frontier
 

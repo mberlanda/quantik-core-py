@@ -251,19 +251,23 @@ def demo_ranked_root_moves():
         f"Top {len(ranked)} root moves (beam-sampled statistics, not proven minimax):"
     )
     print(
-        f"\n{'Move':<28} {'Best Value':<12} {'Win Prob':<10} {'Leaves':<8} {'Terminal Win'}"
+        f"\n{'Move':<28} {'Best Value':<12} {'Win Prob':<10} {'Leaves':<8} "
+        f"{'Mult.':<7} {'Terminal Win'}"
     )
-    print("-" * 75)
+    print("-" * 82)
     for entry in ranked:
         print(
             f"{format_move(entry.move):<28} {entry.best_value:>+10.2f}  "
             f"{entry.win_probability:>8.2%}  {entry.leaf_count:<8} "
-            f"{entry.has_terminal_win}"
+            f"{entry.total_multiplicity:<7} {entry.has_terminal_win}"
         )
 
     print("\nNote: best_value is the best leaf found via that move (optimistic,")
-    print("beam-sampled); win_probability is a heuristic rescaling of the mean")
-    print("leaf value, not a calibrated probability.")
+    print("beam-sampled); win_probability is a heuristic rescaling of the")
+    print("multiplicity-weighted mean leaf value, not a calibrated probability.")
+    print("total_multiplicity sums how many raw (pre-canonicalization) move")
+    print("sequences the collected leaves for that move represent — exact only")
+    print("if the beam was exhaustive at that depth, a lower bound otherwise.")
 
 
 def main():
