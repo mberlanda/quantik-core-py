@@ -7,6 +7,7 @@ Demonstrates:
 2. Tactical position analysis (immediate win found at depth 1)
 3. Beam width sweep showing the O(beam_width x depth) memory bound
 4. Pluggable custom evaluator
+5. Ranked root move statistics via BeamSearchResult.ranked_root_moves()
 """
 
 import time
@@ -16,11 +17,17 @@ from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
 
 
 def format_move(move: Move) -> str:
-    """Format move for display."""
-    shape_name = chr(ord("A") + move.shape)
+    """Format move for display, player-aware.
+
+    QFEN convention: uppercase shape letters are player 0, lowercase are
+    player 1 (see `State.to_qfen`), so the letter case here follows suit.
+    """
+    shape_letter = chr(ord("A") + move.shape)
+    if move.player == 1:
+        shape_letter = shape_letter.lower()
     row = move.position // 4
     col = move.position % 4
-    return f"{shape_name} at ({row}, {col}) [pos {move.position}]"
+    return f"P{move.player} {shape_letter} at ({row}, {col}) [pos {move.position}]"
 
 
 def print_board(state: State):
@@ -89,6 +96,7 @@ def demo_tactical_position():
     # P0: A at (0,0), B at (0,1); P1: c at (0,2), a at (3,3).
     # Row 0 has shapes A, B, C — P0 wins in one move by placing D at (0,3).
     state = State.from_qfen("ABc./..../..../...a")
+
     print(f"\nPosition: {state.to_qfen()}")
     print_board(state)
 
@@ -99,10 +107,18 @@ def demo_tactical_position():
     result = engine.search(state)
 
     assert result.best_leaf is not None
-    print(f"Best move found: {format_move(result.best_leaf.moves[0])}")
     print(f"Terminal: {result.best_leaf.is_terminal}")
     print(f"Value (P0 perspective): {result.best_leaf.value:+.1f}")
     print(f"Depth: {result.best_leaf.depth}")
+
+    print(f"\nFull principal variation to the win ({len(result.best_leaf.moves)} ply):")
+    replay_state = state
+    for ply, move in enumerate(result.best_leaf.moves, start=1):
+        new_bb = apply_move(replay_state.bb, move)
+        replay_state = State(new_bb)
+        print(f"  Ply {ply}: {format_move(move)}")
+
+    print_board(replay_state)
 
 
 def demo_beam_width_sweep():
@@ -174,6 +190,44 @@ def demo_custom_evaluator():
         print(f"  Ply {ply}: {format_move(move)}")
 
 
+def demo_ranked_root_moves():
+    """Demonstrate ranking multiple root move options from a midgame position."""
+    print(f"\n{'=' * 80}")
+    print("DEMO 5: Ranked Root Moves (Midgame Position)")
+    print(f"{'=' * 80}")
+
+    # P0: A at (0,0), B at (1,1); P1: c at (2,2), d at (3,3) — one piece per
+    # player per row/column/zone, no immediate threats either way.
+    state = State.from_qfen("A.../.B../..c./...d")
+    print(f"\nPosition: {state.to_qfen()}")
+    print_board(state)
+
+    config = BeamSearchConfig(
+        beam_width=16, max_depth=4, rollouts_per_candidate=2, random_seed=11
+    )
+    engine = BeamSearchEngine(config)
+    result = engine.search(state)
+
+    ranked = result.ranked_root_moves(top_k=5)
+    print(
+        f"Top {len(ranked)} root moves (beam-sampled statistics, not proven minimax):"
+    )
+    print(
+        f"\n{'Move':<28} {'Best Value':<12} {'Win Prob':<10} {'Leaves':<8} {'Terminal Win'}"
+    )
+    print("-" * 75)
+    for entry in ranked:
+        print(
+            f"{format_move(entry.move):<28} {entry.best_value:>+10.2f}  "
+            f"{entry.win_probability:>8.2%}  {entry.leaf_count:<8} "
+            f"{entry.has_terminal_win}"
+        )
+
+    print("\nNote: best_value is the best leaf found via that move (optimistic,")
+    print("beam-sampled); win_probability is a heuristic rescaling of the mean")
+    print("leaf value, not a calibrated probability.")
+
+
 def main():
     """Run all demonstrations."""
     print("QUANTIK BEAM SEARCH DEMONSTRATION")
@@ -184,12 +238,14 @@ def main():
     print("- Tactical (immediate win) position analysis")
     print("- Beam width sweep and its memory bound")
     print("- Pluggable custom evaluators")
+    print("- Ranked root move statistics from a midgame position")
     print()
 
     demo_full_game_reachability()
     demo_tactical_position()
     demo_beam_width_sweep()
     demo_custom_evaluator()
+    demo_ranked_root_moves()
 
     print(f"\n{'=' * 80}")
     print("ALL DEMONSTRATIONS COMPLETE")

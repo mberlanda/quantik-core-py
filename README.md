@@ -234,6 +234,10 @@ state = State.from_qfen("..../..../..../....")
 result = engine.search(state)
 print(f"Reached terminal: {result.reached_terminal}")
 print(f"Best line: {result.best_leaf.moves}")
+
+# Rank multiple root move options (beam-sampled, not proven minimax)
+for entry in result.ranked_root_moves(top_k=3):
+    print(f"{entry.move}: win_probability={entry.win_probability:.2%}")
 ```
 
 ### Opening Book Database

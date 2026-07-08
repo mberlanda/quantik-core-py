@@ -74,9 +74,47 @@ class BeamSearchResult:
     stats: Dict[str, int]              # candidates_generated, candidates_deduped,
                                         # nodes_inserted, nodes_pruned,
                                         # evaluations, memory_usage
+    root_player: int = 0               # player to move at the root
+    frontier_leaves: List[BeamLeaf] = field(default_factory=list)
+    # ^ non-terminal leaves still live at max_depth_reached; empty once
+    #   reached_terminal is True
 ```
 
 `best_leaf` ranks every collected leaf — terminals plus, if the search hit `max_depth` with a live frontier, the final frontier entries — from the **root player's** fixed perspective (unlike the mover-relative pruning score used level by level). `search()` raises `ValueError` if the root state is already terminal or has no legal moves.
+
+### "Moves Till Win"
+
+When `best_leaf.is_terminal` is `True`, `best_leaf.moves` *is* the full principal variation to a proven win (or loss) — no further search needed:
+
+```python
+if result.best_leaf.is_terminal:
+    print(f"Forced result in {len(result.best_leaf.moves)} plies: {result.best_leaf.moves}")
+```
+
+## Ranked Root Moves
+
+For midgame positions with several reasonable options, `BeamSearchResult.ranked_root_moves(top_k=None)` aggregates every collected leaf (`terminal_leaves` plus `frontier_leaves`) by its first move from the root and summarizes each option:
+
+```python
+result = engine.search(state)
+for entry in result.ranked_root_moves(top_k=5):
+    print(entry.move, entry.best_value, entry.win_probability, entry.leaf_count)
+```
+
+Each `RankedRootMove` has:
+
+| Field | Description |
+|-------|-------------|
+| `move` | The first move from the root |
+| `best_value` | Max leaf value reached via this move (root-player perspective, `[-1, 1]`) |
+| `mean_value` | Mean leaf value via this move (root-player perspective) |
+| `win_probability` | Heuristic rescaling `(mean_value + 1) / 2`, in `[0, 1]` |
+| `leaf_count` | Number of collected leaves supporting this move |
+| `has_terminal_win` | A proven root-player-winning terminal exists via this move |
+
+Entries are sorted by `best_value`, then `mean_value`, then `leaf_count` (all descending), with a deterministic tiebreak on the move itself.
+
+**Important caveat**: these are beam-sampled statistics over whichever leaves this particular run happened to discover and keep — not a minimax-proven guarantee. A move can have `best_value == 1.0` (a winning line exists via it) alongside a low `win_probability` if most of the *other* leaves discovered via that move were mediocre; `win_probability` is a heuristic rescaling of `mean_value`, not a calibrated probability.
 
 ## Memory Model
 
@@ -112,6 +150,7 @@ Also note that `CompactGameTree`'s own transposition key is the literal `State.p
 See `examples/beam_search_demo.py` for complete working examples:
 
 - Full-depth search from the empty board reaching a true terminal
-- Tactical (immediate win) position analysis
+- Tactical (immediate win) position analysis, replaying the full winning line
 - Beam width sweep demonstrating the memory bound
 - Pluggable custom evaluator
+- Ranked root move statistics from a midgame position
