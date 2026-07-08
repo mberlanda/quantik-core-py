@@ -11,6 +11,7 @@ from quantik_core.beam_search import (
     BeamSearchResult,
     BeamLeaf,
     RankedRootMove,
+    UNIQUE_CANONICAL_STATES_PER_DEPTH,
 )
 from quantik_core.mcts import MCTSEngine, MCTSConfig
 from quantik_core.memory.compact_tree import (
@@ -35,6 +36,7 @@ class TestBeamSearchConfig:
         assert config.random_seed is None
         assert config.evaluator is None
         assert config.initial_tree_capacity == 4096
+        assert config.beam_schedule is None
 
     def test_custom_config(self):
         def evaluator(state: State) -> float:
@@ -47,6 +49,7 @@ class TestBeamSearchConfig:
             random_seed=7,
             evaluator=evaluator,
             initial_tree_capacity=128,
+            beam_schedule=[3, 51, 8],
         )
         assert config.beam_width == 8
         assert config.max_depth == 4
@@ -54,6 +57,7 @@ class TestBeamSearchConfig:
         assert config.random_seed == 7
         assert config.evaluator is evaluator
         assert config.initial_tree_capacity == 128
+        assert config.beam_schedule == [3, 51, 8]
 
     def test_invalid_beam_width(self):
         with pytest.raises(ValueError):
@@ -70,6 +74,18 @@ class TestBeamSearchConfig:
     def test_invalid_rollouts_per_candidate(self):
         with pytest.raises(ValueError):
             BeamSearchEngine(BeamSearchConfig(rollouts_per_candidate=0))
+
+    def test_invalid_beam_schedule_empty(self):
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(beam_schedule=[]))
+
+    def test_invalid_beam_schedule_zero_entry(self):
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(beam_schedule=[3, 0, 5]))
+
+    def test_invalid_beam_schedule_negative_entry(self):
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(beam_schedule=[3, -1]))
 
 
 class TestBeamSearchEngine:
@@ -697,3 +713,85 @@ class TestRankedRootMoves:
         for entry in ranked:
             assert 0.0 <= entry.win_probability <= 1.0
             assert entry.leaf_count > 0
+
+
+class TestBeamSchedule:
+    """Test the depth-dependent beam_schedule config field."""
+
+    def test_unique_canonical_states_per_depth_constant(self):
+        """Sanity-check the published constant against GAME_TREE_ANALYSIS.md."""
+        assert UNIQUE_CANONICAL_STATES_PER_DEPTH[1] == 3
+        assert UNIQUE_CANONICAL_STATES_PER_DEPTH[2] == 51
+        assert UNIQUE_CANONICAL_STATES_PER_DEPTH[3] == 726
+        schedule = [UNIQUE_CANONICAL_STATES_PER_DEPTH[d] for d in (1, 2, 3)] + [64]
+        assert schedule == [3, 51, 726, 64]
+
+    def test_width_resolution_last_entry_extension(self):
+        """Depths beyond the schedule's length reuse its last entry."""
+        config = BeamSearchConfig(beam_schedule=[3, 51, 8])
+        engine = BeamSearchEngine(config)
+        assert engine._beam_width_for_depth(1) == 3
+        assert engine._beam_width_for_depth(2) == 51
+        assert engine._beam_width_for_depth(3) == 8
+        assert engine._beam_width_for_depth(4) == 8
+        assert engine._beam_width_for_depth(5) == 8
+
+    def test_width_resolution_flat_when_no_schedule(self):
+        """Without a schedule, every depth resolves to the flat beam_width."""
+        config = BeamSearchConfig(beam_width=7)
+        engine = BeamSearchEngine(config)
+        assert engine._beam_width_for_depth(1) == 7
+        assert engine._beam_width_for_depth(10) == 7
+
+    def test_schedule_depth_indexing_not_off_by_one(self):
+        """Regression/mutation guard: depth 1 must resolve to schedule[0].
+
+        If `_beam_width_for_depth` used `depth` instead of `depth - 1` (an
+        off-by-one), depth 1 would incorrectly resolve to schedule[1] = 999,
+        keeping all 3 available canonical candidates instead of being capped
+        to schedule[0] = 1.
+        """
+        config = BeamSearchConfig(
+            beam_schedule=[1, 999], max_depth=1, evaluator=lambda s: 0.0, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+        assert len(result.frontier_leaves) == 1
+
+    def test_schedule_flat_equivalent_to_beam_width(self):
+        """A single-entry schedule matches flat beam_width behavior exactly."""
+        state = State.from_qfen(EMPTY_QFEN)
+
+        config_flat = BeamSearchConfig(
+            beam_width=4, max_depth=4, rollouts_per_candidate=2, random_seed=5
+        )
+        result_flat = BeamSearchEngine(config_flat).search(state)
+
+        config_schedule = BeamSearchConfig(
+            beam_schedule=[4], max_depth=4, rollouts_per_candidate=2, random_seed=5
+        )
+        result_schedule = BeamSearchEngine(config_schedule).search(state)
+
+        assert result_flat.stats == result_schedule.stats
+        assert result_flat.max_depth_reached == result_schedule.max_depth_reached
+        assert result_flat.reached_terminal == result_schedule.reached_terminal
+        assert [leaf.moves for leaf in result_flat.terminal_leaves] == [
+            leaf.moves for leaf in result_schedule.terminal_leaves
+        ]
+
+    def test_exhaustive_prefix_no_pruning(self):
+        """A schedule matching each depth's exact unique-canonical count keeps
+        every candidate: nodes_pruned == 0 for a fully exhaustive prefix."""
+        config = BeamSearchConfig(
+            beam_schedule=[3, 51, 726],
+            max_depth=3,
+            evaluator=lambda s: 0.0,
+            random_seed=1,
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert result.stats["nodes_pruned"] == 0
+        # 3 + 51 + 726 unique canonical survivors across the three depths
+        # (no wins are possible this early, so nothing is a terminal leaf).
+        assert result.stats["nodes_inserted"] == 3 + 51 + 726

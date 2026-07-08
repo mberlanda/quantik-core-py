@@ -154,6 +154,44 @@ def demo_beam_width_sweep():
     print("\nNodes inserted grows with beam_width, bounded by beam_width * depth")
     print("plus the number of terminal leaves discovered along the way.")
 
+    print("\nDepth-dependent schedule vs. flat width (exhaustive shallow prefix):")
+    print(f"{'Config':<28} {'Inserted':<10} {'Evaluations':<13} {'Terminals'}")
+    print("-" * 65)
+
+    # A constant evaluator keeps this comparison fast even though the
+    # schedule is exhaustive through depth 3 (3 / 51 / 726 unique canonical
+    # states per UNIQUE_CANONICAL_STATES_PER_DEPTH) before switching to a
+    # guided width of 16.
+    runs = [
+        (
+            "schedule [3,51,726,16]",
+            BeamSearchConfig(
+                beam_schedule=[3, 51, 726, 16],
+                max_depth=4,
+                evaluator=lambda s: 0.0,
+                random_seed=1,
+            ),
+        ),
+        (
+            "flat width 64",
+            BeamSearchConfig(
+                beam_width=64, max_depth=4, evaluator=lambda s: 0.0, random_seed=1
+            ),
+        ),
+    ]
+    for label, run_config in runs:
+        run_result = BeamSearchEngine(run_config).search(state)
+        print(
+            f"{label:<28} {run_result.stats['nodes_inserted']:<10} "
+            f"{run_result.stats['evaluations']:<13} "
+            f"{len(run_result.terminal_leaves)}"
+        )
+
+    print("\nThe schedule spends far more evaluations to stay exhaustive through")
+    print("depth 3, then narrows to width 16 — a flat width this small would")
+    print("have pruned candidates at depths 1-3 where nearly every line is")
+    print("still reachable.")
+
 
 def demo_custom_evaluator():
     """Demonstrate a pluggable, non-default evaluator."""

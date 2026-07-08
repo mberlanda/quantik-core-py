@@ -219,7 +219,9 @@ print(f"Best move: {move}, Win probability: {win_probability:.2%}")
 from quantik_core import State
 from quantik_core.beam_search import BeamSearchEngine, BeamSearchConfig
 
-# Configure beam search (guarantees reaching true terminal states)
+# Configure beam search (guarantees reaching true terminal states).
+# beam_width can also be a depth-dependent beam_schedule=[...] — see
+# docs/BEAM_SEARCH.md's Tuning section for an exhaustive-prefix recipe.
 config = BeamSearchConfig(
     beam_width=8,
     max_depth=16,

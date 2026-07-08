@@ -48,12 +48,31 @@ print(f"Value (P0 perspective): {result.best_leaf.value}")
 | `random_seed` | int\|None | None | Seeds a **private** `random.Random` — the global RNG is never touched |
 | `evaluator` | `Callable[[State], float]`\|None | None | Custom evaluator; falls back to random-rollout scoring when omitted |
 | `initial_tree_capacity` | int | 4096 | Initial `CompactGameTree` node capacity |
+| `beam_schedule` | `Sequence[int]`\|None | None | Depth-dependent beam width (see Tuning below); `None` uses the flat `beam_width` everywhere |
 
-Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`) raise `ValueError` from `BeamSearchEngine.__init__`.
+Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`, an empty `beam_schedule`, or any `beam_schedule` entry `< 1`) raise `ValueError` from `BeamSearchEngine.__init__`.
 
 ### Evaluator Contract
 
 `evaluator(state) -> float` returns a value in `[-1, 1]` from **player 0's perspective**, matching `MCTSEngine`'s convention. Values outside that range are clamped. When omitted, the engine uses the mean of `rollouts_per_candidate` uniform random playouts, each rolled out to a true terminal — a Quantik playout never exceeds 16 plies, so no depth-cutoff heuristic is needed.
+
+### Tuning: Depth-Dependent Beam Width
+
+Quantik's canonical state space is tiny early and explodes later — `UNIQUE_CANONICAL_STATES_PER_DEPTH` (from `GAME_TREE_ANALYSIS.md`) gives 3 / 51 / 726 / 10,946 unique canonical states at depths 1-4. A flat `beam_width` has to pick one number for every depth; `beam_schedule` lets it grow with the game tree instead:
+
+```python
+from quantik_core.beam_search import BeamSearchConfig, UNIQUE_CANONICAL_STATES_PER_DEPTH
+
+# Exhaustive through depth 3 (every legal line kept), then guided sampling.
+schedule = [UNIQUE_CANONICAL_STATES_PER_DEPTH[d] for d in (1, 2, 3)] + [64]
+config = BeamSearchConfig(beam_schedule=schedule, max_depth=16)
+```
+
+Width at depth `d` resolves to `beam_schedule[min(d - 1, len(beam_schedule) - 1)]`, so the schedule's last entry extends to every deeper level. A single-entry schedule (e.g. `beam_schedule=[8]`) is exactly equivalent to `beam_width=8`.
+
+**Cost model**: evaluations at level `d + 1` are proportional to `width(d) x branching_factor x rollouts_per_candidate` (or a single evaluator call each, if using a custom evaluator). An exhaustive prefix is cheap while the canonical count is small (3, then 51) but grows fast — by depth 4 (10,946 unique states) exhaustive search is usually no longer worth it; that's the point at which a schedule typically switches to a fixed guided width.
+
+See `examples/beam_search_demo.py` (DEMO 3) for a worked comparison of a scheduled vs. flat-width run.
 
 ## Result
 
@@ -151,6 +170,6 @@ See `examples/beam_search_demo.py` for complete working examples:
 
 - Full-depth search from the empty board reaching a true terminal
 - Tactical (immediate win) position analysis, replaying the full winning line
-- Beam width sweep demonstrating the memory bound
+- Beam width sweep demonstrating the memory bound, plus a scheduled vs. flat-width comparison
 - Pluggable custom evaluator
 - Ranked root move statistics from a midgame position

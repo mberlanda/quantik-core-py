@@ -11,7 +11,7 @@ transposition table.
 
 import random
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -36,6 +36,14 @@ class BeamSearchConfig:
     random_seed: Optional[int] = None
     evaluator: Optional[Callable[[State], float]] = None
     initial_tree_capacity: int = 4096
+    # Depth-dependent beam width: width at depth d = beam_schedule[min(d-1,
+    # len(beam_schedule)-1)], so the last entry extends to all deeper
+    # levels. None (default) applies the flat `beam_width` everywhere.
+    # Quantik's canonical state space is tiny early and explodes later
+    # (see UNIQUE_CANONICAL_STATES_PER_DEPTH), so a schedule can afford an
+    # exhaustive shallow prefix followed by guided sampling, e.g.:
+    #   schedule = [UNIQUE_CANONICAL_STATES_PER_DEPTH[d] for d in (1, 2, 3)] + [64]
+    beam_schedule: Optional[Sequence[int]] = None
 
 
 @dataclass
@@ -157,6 +165,26 @@ _FrontierEntry = Tuple[int, Bitboard, Tuple[Move, ...], float]
 _Candidate = Tuple[int, Bitboard, Tuple[Move, ...], int]
 
 
+UNIQUE_CANONICAL_STATES_PER_DEPTH: Dict[int, int] = {
+    1: 3,
+    2: 51,
+    3: 726,
+    4: 10946,
+    5: 105632,
+    6: 901916,
+    7: 4658465,
+    8: 17900160,
+}
+"""Unique canonical states per depth (see `GAME_TREE_ANALYSIS.md`).
+
+Useful for building an exhaustive-prefix `BeamSearchConfig.beam_schedule`
+that keeps every legal line up to some depth before switching to guided
+sampling, e.g.:
+
+    schedule = [UNIQUE_CANONICAL_STATES_PER_DEPTH[d] for d in (1, 2, 3)] + [64]
+"""
+
+
 class BeamSearchEngine:
     """Level-by-level beam search over the Quantik game tree."""
 
@@ -187,6 +215,11 @@ class BeamSearchEngine:
             raise ValueError("max_depth must be between 1 and 16")
         if config.rollouts_per_candidate < 1:
             raise ValueError("rollouts_per_candidate must be >= 1")
+        if config.beam_schedule is not None:
+            if len(config.beam_schedule) == 0:
+                raise ValueError("beam_schedule must not be empty")
+            if any(width < 1 for width in config.beam_schedule):
+                raise ValueError("beam_schedule entries must all be >= 1")
 
         self.config = config
         self.tree = (
@@ -229,7 +262,8 @@ class BeamSearchEngine:
                 break
 
             candidates = self._expand_frontier(frontier, depth, stats, terminal_leaves)
-            frontier = self._score_and_prune(candidates, stats)
+            beam_width = self._beam_width_for_depth(depth)
+            frontier = self._score_and_prune(candidates, stats, beam_width)
             max_depth_reached = depth
 
         stats["memory_usage"] = self.tree.memory_usage()
@@ -270,6 +304,19 @@ class BeamSearchEngine:
         if not any(moves_by_shape.values()):
             raise ValueError("Cannot search from a root state with no legal moves.")
         return int(root_player)
+
+    def _beam_width_for_depth(self, depth: int) -> int:
+        """Resolve the beam width to use at a given depth (1-indexed).
+
+        Without a `beam_schedule`, the flat `beam_width` applies everywhere.
+        With one, `depth` indexes into it (`depth - 1`, clamped to the last
+        entry), so the schedule's final value extends to all deeper levels.
+        """
+        schedule = self.config.beam_schedule
+        if schedule is None:
+            return self.config.beam_width
+        index = min(depth - 1, len(schedule) - 1)
+        return schedule[index]
 
     def _expand_frontier(
         self,
@@ -359,7 +406,10 @@ class BeamSearchEngine:
             candidates[key] = (node_id, new_bb, child_moves, move.player)
 
     def _score_and_prune(
-        self, candidates: Dict[bytes, _Candidate], stats: Dict[str, int]
+        self,
+        candidates: Dict[bytes, _Candidate],
+        stats: Dict[str, int],
+        beam_width: int,
     ) -> List[_FrontierEntry]:
         """Evaluate candidates, keep the top `beam_width`, insert survivors."""
         scored: List[Tuple[float, int, bytes, float]] = []
@@ -370,7 +420,7 @@ class BeamSearchEngine:
             scored.append((score, index, key, raw_value))
 
         scored.sort(key=lambda item: (-item[0], item[1]))
-        survivors = scored[: self.config.beam_width]
+        survivors = scored[:beam_width]
         stats["nodes_pruned"] += max(0, len(scored) - len(survivors))
 
         next_frontier: List[_FrontierEntry] = []

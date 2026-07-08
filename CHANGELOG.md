@@ -11,6 +11,7 @@ All notable changes to `quantik-core` are documented here.
 - Added `BeamSearchResult.ranked_root_moves()`, aggregating every collected leaf by its first move from the root into `RankedRootMove` entries (`best_value`, `mean_value`, `win_probability`, `leaf_count`, `has_terminal_win`) for ranking multiple midgame options.
 - Added `examples/beam_search_demo.py` showcasing full-depth terminal reachability, tactical win detection with the full winning principal variation, a beam-width memory sweep, a pluggable custom evaluator, and ranked root move statistics from a midgame position.
 - Added `docs/BEAM_SEARCH.md` documenting the algorithm, configuration, result fields, ranked root moves, memory model, and the caveats of sharing a `CompactGameTree` with `MCTSEngine`.
+- Added `BeamSearchConfig.beam_schedule`, a depth-dependent beam width (last entry extends to deeper levels) so a search can keep an exhaustive shallow prefix and switch to guided sampling once the canonical state space grows too large, plus the `UNIQUE_CANONICAL_STATES_PER_DEPTH` constant for building such schedules.
 
 ### Fixed
 
