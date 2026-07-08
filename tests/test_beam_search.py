@@ -4,8 +4,14 @@ from typing import List
 
 import pytest
 
-from quantik_core import State, apply_move, generate_legal_moves
-from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine, BeamLeaf
+from quantik_core import State, Move, apply_move, generate_legal_moves
+from quantik_core.beam_search import (
+    BeamSearchConfig,
+    BeamSearchEngine,
+    BeamSearchResult,
+    BeamLeaf,
+    RankedRootMove,
+)
 from quantik_core.mcts import MCTSEngine, MCTSConfig
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
@@ -477,3 +483,217 @@ class TestBeamSearchResultRanking:
         state = State.from_qfen(EMPTY_QFEN)
         result = engine.search(state)
         assert result.best_leaf is not None
+
+
+class TestBeamSearchResultNewFields:
+    """Test the root_player and frontier_leaves result fields."""
+
+    def test_root_player_populated(self):
+        """root_player reflects who is actually to move at the root."""
+        state = State.from_qfen("ABc./..../..../....")  # P1 to move
+        config = BeamSearchConfig(
+            beam_width=2, max_depth=1, rollouts_per_candidate=1, random_seed=1
+        )
+        result = BeamSearchEngine(config).search(state)
+        assert result.root_player == 1
+
+        state0 = State.from_qfen(EMPTY_QFEN)  # P0 to move
+        result0 = BeamSearchEngine(config).search(state0)
+        assert result0.root_player == 0
+
+    def test_frontier_leaves_populated_when_unresolved(self):
+        """frontier_leaves holds the live, non-terminal leaves when max_depth
+        cuts the search short of full resolution."""
+        config = BeamSearchConfig(
+            beam_width=2, max_depth=2, rollouts_per_candidate=1, random_seed=1
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert result.reached_terminal is False
+        assert len(result.frontier_leaves) > 0
+        assert all(not leaf.is_terminal for leaf in result.frontier_leaves)
+
+    def test_frontier_leaves_empty_when_resolved(self):
+        """frontier_leaves is empty once every line resolves to a terminal."""
+        config = BeamSearchConfig(
+            beam_width=4, max_depth=16, rollouts_per_candidate=2, random_seed=42
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        assert result.reached_terminal is True
+        assert result.frontier_leaves == []
+
+
+class TestRankedRootMoves:
+    """Test BeamSearchResult.ranked_root_moves() aggregation."""
+
+    def test_aggregation_correctness(self):
+        """Leaves are grouped by first move; stats aggregate correctly."""
+        move_a = Move(player=0, shape=0, position=0)
+        move_b = Move(player=0, shape=1, position=1)
+
+        leaf_a_win = BeamLeaf(
+            moves=(move_a, Move(0, 2, 2)), value=1.0, depth=2, is_terminal=True
+        )
+        leaf_a_live = BeamLeaf(
+            moves=(move_a, Move(0, 3, 3)), value=0.5, depth=2, is_terminal=False
+        )
+        leaf_b = BeamLeaf(moves=(move_b,), value=-0.2, depth=1, is_terminal=False)
+
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[leaf_a_win],
+            reached_terminal=False,
+            max_depth_reached=2,
+            stats={},
+            root_player=0,
+            frontier_leaves=[leaf_a_live, leaf_b],
+        )
+
+        ranked = result.ranked_root_moves()
+        assert len(ranked) == 2
+        assert all(isinstance(entry, RankedRootMove) for entry in ranked)
+
+        entry_a = next(r for r in ranked if r.move == move_a)
+        assert entry_a.leaf_count == 2
+        assert entry_a.best_value == pytest.approx(1.0)
+        assert entry_a.mean_value == pytest.approx(0.75)
+        assert entry_a.win_probability == pytest.approx(0.875)
+        assert entry_a.has_terminal_win is True
+
+        entry_b = next(r for r in ranked if r.move == move_b)
+        assert entry_b.leaf_count == 1
+        assert entry_b.best_value == pytest.approx(-0.2)
+        assert entry_b.mean_value == pytest.approx(-0.2)
+        assert entry_b.win_probability == pytest.approx(0.4)
+        assert entry_b.has_terminal_win is False
+
+        # move_a strictly dominates on best_value, so it ranks first.
+        assert ranked[0].move == move_a
+        assert ranked[1].move == move_b
+
+    def test_perspective_sign_for_p1_root(self):
+        """ranked_root_moves negates P0-perspective values when root_player == 1.
+
+        Mutation guard: if the root-perspective negation were dropped (using
+        leaf.value as-is instead of flipping it for a P1 root), this test
+        would see best_value == -1.0 instead of +1.0 and fail.
+        """
+        move = Move(player=1, shape=0, position=0)
+        # P0-perspective -1.0 means player 1 (the root mover) actually won.
+        leaf = BeamLeaf(moves=(move,), value=-1.0, depth=1, is_terminal=True)
+
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[leaf],
+            reached_terminal=True,
+            max_depth_reached=1,
+            stats={},
+            root_player=1,
+            frontier_leaves=[],
+        )
+
+        ranked = result.ranked_root_moves()
+        assert len(ranked) == 1
+        entry = ranked[0]
+        assert entry.best_value == pytest.approx(1.0)
+        assert entry.mean_value == pytest.approx(1.0)
+        assert entry.win_probability == pytest.approx(1.0)
+        assert entry.has_terminal_win is True
+
+    def test_top_k_truncation(self):
+        """top_k truncates the ranked list without changing relative order."""
+        moves = [Move(player=0, shape=i, position=i) for i in range(4)]
+        leaves = [
+            BeamLeaf(moves=(moves[i],), value=i / 3.0, depth=1, is_terminal=False)
+            for i in range(4)
+        ]
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[],
+            reached_terminal=False,
+            max_depth_reached=1,
+            stats={},
+            root_player=0,
+            frontier_leaves=leaves,
+        )
+
+        ranked_all = result.ranked_root_moves()
+        assert len(ranked_all) == 4
+
+        ranked_top2 = result.ranked_root_moves(top_k=2)
+        assert ranked_top2 == ranked_all[:2]
+
+    def test_sorted_descending_by_best_value(self):
+        """Entries are sorted by best_value (then mean_value, then leaf_count)."""
+        move_high = Move(player=0, shape=0, position=0)
+        move_mid = Move(player=0, shape=1, position=1)
+        move_low = Move(player=0, shape=2, position=2)
+
+        leaves = [
+            BeamLeaf(moves=(move_low,), value=-0.5, depth=1, is_terminal=False),
+            BeamLeaf(moves=(move_high,), value=0.9, depth=1, is_terminal=False),
+            BeamLeaf(moves=(move_mid,), value=0.1, depth=1, is_terminal=False),
+        ]
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[],
+            reached_terminal=False,
+            max_depth_reached=1,
+            stats={},
+            root_player=0,
+            frontier_leaves=leaves,
+        )
+
+        ranked = result.ranked_root_moves()
+        assert [r.move for r in ranked] == [move_high, move_mid, move_low]
+        values = [r.best_value for r in ranked]
+        assert values == sorted(values, reverse=True)
+
+    def test_win_probability_within_bounds(self):
+        """win_probability always lands in [0, 1], even at value extremes."""
+        for value in (-1.0, 0.0, 1.0):
+            move = Move(player=0, shape=0, position=0)
+            leaf = BeamLeaf(
+                moves=(move,), value=value, depth=1, is_terminal=abs(value) == 1.0
+            )
+            result = BeamSearchResult(
+                best_leaf=None,
+                terminal_leaves=[leaf] if leaf.is_terminal else [],
+                reached_terminal=leaf.is_terminal,
+                max_depth_reached=1,
+                stats={},
+                root_player=0,
+                frontier_leaves=[] if leaf.is_terminal else [leaf],
+            )
+            entry = result.ranked_root_moves()[0]
+            assert 0.0 <= entry.win_probability <= 1.0
+
+    def test_empty_when_no_leaves(self):
+        """ranked_root_moves returns an empty list when nothing was collected."""
+        result = BeamSearchResult(
+            best_leaf=None,
+            terminal_leaves=[],
+            reached_terminal=True,
+            max_depth_reached=0,
+            stats={},
+            root_player=0,
+            frontier_leaves=[],
+        )
+        assert result.ranked_root_moves() == []
+
+    def test_integration_with_real_search(self):
+        """ranked_root_moves works end-to-end on a real search result."""
+        config = BeamSearchConfig(
+            beam_width=4, max_depth=2, rollouts_per_candidate=2, random_seed=7
+        )
+        engine = BeamSearchEngine(config)
+        result = engine.search(State.from_qfen(EMPTY_QFEN))
+
+        ranked = result.ranked_root_moves(top_k=3)
+        assert 0 < len(ranked) <= 3
+        for entry in ranked:
+            assert 0.0 <= entry.win_probability <= 1.0
+            assert entry.leaf_count > 0

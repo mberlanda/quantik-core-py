@@ -10,7 +10,7 @@ transposition table.
 """
 
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -49,6 +49,25 @@ class BeamLeaf:
 
 
 @dataclass
+class RankedRootMove:
+    """Aggregated beam-sampled statistics for one first move from the root.
+
+    These are optimistic, beam-sampled statistics computed over whichever
+    leaves this particular engine run happened to discover and keep — they
+    are **not** a minimax-proven guarantee, just a summary of the lines the
+    beam actually explored. `win_probability` is a heuristic rescaling of
+    `mean_value` into `[0, 1]`, not a calibrated probability.
+    """
+
+    move: Move
+    best_value: float  # max leaf value via this move, root-player perspective
+    mean_value: float  # mean leaf value via this move, root-player perspective
+    win_probability: float  # heuristic rescaling: (mean_value + 1) / 2
+    leaf_count: int  # number of collected leaves supporting this move
+    has_terminal_win: bool  # a proven root-player-winning terminal exists
+
+
+@dataclass
 class BeamSearchResult:
     """Result of a beam search run."""
 
@@ -57,6 +76,74 @@ class BeamSearchResult:
     reached_terminal: bool
     max_depth_reached: int
     stats: Dict[str, int]
+    root_player: int = 0  # player to move at the root
+    # Non-terminal leaves still live at max_depth_reached; empty once the
+    # search fully resolves (reached_terminal is True).
+    frontier_leaves: List[BeamLeaf] = field(default_factory=list)
+
+    def ranked_root_moves(self, top_k: Optional[int] = None) -> List[RankedRootMove]:
+        """Aggregate every collected leaf by its first move from the root.
+
+        Groups `terminal_leaves` and `frontier_leaves` by the first move of
+        each leaf's principal variation and summarizes each group's value
+        from the root player's perspective. See `RankedRootMove` for the
+        important caveat: these are beam-sampled statistics, not proven
+        minimax values.
+
+        Args:
+            top_k: If given, return only the top `top_k` ranked moves.
+
+        Returns:
+            One `RankedRootMove` per distinct first move seen, sorted by
+            `best_value`, then `mean_value`, then `leaf_count` (all
+            descending), with a deterministic final tiebreak on the move
+            itself.
+        """
+        groups: Dict[Tuple[int, int, int], List[BeamLeaf]] = {}
+        move_by_key: Dict[Tuple[int, int, int], Move] = {}
+
+        for leaf in (*self.terminal_leaves, *self.frontier_leaves):
+            if not leaf.moves:
+                continue
+            first_move = leaf.moves[0]
+            key = (first_move.player, first_move.shape, first_move.position)
+            groups.setdefault(key, []).append(leaf)
+            move_by_key.setdefault(key, first_move)
+
+        def root_perspective(leaf: BeamLeaf) -> float:
+            return leaf.value if self.root_player == 0 else -leaf.value
+
+        ranked: List[RankedRootMove] = []
+        for group_key, leaves in groups.items():
+            values = [root_perspective(leaf) for leaf in leaves]
+            best_value = max(values)
+            mean_value = sum(values) / len(values)
+            has_terminal_win = any(
+                leaf.is_terminal and value == 1.0 for leaf, value in zip(leaves, values)
+            )
+            ranked.append(
+                RankedRootMove(
+                    move=move_by_key[group_key],
+                    best_value=best_value,
+                    mean_value=mean_value,
+                    win_probability=(mean_value + 1.0) / 2.0,
+                    leaf_count=len(leaves),
+                    has_terminal_win=has_terminal_win,
+                )
+            )
+
+        ranked.sort(
+            key=lambda r: (
+                -r.best_value,
+                -r.mean_value,
+                -r.leaf_count,
+                (r.move.player, r.move.shape, r.move.position),
+            )
+        )
+
+        if top_k is not None:
+            ranked = ranked[:top_k]
+        return ranked
 
 
 # Frontier entry: node id in the tree, its bitboard, the move sequence from
@@ -150,13 +237,13 @@ class BeamSearchEngine:
         def root_perspective(leaf: BeamLeaf) -> float:
             return leaf.value if root_player == 0 else -leaf.value
 
-        leaves = list(terminal_leaves)
-        leaves.extend(
+        frontier_leaves: List[BeamLeaf] = [
             BeamLeaf(
                 moves=moves, value=value, depth=max_depth_reached, is_terminal=False
             )
             for _, _, moves, value in frontier
-        )
+        ]
+        leaves = list(terminal_leaves) + frontier_leaves
         best_leaf = max(leaves, key=root_perspective) if leaves else None
         terminal_leaves.sort(key=root_perspective, reverse=True)
 
@@ -166,6 +253,8 @@ class BeamSearchEngine:
             reached_terminal=not frontier,
             max_depth_reached=max_depth_reached,
             stats=stats,
+            root_player=root_player,
+            frontier_leaves=frontier_leaves,
         )
 
     def _require_non_terminal_root(self, initial_state: State) -> int:
