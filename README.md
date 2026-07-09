@@ -125,6 +125,7 @@ QFEN: "Ab.C/d.BA/.cb./D.a."
 This library provides the core foundation for building:
 
 - **Monte Carlo Tree Search (MCTS)** engines
+- **Parametrizable beam search** for memory-bounded terminal-state discovery
 - **Game analysis** and position evaluation systems  
 - **AI training** and recommendation engines
 - **Opening book** generation and endgame databases
@@ -137,6 +138,7 @@ This library provides the core foundation for building:
 - **Move Generation**: Full legal move generation with placement validation
 - **Game Logic**: Win detection, move validation, and game result checking
 - **MCTS Engine**: Monte Carlo Tree Search with UCB1 selection
+- **Beam Search Engine**: memory-bounded frontier search guaranteeing true terminal states
 - **Opening Book**: SQLite-backed position database with canonical deduplication
 - **Puzzle Generator**: Tactical puzzle generation with dropout-based search
 - **Serialization**: Binary, QFEN, and CBOR formats
@@ -209,6 +211,35 @@ state = State.from_qfen("..../..../..../....")
 # Find best move
 move, win_probability = engine.search(state)
 print(f"Best move: {move}, Win probability: {win_probability:.2%}")
+```
+
+### Beam Search
+
+```python
+from quantik_core import State
+from quantik_core.beam_search import BeamSearchEngine, BeamSearchConfig
+
+# Configure beam search (guarantees reaching true terminal states).
+# beam_width can also be a depth-dependent beam_schedule=[...] — see
+# docs/BEAM_SEARCH.md's Tuning section for an exhaustive-prefix recipe.
+config = BeamSearchConfig(
+    beam_width=8,
+    max_depth=16,
+    random_seed=42
+)
+
+# Create engine and search
+engine = BeamSearchEngine(config)
+state = State.from_qfen("..../..../..../....")
+
+# Find the best line for the root player
+result = engine.search(state)
+print(f"Reached terminal: {result.reached_terminal}")
+print(f"Best line: {result.best_leaf.moves}")
+
+# Rank multiple root move options (beam-sampled, not proven minimax)
+for entry in result.ranked_root_moves(top_k=3):
+    print(f"{entry.move}: win_probability={entry.win_probability:.2%}")
 ```
 
 ### Opening Book Database
@@ -289,6 +320,7 @@ binary = state.pack()  # Just 18 bytes
 ## Documentation
 
 - [MCTS Documentation](docs/MCTS.md) - Monte Carlo Tree Search implementation details
+- [Beam Search Documentation](docs/BEAM_SEARCH.md) - Memory-bounded terminal-state search
 - [Opening Book Guide](docs/OPENING_BOOK.md) - Position database usage and API
 - [Examples](examples/) - Complete working examples for all features
 
