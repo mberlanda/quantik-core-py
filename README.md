@@ -278,7 +278,7 @@ if entry:
 - **Canonicalization**: <1µs per position with precomputed lookup tables
 - **Memory Usage**: 16 bytes per game state + 1MB for transformation LUTs
 - **Serialization**: 18-byte binary format, human-readable QFEN, or self-describing CBOR
-- **MCTS**: 20,000+ iterations/second on modern hardware
+- **MCTS**: ~150-210 iterations/second from the empty board (pure-Python UCT; dominated by per-iteration playout cost, not tree overhead)
 - **Puzzle Generation**: 55,000+ positions/second with dropout optimization
 - **Opening Book**: SQLite backend with canonical deduplication for space efficiency
 

@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 from quantik_core import State
+from quantik_core.game_utils import count_pieces_by_shape
 
 
 @dataclass
@@ -280,15 +281,26 @@ class CompactGameTree:
         self.root_id: Optional[int] = None
 
     def create_root_node(self, initial_state: State) -> int:
-        """Create the root node from initial game state."""
+        """Create the root node from initial game state.
+
+        player_turn is derived from the state's own piece counts rather
+        than assumed, so the tree can be rooted at any mid-game state
+        (not only the empty board) without corrupting MCTS/beam search
+        turn-relative logic. Uses total-piece parity rather than the
+        strict turn-balance validator so synthetic/terminal states
+        (e.g. constructed directly for tests) don't raise.
+        """
         canonical_state_data = initial_state.pack()
+        player0_counts, player1_counts = count_pieces_by_shape(initial_state.bb)
+        total_pieces = sum(player0_counts) + sum(player1_counts)
+        player_turn = total_pieces % 2
 
         node_id = self.storage.allocate_node_id()
         node = CompactGameTreeNode(
             canonical_state_data=canonical_state_data,
             parent_id=np.uint32(0),  # Root has no parent
             depth=np.uint16(0),
-            player_turn=np.uint8(0),  # Player 0 starts
+            player_turn=np.uint8(player_turn),
             flags=np.uint8(NODE_FLAG_EXPANDED),
             num_children=np.uint16(0),
             first_child_id=np.uint32(0),
@@ -307,20 +319,30 @@ class CompactGameTree:
         return node_id
 
     def add_child_node(
-        self, parent_id: int, child_state: State, multiplicity: int = 1
+        self,
+        parent_id: int,
+        child_state: State,
+        multiplicity: int = 1,
+        use_transposition_table: bool = True,
     ) -> int:
         """Add a child node to the tree with proper transposition table behavior.
 
         If the same canonical state already exists at the target depth,
-        merge multiplicities (transposition table behavior).
+        merge multiplicities (transposition table behavior). Passing
+        use_transposition_table=False skips that lookup entirely, so
+        revisiting the same canonical state always allocates a fresh node.
         """
         parent = self.storage.load_node(parent_id)
         canonical_state_data = child_state.pack()
         target_depth = parent.depth + 1
 
         # Check if this canonical state already exists at the target depth
-        existing_id = self.storage.find_node_by_canonical_state(
-            canonical_state_data, int(target_depth)
+        existing_id = (
+            self.storage.find_node_by_canonical_state(
+                canonical_state_data, int(target_depth)
+            )
+            if use_transposition_table
+            else None
         )
         if existing_id is not None:
             # Transposition found! Update multiplicity of existing node

@@ -290,6 +290,22 @@ class TestCompactGameTree:
         assert root_node.parent_id == 0
         assert root_node.flags == NODE_FLAG_EXPANDED
 
+    def test_root_node_creation_derives_player_turn_from_piece_counts(self):
+        """A root state where player 0 has moved once must record player_turn=1.
+
+        create_root_node must not hardcode player_turn=0: a shared tree can be
+        rooted at any mid-game state, and the turn must be derived from the
+        state's own piece counts (P0 total - P1 total) rather than assumed.
+        """
+        tree = CompactGameTree()
+        # P0 placed shape A at position 0; P1 has not moved yet -> P1 to move.
+        p1_to_move_state = State.from_qfen("A.../..../..../....")
+
+        root_id = tree.create_root_node(p1_to_move_state)
+
+        root_node = tree.get_node(root_id)
+        assert root_node.player_turn == 1
+
     def test_child_node_addition(self):
         """Test adding child nodes."""
         tree = CompactGameTree()
@@ -346,6 +362,36 @@ class TestCompactGameTree:
         # Root should still show correct child count
         root_node = tree.get_node(root_id)
         assert root_node.num_children == 1  # Only one unique child
+
+    def test_duplicate_canonical_state_with_transposition_disabled(self):
+        """use_transposition_table=False must skip the merge entirely.
+
+        This is the knob MCTSConfig.use_transposition_table is meant to
+        control end-to-end: with it off, revisiting the same canonical
+        state at the same depth must allocate a distinct node instead of
+        folding into the existing one.
+        """
+        tree = CompactGameTree()
+        initial_state = State.empty()
+        root_id = tree.create_root_node(initial_state)
+        child_state = State.empty()
+
+        child_id1 = tree.add_child_node(
+            root_id, child_state, multiplicity=1, use_transposition_table=False
+        )
+        child_id2 = tree.add_child_node(
+            root_id, child_state, multiplicity=3, use_transposition_table=False
+        )
+
+        assert child_id1 != child_id2
+
+        node1 = tree.get_node(child_id1)
+        node2 = tree.get_node(child_id2)
+        assert node1.multiplicity == 1
+        assert node2.multiplicity == 3
+
+        root_node = tree.get_node(root_id)
+        assert root_node.num_children == 2  # Both children kept distinct
 
     def test_same_canonical_state_different_depths(self):
         """Test that same canonical state at different depths are stored separately."""

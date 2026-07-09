@@ -18,6 +18,11 @@ All notable changes to `quantik-core` are documented here.
 ### Fixed
 
 - Fixed `examples/beam_search_demo.py`'s move formatting to reflect the actual mover (QFEN convention: uppercase = player 0, lowercase = player 1) instead of always rendering shapes uppercase.
+- Fixed `examples/mcts_demo.py`'s move formatting with the same player-aware convention (it had the identical uppercase-only bug).
+- Fixed `CompactGameTree.create_root_node` to derive `player_turn` from the root state's own piece-count parity instead of hardcoding player 0, so a tree can be correctly rooted at any mid-game (player-1-to-move) state.
+- Fixed `MCTSConfig.use_transposition_table`, which was declared but never consulted: `MCTSEngine._expand` now forwards it to `CompactGameTree.add_child_node`, and passing `False` skips the transposition merge so revisited canonical states always allocate a fresh node.
+- Fixed `auto-lint.sh` failing on a fresh environment by adding the missing `autopep8` dependency to the `dev` extra.
+- Corrected the MCTS throughput claims in `README.md` and `docs/MCTS.md` (previously an unverified 20,000+ iterations/second) to the measured ~150-210 iterations/second for the current pure-Python engine from the empty board.
 
 ## 1.0.0 - 2026-06-22
 

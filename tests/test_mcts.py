@@ -185,6 +185,41 @@ class TestMCTSEngine:
         assert child.depth == 1
         assert child.parent_id == root_id
 
+    def test_expand_wires_use_transposition_table_enabled(self):
+        """_expand must forward config.use_transposition_table to the tree.
+
+        MCTSConfig.use_transposition_table was previously declared but never
+        consulted; this pins that _expand actually threads it through to
+        CompactGameTree.add_child_node rather than silently always merging.
+        """
+        config = MCTSConfig(random_seed=42, use_transposition_table=True)
+        engine = MCTSEngine(config)
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        with patch.object(
+            engine.tree, "add_child_node", wraps=engine.tree.add_child_node
+        ) as spy:
+            engine._expand(root_id)
+
+        spy.assert_called_once()
+        assert spy.call_args.kwargs["use_transposition_table"] is True
+
+    def test_expand_wires_use_transposition_table_disabled(self):
+        """Mutation guard: flipping the config value must flip the call arg."""
+        config = MCTSConfig(random_seed=42, use_transposition_table=False)
+        engine = MCTSEngine(config)
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        with patch.object(
+            engine.tree, "add_child_node", wraps=engine.tree.add_child_node
+        ) as spy:
+            engine._expand(root_id)
+
+        spy.assert_called_once()
+        assert spy.call_args.kwargs["use_transposition_table"] is False
+
     def test_simulation(self):
         """Test random simulation."""
         config = MCTSConfig(max_depth=8, random_seed=42)
