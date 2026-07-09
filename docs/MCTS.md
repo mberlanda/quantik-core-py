@@ -112,11 +112,12 @@ for child_id in children:
 
 Measured on the current pure-Python engine (empty board, `random_seed=42`):
 
-- **Empty board**: ~150-210 iterations/second (2k-5k iteration runs); throughput
-  is dominated by per-iteration random-playout cost, not tree/UCB overhead.
-- Larger runs trend toward the lower end of that range as the tree deepens
-  and playouts lengthen (see `docs/research/2026-07-07-beam-search-vs-mcts.md`
-  §5.4 for iteration counts up to 25k).
+- **Empty board**: ~150-210 iterations/second (measured over 1k-5k iteration
+  runs; the rate varies run-to-run within this band). Throughput is dominated
+  by per-iteration random-playout cost, not tree/UCB overhead, so it can drift
+  lower on longer runs as the tree deepens and playouts lengthen (see
+  `docs/research/2026-07-07-beam-search-vs-mcts.md` §5.4 for iteration counts
+  up to 25k).
 
 ### Memory Usage
 
