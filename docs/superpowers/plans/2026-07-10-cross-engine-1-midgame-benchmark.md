@@ -37,7 +37,7 @@
 - `engine_move(engine_name, bb, **cfg) -> Move` for `engine_name in {"minimax","mcts","beam"}`.
 - `move_agreement(n, seed) -> dict[str, float]` — fraction of sampled positions where each engine's move is in `optimal_moves`.
 
-- [ ] **Step 1: Write the failing smoke test** (append to `tests/test_examples_demos.py`):
+- [x] **Step 1: Write the failing smoke test** (append to `tests/test_examples_demos.py`):
 
 ```python
 @pytest.fixture(scope="module")
@@ -62,9 +62,9 @@ class TestCrossEngineBenchmark:
             assert cross_engine_benchmark.engine_move(name, bb) in legal
 ```
 
-- [ ] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_examples_demos.py -k CrossEngine -x --no-cov` → import error.
+- [x] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_examples_demos.py -k CrossEngine -x --no-cov` → import error.
 
-- [ ] **Step 3: Implement `examples/cross_engine_benchmark.py`.** Full content:
+- [x] **Step 3: Implement `examples/cross_engine_benchmark.py`.** Full content:
 
 ```python
 #!/usr/bin/env python3
@@ -171,11 +171,11 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run the smoke test, verify pass** — `.venv/bin/pytest tests/test_examples_demos.py -k CrossEngine -v --no-cov`.
+- [x] **Step 4: Run the smoke test, verify pass** — `.venv/bin/pytest tests/test_examples_demos.py -k CrossEngine -v --no-cov`.
 
-- [ ] **Step 5: Run the script once** — `.venv/bin/python examples/cross_engine_benchmark.py`. Capture the numbers (they belong in a future research-note update). Expected shape: minimax agreement ~1.0 (it *is* a shallow-search proxy for the solver), MCTS/beam lower. If a run exceeds ~4 minutes, reduce `move_agreement(n=...)` default.
+- [x] **Step 5: Run the script once** — `.venv/bin/python examples/cross_engine_benchmark.py`. Capture the numbers (they belong in a future research-note update). Expected shape: minimax agreement ~1.0 (it *is* a shallow-search proxy for the solver), MCTS/beam lower. If a run exceeds ~4 minutes, reduce `move_agreement(n=...)` default.
 
-- [ ] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add examples/cross_engine_benchmark.py tests/test_examples_demos.py`; commit `feat(examples): cross-engine move-agreement + mid-game benchmark`.
+- [x] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add examples/cross_engine_benchmark.py tests/test_examples_demos.py`; commit `feat(examples): cross-engine move-agreement + mid-game benchmark`.
 
 ---
 
@@ -183,3 +183,31 @@ if __name__ == "__main__":
 - Does `optimal_moves` account for the ply-shift correctly? (All children solved fresh at ply 0 → argmax comparable. Yes.)
 - Is the smoke test cheap? (It solves a near-terminal position and runs one shallow search per engine — a few seconds. Acceptable.)
 - No new runtime dependencies; heavy work under `__main__`.
+
+## Post-implementation notes (two defects found and fixed during execution)
+
+1. **`optimal_moves` must not call `.solve()`/`.search()` on a terminal
+   child.** A legal move that immediately wins (completes a line, or leaves
+   the opponent with zero legal replies) produces a child that `MinimaxEngine`
+   explicitly rejects/mis-scores as a search root (`search()` requires a
+   non-empty `generate_legal_moves_list`, and even when the child still has
+   moves, `_negamax` never re-checks whether `bb` itself is already
+   terminal). Sampled 8–12-ply positions frequently have an immediate winning
+   move, so this affected `move_agreement()` broadly, not just the smoke
+   test. Fixed by scoring such children directly (`float("inf")`) instead of
+   solving them.
+2. **The `sys.path` insert and the smoke-test anchor were both intractable
+   as written.** `sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))`
+   adds `examples/` (already `sys.path[0]` by default), not the repo root
+   where `tuning/` lives — running the script directly raised
+   `ModuleNotFoundError`. Separately, the plan's own smoke-test anchor
+   (`"AbC./..../..../...."`, 3 pieces placed) makes `optimal_moves` solve
+   ~40 non-winning branches from a near-empty position — measured **>170s
+   for a single such solve**. Fixed the path insert to the repo root and
+   replaced the anchor with a mid-game position (8 plies in); the full smoke
+   test now runs in well under a second.
+
+Actual run (`examples/cross_engine_benchmark.py`, 69.4s): move-agreement
+minimax=1.000, beam=0.975, mcts=0.500. Head-to-head from mid-game starts
+(minimax P0 vs MCTS P1): minimax won 4/8 — see the research note's
+"Future work" section (item 1) for the full writeup.
