@@ -242,6 +242,7 @@ logs/
 data/
 *.csv
 *.json
+!tuning/weights.json
 *.pkl
 *.pickle
 
@@ -250,3 +251,6 @@ data/
 *.backup
 prompts
 qfen_validation_results.txt
+
+# Tuning dataset (regenerable via tuning/build_dataset.py)
+tuning/dataset.npz

@@ -85,3 +85,51 @@ class TestBeamSearchDemoFormatMove:
         formatted = beam_search_demo.format_move(move)
 
         assert "P1 b " in formatted
+
+
+@pytest.fixture(scope="module")
+def minimax_demo():
+    return _load_demo_module("minimax_demo.py")
+
+
+@pytest.fixture(scope="module")
+def minimax_benchmark():
+    return _load_demo_module("minimax_benchmark.py")
+
+
+class TestMinimaxDemo:
+    """Pins the player-aware QFEN case convention for minimax_demo.py and
+    smoke-checks that the demo helpers actually run a search."""
+
+    def test_player_0_move_is_uppercase(self, minimax_demo):
+        assert minimax_demo.format_move(Move(player=0, shape=0, position=1)).startswith(
+            "A "
+        )
+
+    def test_player_1_move_is_lowercase(self, minimax_demo):
+        # Mutation guard: rendering that ignored move.player would print "B".
+        formatted = minimax_demo.format_move(Move(player=1, shape=1, position=11))
+        assert formatted.startswith("b ") and "B " not in formatted
+
+    def test_minimax_player_returns_legal_move(self, minimax_demo):
+        from quantik_core import State
+        from quantik_core.move import generate_legal_moves_list
+
+        state = State.from_qfen("AbC./..../..../....")
+        select = minimax_demo.minimax_player(max_depth=2)
+        move = select(state)
+        assert move in generate_legal_moves_list(state.bb)
+
+    def test_play_game_returns_a_winner(self, minimax_demo):
+        from quantik_core.game_utils import WinStatus
+
+        result = minimax_demo.play_game(
+            minimax_demo.random_player(seed=1), minimax_demo.random_player(seed=2)
+        )
+        assert result in (WinStatus.PLAYER_0_WINS, WinStatus.PLAYER_1_WINS)
+
+
+def test_minimax_benchmark_imports(minimax_benchmark):
+    # Importing exercises the module-level `from minimax_demo import ...`; the
+    # heavy work is guarded under __main__.
+    assert hasattr(minimax_benchmark, "main")
