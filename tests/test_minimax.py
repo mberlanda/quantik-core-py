@@ -41,33 +41,52 @@ def test_blocks_opponent_mate_in_one():
     assert solved.score > -9000
 
 
+# A non-trivial mid-game anchor: not decided in one ply (a genuine positional
+# value, not an instant mate), yet small enough that even unpruned plain
+# minimax stays fast. Alpha-beta demonstrably prunes here (plain explores ~4k
+# nodes at depth 3, alpha-beta ~1.5k), so the equivalence checks exercise the
+# pruning/TT machinery rather than a trivial subtree.
+_ANCHOR = ".D.a/..../..d./.BBd"
+
+
 def test_alpha_beta_equals_plain_minimax():
-    s = State.from_qfen("A.../..../..../....")
-    v_ab = MinimaxEngine(
-        cfg(max_depth=4, use_alpha_beta=True, use_transposition_table=False)
-    ).search(s).score
-    v_plain = MinimaxEngine(
-        cfg(max_depth=4, use_alpha_beta=False, use_transposition_table=False)
-    ).search(s).score
+    # Alpha-beta must not change the value it computes -- only the node count.
+    s = State.from_qfen(_ANCHOR)
+    v_ab = (
+        MinimaxEngine(
+            cfg(max_depth=3, use_alpha_beta=True, use_transposition_table=False)
+        )
+        .search(s)
+        .score
+    )
+    v_plain = (
+        MinimaxEngine(
+            cfg(max_depth=3, use_alpha_beta=False, use_transposition_table=False)
+        )
+        .search(s)
+        .score
+    )
     assert v_ab == pytest.approx(v_plain)
 
 
 def test_tt_equals_no_tt():
-    s = State.from_qfen("A.../..../..../....")
-    v_tt = MinimaxEngine(cfg(max_depth=6, use_transposition_table=True)).search(s).score
-    v_no = MinimaxEngine(cfg(max_depth=6, use_transposition_table=False)).search(
-        s
-    ).score
+    # The transposition table must not change the computed value.
+    s = State.from_qfen(_ANCHOR)
+    v_tt = MinimaxEngine(cfg(max_depth=4, use_transposition_table=True)).search(s).score
+    v_no = (
+        MinimaxEngine(cfg(max_depth=4, use_transposition_table=False)).search(s).score
+    )
     assert v_tt == pytest.approx(v_no)
 
 
 def test_iterative_deepening_matches_fixed_depth():
-    s = State.from_qfen("A.../..../..../....")
-    # ID to depth 4 should agree in value with a direct depth-4 search
-    v_id = MinimaxEngine(cfg(max_depth=4)).search(s).score
+    # ID to depth 3 (full config) agrees in value with an unpruned depth-3
+    # search -- deepening changes move ordering/speed, never the value.
+    s = State.from_qfen(_ANCHOR)
+    v_id = MinimaxEngine(cfg(max_depth=3)).search(s).score
     assert v_id == pytest.approx(
         MinimaxEngine(
-            cfg(max_depth=4, use_transposition_table=False, use_alpha_beta=False)
+            cfg(max_depth=3, use_transposition_table=False, use_alpha_beta=False)
         )
         .search(s)
         .score
