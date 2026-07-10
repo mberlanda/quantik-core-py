@@ -9,6 +9,7 @@ and the weight-fitting pipeline that produce/consume `EvalConfig` live in
 later tasks.
 """
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Union, cast
@@ -58,32 +59,34 @@ class EvalConfig:
 
     @classmethod
     def load(cls, path: Optional[Union[str, Path]] = None) -> "EvalConfig":
-        """Load fitted weights from `path`, or return seeded defaults.
+        """Load fitted weights from a JSON file, or return seeded defaults.
 
-        Seeded defaults (used when `path` is `None` or does not exist):
-        `weights = [100, -100, 20, 3, 2, 0]`, `win = 10_000.0`.
+        The JSON format is the one written by `tuning/fit_weights.py`:
+        `{"weights": [w0..w5], "win": <float>, ...}`. When `path` is `None`,
+        the repo-root `tuning/weights.json` is used if it exists. Seeded
+        defaults (`weights = [100, -100, 20, 3, 2, 0]`, `win = 10_000.0`) are
+        returned when the target file is absent.
 
         Args:
-            path: Optional path to a `.npy` file (or whitespace-delimited
-                text file readable by `np.loadtxt`) holding a length-6
-                weight vector.
+            path: Optional path to a weights JSON file. If `None`, defaults to
+                `<repo-root>/tuning/weights.json`.
 
         Returns:
             An `EvalConfig` with the loaded (or seeded default) weights.
         """
         if path is None:
-            return cls()
+            # src/quantik_core/evaluation.py -> parents[2] == repo root
+            path = Path(__file__).resolve().parents[2] / "tuning" / "weights.json"
+        else:
+            path = Path(path)
 
-        path = Path(path)
         if not path.exists():
             return cls()
 
-        if path.suffix == ".npy":
-            weights = np.load(path)
-        else:
-            weights = np.loadtxt(path)
-
-        return cls(weights=np.asarray(weights, dtype=np.float64))
+        data = json.loads(path.read_text())
+        weights = np.asarray(data["weights"], dtype=np.float64)
+        win = float(data.get("win", 10_000.0))
+        return cls(weights=weights, win=win)
 
 
 def _placement_is_legal(bb: Bitboard, player: int, shape: int, position: int) -> bool:

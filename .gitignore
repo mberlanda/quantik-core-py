@@ -250,3 +250,6 @@ data/
 *.backup
 prompts
 qfen_validation_results.txt
+
+# Tuning dataset (regenerable via tuning/build_dataset.py)
+tuning/dataset.npz
