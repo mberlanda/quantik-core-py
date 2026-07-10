@@ -133,3 +133,91 @@ def test_minimax_benchmark_imports(minimax_benchmark):
     # Importing exercises the module-level `from minimax_demo import ...`; the
     # heavy work is guarded under __main__.
     assert hasattr(minimax_benchmark, "main")
+
+
+@pytest.fixture(scope="module")
+def cross_engine_benchmark():
+    return _load_demo_module("cross_engine_benchmark.py")
+
+
+class TestCrossEngineBenchmark:
+    # A mid-game anchor (8 plies in, near-terminal) rather than the plan's
+    # original near-empty "AbC./..../..../...." position: optimal_moves
+    # exact-solves every non-immediately-terminal legal move, and from a
+    # near-empty board that took >170s for a SINGLE child (measured), vs.
+    # sub-millisecond here. P1 (side to move) has three moves that each
+    # immediately end the game (shape=3,pos=5 completes a line; the other
+    # two leave P0 with zero legal replies) -- all three legitimately tie
+    # as optimal.
+    _ANCHOR = ".ba./..CC/DcbD/cA.A"
+
+    def test_optimal_moves_finds_the_mate(self, cross_engine_benchmark):
+        from quantik_core import State
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        opt = cross_engine_benchmark.optimal_moves(bb)
+        assert any(m.shape == 3 and m.position == 5 for m in opt)
+
+    def test_optimal_moves_handles_no_legal_reply_without_solving(
+        self, cross_engine_benchmark
+    ):
+        # A move that leaves the opponent with zero legal moves is terminal
+        # (MinimaxEngine.solve/search reject states with no legal moves for
+        # the side to move) -- optimal_moves must score it directly rather
+        # than calling solve() on it.
+        from quantik_core import State, apply_move
+        from quantik_core.game_utils import has_winning_line
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        opt = cross_engine_benchmark.optimal_moves(bb)
+        for m in opt:
+            child = apply_move(bb, m)
+            assert has_winning_line(child) or not generate_legal_moves_list(child)
+
+    def test_engine_move_returns_legal(self, cross_engine_benchmark):
+        from quantik_core import State
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        legal = generate_legal_moves_list(bb)
+        for name in ("minimax", "mcts", "beam"):
+            assert cross_engine_benchmark.engine_move(name, bb) in legal
+
+    def test_move_agreement_handles_empty_sample(self, cross_engine_benchmark):
+        # sample_states can return fewer than n (or zero) positions; the
+        # division by len(positions) must not raise ZeroDivisionError.
+        result = cross_engine_benchmark.move_agreement(n=0, seed=1)
+        assert result == {"minimax": 0.0, "mcts": 0.0, "beam": 0.0}
+
+    def test_play_from_credits_the_actual_side_to_move(self, cross_engine_benchmark):
+        # Regression: play_from must bind mover_name to whichever color is
+        # ACTUALLY to move at bb, not a hard-coded P0. This anchor (P1 to
+        # move, per the class-level note above) has an immediate win for
+        # the side to move; mover_name="minimax" must be credited with
+        # that win even though P1 -- not P0 -- moves first here.
+        from quantik_core import State
+        from quantik_core.game_utils import (
+            count_total_pieces,
+            get_current_player_from_counts,
+        )
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        p0, p1 = count_total_pieces(bb)
+        assert get_current_player_from_counts(p0, p1) == 1  # P1 to move
+        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+
+    def test_play_from_p0_to_move_case(self, cross_engine_benchmark):
+        # Same guarantee for the other parity: P0 to move (row 0 = A b C .
+        # plus a P1 piece elsewhere to balance the piece count) with an
+        # immediate win, D at pos 3 completing row 0.
+        from quantik_core import State
+        from quantik_core.game_utils import (
+            count_total_pieces,
+            get_current_player_from_counts,
+        )
+
+        bb = State.from_qfen("AbC./d.../..../....").bb
+        p0, p1 = count_total_pieces(bb)
+        assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
+        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True

@@ -91,3 +91,16 @@ state = State.from_qfen("AbC./..../d..B/...a")
 score = evaluate(state.bb, player=0, cfg=EvalConfig.load())
 assert isinstance(score, float)
 ```
+
+## Cross-Engine Move-Agreement
+
+All three engines (minimax, MCTS, beam search) key off the same
+`canonical_key()`, so they can be measured against each other from a
+shared set of positions. `examples/cross_engine_benchmark.py` samples
+random non-terminal mid-game positions, computes each one's exact best
+move(s) with the minimax solver, and reports how often each engine's
+choice matches:
+
+```bash
+python examples/cross_engine_benchmark.py
+```

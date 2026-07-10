@@ -645,12 +645,20 @@ All three engines key off the same `canonical_key()`, so they share a state
 identity and can be made to help one another. Concrete follow-ups (each its own
 piece of work, listed roughly by increasing scope):
 
-1. **Mid-game strength & agreement benchmark.** Today the strength games start
-   from the empty board and the head-to-head baseline (MCTS-1500) is weak. A
-   more representative measurement plays minimax, UCT, and beam search from a
-   *shared set of random valid non-terminal mid-game positions* (both sides to
-   move), and adds a **move-agreement** metric: how often each stochastic
-   engine picks the exact-solver's move on the same position set.
+1. **Mid-game strength & agreement benchmark.** ✅ Done —
+   `examples/cross_engine_benchmark.py`. Plays minimax, UCT, and beam search
+   from a *shared set of random valid non-terminal mid-game positions* (8–12
+   plies in, both sides to move) and reports **move-agreement**: how often
+   each engine's move is in the exact solver's optimal-move set. Measured:
+   minimax 1.000 (a shallow-search proxy for the solver), beam 0.975, MCTS
+   0.500. The head-to-head credits whichever engine is *actually* the side
+   to move at each sampled position (mixed parity — sampled positions have
+   either color to move, so a fixed P0/P1 assignment would silently
+   misattribute wins depending on the sample): minimax won 8/8 as the side
+   to move against MCTS-1500. Unlike the empty-board result above, this
+   isn't measuring a fixed opening-color advantage — it's minimax's edge
+   from getting to act on whatever position it's handed, mid-game
+   included.
 2. **Exact-solver → shared opening book.** The `OpeningBookDatabase` is keyed by
    `canonical_key` and is engine-agnostic. A batch job can solve every
    tractable position and write **exact** evaluations and best moves into the
