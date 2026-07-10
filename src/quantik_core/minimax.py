@@ -160,9 +160,22 @@ class MinimaxEngine:
         plies, so a depth-16 search from any reachable position always
         terminates on true terminal nodes rather than the heuristic eval
         cutoff -- i.e. this is an exact solver, not just a deep search.
+
+        Temporarily swaps in a `max_depth=16, time_limit_s=None` config and
+        delegates to `self.search` (restoring the original config
+        afterward) rather than constructing a second `MinimaxEngine` --
+        `search` already resets all other per-call state (`_tt`, `_nodes`,
+        `_pv_hint`, `_deadline`), so reusing `self` is equivalent and avoids
+        an always-discarded extra engine allocation on every call.
         """
-        solve_config = dataclasses.replace(self.config, max_depth=16, time_limit_s=None)
-        return MinimaxEngine(solve_config).search(state)
+        original_config = self.config
+        self.config = dataclasses.replace(
+            original_config, max_depth=16, time_limit_s=None
+        )
+        try:
+            return self.search(state)
+        finally:
+            self.config = original_config
 
     def search(self, state: State) -> MinimaxResult:
         """Iterative-deepening alpha-beta negamax search from `state`.
