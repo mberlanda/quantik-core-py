@@ -12,8 +12,11 @@ well under a second, so we sample there. This biases the dataset toward
 mid/late-game positions, which is acceptable: the leaves a depth-limited
 search actually evaluates are themselves several plies into the game.
 
-Run: `python tuning/build_dataset.py` -> writes `tuning/dataset.npz`
-(arrays `X` of shape (N, 6) and `y` of shape (N,)).
+Run: `python -m tuning.build_dataset` -> writes `tuning/dataset.npz`
+(arrays `X` of shape (N, 6) and `y` of shape (N,)). Module mode is the
+reliable invocation since `tuning/` is a package (has `__init__.py`);
+a bare `python tuning/build_dataset.py` also works here because this file
+only imports the installed `quantik_core` package, not its own siblings.
 """
 
 from __future__ import annotations

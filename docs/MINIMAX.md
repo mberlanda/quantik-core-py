@@ -111,8 +111,8 @@ remaining tree is small and each exact solve is fast — and fits the weights to
 the solver's verdict:
 
 ```bash
-python tuning/build_dataset.py   # solver-labeled positions -> tuning/dataset.npz
-python tuning/fit_weights.py     # logistic regression -> tuning/weights.json
+python -m tuning.build_dataset   # solver-labeled positions -> tuning/dataset.npz
+python -m tuning.fit_weights     # logistic regression -> tuning/weights.json
 ```
 
 The fit is deterministic (fixed seed + frozen sampling). Validation uses two

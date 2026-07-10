@@ -187,15 +187,19 @@ def features(bb: Bitboard, player: int) -> np.ndarray:
     )
 
 
-def evaluate(bb: Bitboard, player: int, cfg: EvalConfig = EvalConfig()) -> float:
+def evaluate(bb: Bitboard, player: int, cfg: Optional[EvalConfig] = None) -> float:
     """Score a non-terminal position as `cfg.weights @ features(bb, player)`.
 
     Args:
         bb: Bitboard to evaluate. Should be non-terminal.
         player: Player ID (0 or 1) whose perspective to score from.
-        cfg: Weight configuration; defaults to the seeded weights.
+        cfg: Weight configuration; defaults to the seeded weights when
+            omitted (a fresh `EvalConfig()` is constructed per call, so no
+            mutable default is shared across callers).
 
     Returns:
         The dot product of `cfg.weights` and `features(bb, player)`.
     """
+    if cfg is None:
+        cfg = EvalConfig()
     return float(cfg.weights @ features(bb, player))

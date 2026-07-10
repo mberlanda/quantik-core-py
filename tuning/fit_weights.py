@@ -5,8 +5,10 @@ weights are those whose sign best predicts the exact solver outcome. We fit
 them with plain-numpy logistic regression (batch gradient descent + small L2),
 which is deterministic given a seed and needs no extra dependency.
 
-Run: `python tuning/fit_weights.py` -> builds/loads `tuning/dataset.npz`,
+Run: `python -m tuning.fit_weights` -> builds/loads `tuning/dataset.npz`,
 fits, writes `tuning/weights.json`, and prints seeded-vs-fitted sign accuracy.
+(Module mode is required: this file imports its sibling `tuning.build_dataset`
+as a package, which is not importable via a bare `python tuning/fit_weights.py`.)
 """
 
 from __future__ import annotations
@@ -61,7 +63,7 @@ def fit(
     b = 0.0
     n = len(yf)
     for _ in range(iters):
-        z = Xs @ w + b
+        z = np.clip(Xs @ w + b, -30.0, 30.0)  # guard exp() overflow
         p = 1.0 / (1.0 + np.exp(-z))
         grad_w = Xs.T @ (p - labels01) / n + l2 * w
         grad_b = float((p - labels01).mean())
@@ -87,7 +89,13 @@ def sign_accuracy(w: np.ndarray, X: np.ndarray, y: np.ndarray) -> float:
 
 def main(seed: int = 0) -> None:
     if not _DATASET_PATH.exists():
-        from tuning.build_dataset import main as build_main
+        try:
+            from tuning.build_dataset import main as build_main
+        except ImportError:
+            # Fallback for `python tuning/fit_weights.py` (script mode):
+            # sys.path[0] is tuning/, so the package-qualified import above
+            # fails there even though `python -m tuning.fit_weights` works.
+            from build_dataset import main as build_main  # type: ignore[import-not-found]
 
         build_main()
     data = np.load(_DATASET_PATH)
