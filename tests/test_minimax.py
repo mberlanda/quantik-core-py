@@ -121,6 +121,30 @@ def test_solve_exact_forced_loss_in_four():
     assert r.depth_reached == 16
 
 
+def test_random_tiebreak_never_returns_suboptimal_move():
+    # Regression: narrowing alpha across root siblings once let an inferior
+    # move's fail-soft upper bound tie best_value and be picked by the random
+    # tie-break. From this position one root move forces a win while others
+    # lose badly; every seed must still return an optimal move.
+    from quantik_core import apply_move
+    from quantik_core.move import generate_legal_moves_list
+
+    pos = State.from_qfen("D.../.A.d/D.A./.bc.")
+    # Reference value of every legal root move, all computed with the SAME
+    # (fresh-root, ply-0) convention so the argmax is comparable even though
+    # ply-adjusted mate scores shift by a constant vs. the in-search ply.
+    ref = {}
+    for m in generate_legal_moves_list(pos.bb):
+        child = State(apply_move(pos.bb, m))
+        ref[m] = -MinimaxEngine(cfg(max_depth=2)).search(child).score
+    best_ref = max(ref.values())
+    optimal = {m for m, v in ref.items() if v == pytest.approx(best_ref)}
+
+    for seed in range(8):
+        r = MinimaxEngine(cfg(max_depth=3, random_seed=seed)).search(pos)
+        assert r.best_move in optimal, f"seed={seed} picked a suboptimal move"
+
+
 def test_solve_pv_ends_in_terminal():
     # The principal variation of an exact solve must end on a real terminal:
     # replaying it reaches a winning line (or a no-legal-move loss).

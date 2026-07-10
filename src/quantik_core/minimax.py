@@ -231,29 +231,33 @@ class MinimaxEngine:
         self, bb: Bitboard, moves: List[Move], depth: int
     ) -> Tuple[float, Move, List[Move]]:
         """Search the root position to `depth`, returning `(score,
-        best_move, pv)`. Every root move is fully explored (no root-level
-        beta cutoff) so that root-level ties are all visible for the
-        `random_seed` tie-break below; only each move's own subtree is
-        alpha-beta pruned.
+        best_move, pv)`.
+
+        Every root child is searched with a FULL (-inf, +inf) window, so each
+        returned value is EXACT rather than a fail-soft bound. This matters for
+        the tie-break: if we narrowed `alpha` across siblings (as an internal
+        node does), an inferior move searched after the current best could fail
+        low and return an *upper bound* that happens to equal `best_value`,
+        pollute the equal-value candidate set below, and -- with `random_seed`
+        set -- be chosen, returning a suboptimal (even losing) move. The
+        root-level pruning this forgoes is negligible (Quantik's root branching
+        is small); each child's own subtree is still alpha-beta pruned inside
+        `_negamax`.
         """
         ordered = self._order_root_moves(moves)
         children = _children(bb, ordered, self.config.dedup_children)
 
-        alpha = float("-inf")
-        beta = float("inf")
         best_value = float("-inf")
         scored: List[Tuple[Move, float, List[Move]]] = []
 
         for move, child_bb, child_key in children:
             child_pv: List[Move] = []
             value = -self._negamax(
-                child_bb, depth - 1, -beta, -alpha, 1, child_pv, child_key
+                child_bb, depth - 1, float("-inf"), float("inf"), 1, child_pv, child_key
             )
             scored.append((move, value, child_pv))
             if value > best_value:
                 best_value = value
-            if self.config.use_alpha_beta:
-                alpha = max(alpha, best_value)
 
         candidates = [(m, pv) for m, v, pv in scored if v == best_value]
         move, child_pv = (
