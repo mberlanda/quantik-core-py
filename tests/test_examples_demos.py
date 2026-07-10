@@ -133,3 +133,53 @@ def test_minimax_benchmark_imports(minimax_benchmark):
     # Importing exercises the module-level `from minimax_demo import ...`; the
     # heavy work is guarded under __main__.
     assert hasattr(minimax_benchmark, "main")
+
+
+@pytest.fixture(scope="module")
+def cross_engine_benchmark():
+    return _load_demo_module("cross_engine_benchmark.py")
+
+
+class TestCrossEngineBenchmark:
+    # A mid-game anchor (8 plies in, near-terminal) rather than the plan's
+    # original near-empty "AbC./..../..../...." position: optimal_moves
+    # exact-solves every non-immediately-terminal legal move, and from a
+    # near-empty board that took >170s for a SINGLE child (measured), vs.
+    # sub-millisecond here. P1 (side to move) has three moves that each
+    # immediately end the game (shape=3,pos=5 completes a line; the other
+    # two leave P0 with zero legal replies) -- all three legitimately tie
+    # as optimal.
+    _ANCHOR = ".ba./..CC/DcbD/cA.A"
+
+    def test_optimal_moves_finds_the_mate(self, cross_engine_benchmark):
+        from quantik_core import State
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        opt = cross_engine_benchmark.optimal_moves(bb)
+        assert any(m.shape == 3 and m.position == 5 for m in opt)
+
+    def test_optimal_moves_handles_no_legal_reply_without_solving(
+        self, cross_engine_benchmark
+    ):
+        # A move that leaves the opponent with zero legal moves is terminal
+        # (MinimaxEngine.solve/search reject states with no legal moves for
+        # the side to move) -- optimal_moves must score it directly rather
+        # than calling solve() on it.
+        from quantik_core import State, apply_move
+        from quantik_core.game_utils import has_winning_line
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        opt = cross_engine_benchmark.optimal_moves(bb)
+        for m in opt:
+            child = apply_move(bb, m)
+            assert has_winning_line(child) or not generate_legal_moves_list(child)
+
+    def test_engine_move_returns_legal(self, cross_engine_benchmark):
+        from quantik_core import State
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        legal = generate_legal_moves_list(bb)
+        for name in ("minimax", "mcts", "beam"):
+            assert cross_engine_benchmark.engine_move(name, bb) in legal
