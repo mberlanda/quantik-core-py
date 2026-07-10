@@ -20,6 +20,8 @@ from .board import (
     GameResult,
     MoveRecord,
 )
+from .evaluation import EvalConfig, evaluate
+from .minimax import MinimaxConfig, MinimaxEngine, MinimaxResult
 
 try:
     __version__ = version("quantik-core")
@@ -48,4 +50,9 @@ __all__ = [
     "QuantikBoard",
     "PlayerInventory",
     "MoveRecord",
+    "EvalConfig",
+    "evaluate",
+    "MinimaxConfig",
+    "MinimaxEngine",
+    "MinimaxResult",
 ]

@@ -21,3 +21,17 @@ def test_wildcard_import_contract():
 
 def test_runtime_version_matches_installed_distribution():
     assert quantik_core.__version__ == version("quantik-core")
+
+
+def test_minimax_and_evaluation_are_top_level_exports():
+    # The classical-search engine is surfaced at the top level (unlike the
+    # module-only MCTS/beam engines) as the headline classical-search API.
+    for name in (
+        "MinimaxEngine",
+        "MinimaxConfig",
+        "MinimaxResult",
+        "evaluate",
+        "EvalConfig",
+    ):
+        assert name in quantik_core.__all__
+        assert hasattr(quantik_core, name)

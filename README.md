@@ -319,6 +319,7 @@ binary = state.pack()  # Just 18 bytes
 
 ## Documentation
 
+- [Minimax Documentation](docs/MINIMAX.md) - Alpha-beta search with a fitted handcrafted evaluation
 - [MCTS Documentation](docs/MCTS.md) - Monte Carlo Tree Search implementation details
 - [Beam Search Documentation](docs/BEAM_SEARCH.md) - Memory-bounded terminal-state search
 - [Opening Book Guide](docs/OPENING_BOOK.md) - Position database usage and API
