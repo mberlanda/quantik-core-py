@@ -91,3 +91,46 @@ def test_iterative_deepening_matches_fixed_depth():
         .search(s)
         .score
     )
+
+
+# ----- exact-solve correctness anchors -------------------------------------
+# A full solve from the EMPTY board is intractable in pure Python (~23.5M
+# unique canonical states cumulatively; canonical_key scans all 192
+# symmetries, so the engine runs at only a few hundred nodes/s from the open
+# game -- see GAME_TREE_ANALYSIS.md and docs/MINIMAX.md). Instead we anchor
+# solver correctness on positions a few plies in, where the remaining tree is
+# small enough to solve exactly and the game-theoretic value is a precise,
+# ply-adjusted number: score == +/-(win - plies_to_end). max_depth=16 never
+# hits the eval cutoff (no Quantik game exceeds 16 plies), so every value is
+# exact and every leaf on the PV is a true terminal.
+
+
+def test_solve_exact_forced_win_in_three():
+    # From this position P0 (side to move) can force a win in exactly 3 plies.
+    r = MinimaxEngine(cfg(max_depth=16)).solve(State.from_qfen(".B.C/a.../.Ca./..d."))
+    assert r.score == pytest.approx(10_000 - 3)  # win - ply, ply == 3
+    assert r.depth_reached == 16
+    assert len(r.pv) == 3
+
+
+def test_solve_exact_forced_loss_in_four():
+    # Here every P0 reply loses; the opponent forces mate in 4 plies, so the
+    # side-to-move value is -(win - 4). Exercises the losing side of the sign.
+    r = MinimaxEngine(cfg(max_depth=16)).solve(State.from_qfen(".D.a/D..c/..d./.BBd"))
+    assert r.score == pytest.approx(-(10_000 - 4))
+    assert r.depth_reached == 16
+
+
+def test_solve_pv_ends_in_terminal():
+    # The principal variation of an exact solve must end on a real terminal:
+    # replaying it reaches a winning line (or a no-legal-move loss).
+    from quantik_core import apply_move
+    from quantik_core.game_utils import has_winning_line
+    from quantik_core.move import generate_legal_moves_list
+
+    s = State.from_qfen(".B.C/a.../.Ca./..d.")
+    r = MinimaxEngine(cfg(max_depth=16)).solve(s)
+    bb = s.bb
+    for mv in r.pv:
+        bb = apply_move(bb, mv)
+    assert has_winning_line(bb) or not generate_legal_moves_list(bb)

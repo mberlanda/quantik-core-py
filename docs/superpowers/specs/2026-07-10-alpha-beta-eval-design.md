@@ -247,9 +247,16 @@ Three categories, all three requested:
 2. **Search performance** — nodes/sec; node counts and prune ratio with
    alpha-beta on/off and TT on/off; depth reached under a time budget;
    time-to-move by ply.
-3. **Solve correctness** — full-depth alpha-beta from the empty board;
-   confirm Quantik's first-player-win result; report nodes, time, and the
-   perfect-play PV.
+3. **Solve correctness** — a full-depth exact solve from the *empty* board is
+   intractable in pure Python (~23.5M unique canonical states cumulatively;
+   `canonical_key` scans all 192 symmetries, so the open game runs at only a
+   few hundred nodes/s — see `GAME_TREE_ANALYSIS.md`). Correctness is instead
+   anchored on **exact solves from positions a few plies in**, where the value
+   is a precise ply-adjusted number `±(win − plies_to_end)` and every PV leaf
+   is a true terminal (tests: forced win-in-3, forced loss-in-4). The benchmark
+   additionally runs a **time-bounded** search from the empty board and reports
+   depth reached / best line as directional evidence for the known
+   first-player-win result — not a CI-enforced full proof.
 4. **Eval quality** — sign-accuracy and move-agreement (§4.6) for the seeded
    weights vs. the fitted weights, showing the fit improved leaf accuracy.
 
