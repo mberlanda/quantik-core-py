@@ -65,7 +65,6 @@ Side-to-move comes from `get_current_player_from_counts(sum(p0), sum(p1))`.
 import numpy as np
 import pytest
 from quantik_core import State
-from quantik_core.symmetry import SymmetryHandler
 from quantik_core.evaluation import (
     EvalConfig, FEATURE_NAMES, features, evaluate, count_legal_moves,
 )
@@ -92,11 +91,20 @@ def test_evaluate_is_dot_product():
     bb = _bb("AbC./..../d..B/...a")
     assert evaluate(bb, 0, cfg) == pytest.approx(float(cfg.weights @ features(bb, 0)))
 
+def _all_192_variants(bb):
+    # VERIFIED API: D4 x S4 = 192, no color swap (canonical_key excludes color swap).
+    from quantik_core.symmetry import SymmetryHandler as SH
+    out = []
+    for d4 in range(8):
+        g = [SH.permute16(bb[i], d4) for i in range(8)]  # g[0:4]=P0 shapes, g[4:8]=P1
+        for perm in SH.ALL_SHAPE_PERMS:
+            out.append(tuple(g[c * 4 + perm[s]] for c in range(2) for s in range(4)))
+    return out  # 192 boards (with duplicates for symmetric positions)
+
 def test_symmetry_invariance():
     bb = _bb("AbC./..../d..B/...a")
     base = evaluate(bb, 0)
-    for payload in SymmetryHandler.get_all_variants(bb):  # confirm exact API in symmetry.py
-        variant = State.unpack(payload).bb if isinstance(payload, bytes) else payload
+    for variant in _all_192_variants(bb):
         assert evaluate(variant, 0) == pytest.approx(base)
 
 def test_perspective_relationship():
@@ -109,7 +117,7 @@ def test_perspective_relationship():
 
 - [ ] **Step 2: Run tests, verify they fail** — `.venv/bin/pytest tests/test_evaluation.py -x` → ImportError/fail.
 
-  NOTE: `test_symmetry_invariance` references `SymmetryHandler.get_all_variants`. Before implementing, the subagent MUST inspect `src/quantik_core/symmetry.py` for the actual method that enumerates the 192 variants (or reuse `symmetry.py` helpers used by tests in `tests/test_symmetry.py`) and adjust the test to the real API. Do not invent an API.
+  NOTE: variant enumeration uses the VERIFIED API `SymmetryHandler.permute16(val, d4_idx)` + `SymmetryHandler.ALL_SHAPE_PERMS` (24 perms). Confirmed: `canonical_key()` covers D4×S4=192 with NO color swap, so eval invariance is over these 192 only.
 
 - [ ] **Step 3: Implement `evaluation.py`** per the feature semantics above. Keep `features` pure and allocation-light. `count_legal_moves` = `len(generate_legal_moves_list(bb))`.
 
@@ -283,7 +291,7 @@ def test_fit_separates_simple_signal():
 
 **Files:** Modify `src/quantik_core/__init__.py`, `docs/EXAMPLES.md`, `README.md`; Create `docs/MINIMAX.md`; Modify `tests/test_public_api.py` / `tests/test_import_contracts.py`.
 
-- [ ] **Step 1:** Export `MinimaxEngine, MinimaxConfig, MinimaxResult, evaluate, EvalConfig` — match how `MCTSEngine` is surfaced (check whether it's top-level or module-only; mirror it). Update `__all__`.
+- [ ] **Step 1:** Export `MinimaxEngine, MinimaxConfig, MinimaxResult, evaluate, EvalConfig` at TOP LEVEL in `__init__.py` `__all__`. (Note: `MCTSEngine`/`BeamSearchEngine` are module-only, imported via `quantik_core.mcts`; we deliberately surface the new engine top-level as the headline classical-search API. Keep `from quantik_core.minimax import MinimaxEngine` working too.)
 - [ ] **Step 2:** Update import-contract/public-api tests to cover the new names.
 - [ ] **Step 3:** Write `docs/MINIMAX.md` mirroring `docs/MCTS.md` structure (overview, config, usage, TT/ID notes, tuning, benchmarks). Add entries to `docs/EXAMPLES.md` and the README examples table.
 - [ ] **Step 4:** Run `./dev-check.sh` (full gate, coverage ≥ 90%). Fix gaps.
