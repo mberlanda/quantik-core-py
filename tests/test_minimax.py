@@ -1,6 +1,6 @@
 import pytest
 from quantik_core import State
-from quantik_core.minimax import MinimaxEngine, MinimaxConfig
+from quantik_core.minimax import Bound, MinimaxEngine, MinimaxConfig
 
 
 def cfg(**kw):
@@ -91,6 +91,30 @@ def test_iterative_deepening_matches_fixed_depth():
         .search(s)
         .score
     )
+
+
+def test_tt_bounds_ignored_when_alpha_beta_disabled():
+    # Regression: a stored LOWER/UPPER TT bound must never narrow the
+    # window or trigger the early-return cutoff when use_alpha_beta=False
+    # -- that config's contract is an exact, unpruned value. The public
+    # search()/solve() entry points always seed the root with an infinite
+    # window, so this path is unreachable via the public API alone; probe
+    # `_negamax` directly with a deliberately poisoned TT entry instead.
+    s = State.from_qfen(_ANCHOR)
+    engine = MinimaxEngine(
+        cfg(max_depth=3, use_alpha_beta=False, use_transposition_table=True)
+    )
+    key = s.canonical_key()
+
+    exact = engine._negamax(s.bb, 3, float("-inf"), float("inf"), 0, [], key)
+
+    # Poison the TT: an over-optimistic LOWER bound at a depth deep enough
+    # to be trusted (stored_depth >= depth), then re-probe with a window
+    # that would trigger a cutoff if the bound were still honored.
+    poisoned = exact + 1000.0
+    engine._tt[key] = (3, poisoned, Bound.LOWER)
+    value = engine._negamax(s.bb, 3, poisoned - 1.0, poisoned, 0, [], key)
+    assert value == pytest.approx(exact)
 
 
 def test_tt_matches_no_tt_across_sampled_positions():

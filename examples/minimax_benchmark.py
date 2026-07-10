@@ -159,7 +159,6 @@ def bench_solve():
     r = MinimaxEngine(MinimaxConfig(max_depth=16, time_limit_s=5.0)).search(
         State.empty()
     )
-    p0, p1 = count_total_pieces(apply_move(State.empty().bb, r.best_move))
     print(
         f"  empty (5s budget): best={r.best_move} score={r.score:.1f} "
         f"depth={r.depth_reached} ({time.time() - t:.1f}s) -- directional only"

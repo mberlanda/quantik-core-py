@@ -335,12 +335,19 @@ class MinimaxEngine:
                 if stored_depth >= depth:
                     if bound == Bound.EXACT:
                         return stored_value
-                    if bound == Bound.LOWER:
-                        alpha = max(alpha, stored_value)
-                    elif bound == Bound.UPPER:
-                        beta = min(beta, stored_value)
-                    if alpha >= beta:
-                        return stored_value
+                    # LOWER/UPPER entries only narrow the window (and can
+                    # trigger the early-return cutoff below) when
+                    # alpha-beta is enabled. With `use_alpha_beta=False`
+                    # the search contract is an exact, unpruned value;
+                    # reusing a bound here would silently reintroduce
+                    # pruning that the caller explicitly disabled.
+                    if self.config.use_alpha_beta:
+                        if bound == Bound.LOWER:
+                            alpha = max(alpha, stored_value)
+                        elif bound == Bound.UPPER:
+                            beta = min(beta, stored_value)
+                        if alpha >= beta:
+                            return stored_value
 
         ordered = sorted(moves, key=_move_sort_key)
         children = _children(bb, ordered, self.config.dedup_children)
