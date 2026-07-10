@@ -1,6 +1,10 @@
 from quantik_core import State
 from tuning.fill_opening_book import exact_entry, fill
-from quantik_core.opening_book import OpeningBookConfig, OpeningBookDatabase
+from quantik_core.opening_book import (
+    OpeningBookConfig,
+    OpeningBookDatabase,
+    TerminalStatus,
+)
 
 # A deep (12-piece) P0-to-move anchor with a single forced win-in-1 (B at
 # pos 13), NOT the plan's original "AbC./..../..../...." (3 pieces placed):
@@ -26,6 +30,29 @@ def test_exact_entry_loss_for_side_to_move():
     e = exact_entry(State.from_qfen(".D.a/D..c/..d./.BBd").bb)
     assert e["evaluation"] == -1.0
     assert e["win_count_p1"] == 1 and e["win_count_p0"] == 0
+
+
+def test_exact_entry_handles_completed_winning_line_without_solving():
+    # Regression: MinimaxEngine.solve/search assume a non-terminal root.
+    # This board's row 0 already completed a winning line (by the
+    # PREVIOUS mover); calling solve() on it either mis-scores it as an
+    # interior node or raises. P0 (the side to move here) has already
+    # lost -- exact_entry must recognize this directly.
+    bb = State.from_qfen("AbCd/..../..../....").bb
+    e = exact_entry(bb)
+    assert e["evaluation"] == -1.0
+    assert e["win_count_p1"] == 1 and e["win_count_p0"] == 0
+    assert e["best_moves"] == []
+    assert e["is_terminal"] == TerminalStatus.WIN_P1
+
+
+def test_exact_entry_handles_no_legal_moves_without_solving():
+    # Regression, the other terminal condition: no winning line, but the
+    # side to move has zero legal moves (search() raises on this).
+    bb = State.from_qfen(".DbC/c.ab/cD.a/AA.C").bb
+    e = exact_entry(bb)
+    assert e["evaluation"] == -1.0
+    assert e["best_moves"] == []
 
 
 def test_fill_writes_and_is_idempotent(tmp_path):

@@ -16,8 +16,13 @@ from __future__ import annotations
 from typing import Dict, List
 
 from quantik_core import Move, State
-from quantik_core.game_utils import count_total_pieces, get_current_player_from_counts
+from quantik_core.game_utils import (
+    count_total_pieces,
+    get_current_player_from_counts,
+    has_winning_line,
+)
 from quantik_core.minimax import MinimaxConfig, MinimaxEngine
+from quantik_core.move import generate_legal_moves_list
 from quantik_core.opening_book import (
     OpeningBookConfig,
     OpeningBookDatabase,
@@ -38,13 +43,33 @@ def exact_entry(bb) -> Dict:
 
     `evaluation` is +1.0 if the side to move wins with perfect play, else
     -1.0 (Quantik has no draws). `best_moves` is the solver's best move.
+
+    `MinimaxEngine.solve`/`search` assume a non-terminal root: a
+    no-legal-moves position raises, and a position with an already-completed
+    winning line (but empty cells remaining, so `search` wouldn't raise) is
+    silently mis-scored -- treated as an interior node instead of an already
+    -decided one. `sample_states()` filters these out, but `exact_entry` is
+    a public, reusable mapping function, so a terminal `bb` (either
+    condition) is handled directly here instead of being solved: the side
+    to move has already lost, matching the convention `_negamax` uses
+    throughout `minimax.py`.
     """
-    result = MinimaxEngine(MinimaxConfig(max_depth=16)).solve(State(bb))
     p0, p1 = count_total_pieces(bb)
     stm = get_current_player_from_counts(p0, p1)
-    stm_wins = result.score > 0
+    already_decided = has_winning_line(bb) or not generate_legal_moves_list(bb)
+    if already_decided:
+        stm_wins = False
+        best_moves: List[Move] = []
+    else:
+        result = MinimaxEngine(MinimaxConfig(max_depth=16)).solve(State(bb))
+        stm_wins = result.score > 0
+        best_moves = [result.best_move]
     winner = stm if stm_wins else 1 - stm
-    best_moves: List[Move] = [result.best_move]
+    is_terminal = (
+        (TerminalStatus.WIN_P0 if winner == 0 else TerminalStatus.WIN_P1)
+        if already_decided
+        else TerminalStatus.INTERIOR
+    )
     return {
         "evaluation": 1.0 if stm_wins else -1.0,
         "visit_count": 1,
@@ -53,7 +78,7 @@ def exact_entry(bb) -> Dict:
         "draw_count": 0,
         "best_moves": best_moves,
         "depth": p0 + p1,
-        "is_terminal": TerminalStatus.INTERIOR,
+        "is_terminal": is_terminal,
         "symmetry_count": State(bb).symmetry_count(),
     }
 
