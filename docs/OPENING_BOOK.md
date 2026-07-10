@@ -298,6 +298,40 @@ def build_opening_book(db, max_depth=5):
     return len(positions)
 ```
 
+## Filling with Exact Solver Ground Truth
+
+The self-play exploration above records *statistical* estimates (`evaluation`
+computed by walking the raw tree, `best_moves` taken from move-generation
+order rather than actual strength). `tuning/fill_opening_book.py` instead
+writes **exact** entries: it samples positions that are tractable to solve
+outright with `quantik_core.minimax.MinimaxEngine` (8–12 plies in, where a
+full solve is fast — see `docs/MINIMAX.md`'s "three depths" section) and
+records the solver's true game-theoretic value, winner, and best move. Since
+the book is keyed by `canonical_key()` and is engine-agnostic, these entries
+upgrade what MCTS and beam search read for those positions from an estimate
+to ground truth.
+
+```python
+from quantik_core.opening_book import OpeningBookConfig, OpeningBookDatabase
+from tuning.fill_opening_book import fill
+
+with OpeningBookDatabase(OpeningBookConfig(database_path="quantik_opening_book.db")) as db:
+    written = fill(db, n=300, seed=20260710)
+    print(f"wrote {written} exact entries")
+```
+
+Or from the command line:
+
+```bash
+python -m tuning.fill_opening_book   # writes quantik_opening_book.db
+```
+
+The `evaluation` convention here is the **side-to-move's** perspective
+(`+1.0` win / `-1.0` loss — Quantik has no draws), not the fixed P0
+perspective used by the self-play example above; check `evaluation`
+alongside `win_count_p0`/`win_count_p1`, which are always in absolute
+P0/P1 terms, if you need to compare the two.
+
 ## Statistics and Analytics
 
 ### Database Statistics

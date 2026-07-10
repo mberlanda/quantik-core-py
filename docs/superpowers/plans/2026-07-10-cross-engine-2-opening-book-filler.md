@@ -36,7 +36,7 @@
 
 **Convention (document in the module docstring):** the book `evaluation` is stored from the **side-to-move's** perspective: `+1.0` if the side to move wins with perfect play, `-1.0` if it loses. `win_count_p0/p1` record the exact winner as a single ground-truth "game".
 
-- [ ] **Step 1: Write failing tests**:
+- [x] **Step 1: Write failing tests**:
 
 ```python
 import numpy as np  # noqa: F401  (parity with repo style; remove if unused)
@@ -75,9 +75,9 @@ def test_fill_writes_and_is_idempotent(tmp_path):
         fill(db, n=15, seed=1)
 ```
 
-- [ ] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_opening_book_filler.py -x --no-cov`. Ensure `tuning/` is importable (a `tuning/__init__.py` already exists from the minimax feature).
+- [x] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_opening_book_filler.py -x --no-cov`. Ensure `tuning/` is importable (a `tuning/__init__.py` already exists from the minimax feature).
 
-- [ ] **Step 3: Implement `tuning/fill_opening_book.py`.** Full content:
+- [x] **Step 3: Implement `tuning/fill_opening_book.py`.** Full content:
 
 ```python
 """Fill the shared opening book with EXACT minimax-solved entries.
@@ -157,11 +157,11 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_opening_book_filler.py -v --no-cov`.
+- [x] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_opening_book_filler.py -v --no-cov`.
 
-- [ ] **Step 5: Smoke-run** — `.venv/bin/python tuning/fill_opening_book.py` with a small `n` (edit call or run `python -c "from tuning.fill_opening_book import main; main(n=30)"`). Confirm it writes a DB and prints a count. Do NOT commit the `.db` file — add `*.db` to `.gitignore` if not already ignored (`grep -q '\.db' .gitignore || echo '*.db' >> .gitignore`).
+- [x] **Step 5: Smoke-run** — `.venv/bin/python tuning/fill_opening_book.py` with a small `n` (edit call or run `python -c "from tuning.fill_opening_book import main; main(n=30)"`). Confirm it writes a DB and prints a count. Do NOT commit the `.db` file — add `*.db` to `.gitignore` if not already ignored (`grep -q '\.db' .gitignore || echo '*.db' >> .gitignore`).
 
-- [ ] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add tuning/fill_opening_book.py tests/test_opening_book_filler.py .gitignore`; commit `feat(tuning): exact-solver opening-book filler`.
+- [x] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add tuning/fill_opening_book.py tests/test_opening_book_filler.py .gitignore`; commit `feat(tuning): exact-solver opening-book filler`.
 
 ---
 
@@ -170,3 +170,31 @@ if __name__ == "__main__":
 - `evaluation` perspective documented (side-to-move) and consistent with `win_count_*`.
 - No `.db` artifact committed.
 - Optional extension (note in the module, do not implement unless asked): store the FULL optimal-move set instead of just `result.best_move`, by solving each child (more expensive).
+
+## Post-implementation notes
+
+Both plan test anchors reused the SAME `"AbC./..../..../...."` position
+already found to be intractable in follow-up 1: `exact_entry()` calls
+`MinimaxEngine.solve()` on the **root** itself (not a child), and
+`_search_root` deliberately does not prune across root siblings, so a
+near-empty root requires exhaustively evaluating ~40 non-winning branches
+from the intractable early game (timed out after 30s, never completed).
+Replaced with a deep (12-piece) P0-to-move anchor with a single forced
+win-in-1 (`"ad.b/.cDb/CaBC/D.A."`, solves in 0.58s); the second anchor
+(a pre-existing 8-piece forced-loss-in-4 position from
+`tests/test_minimax.py`) was already fine.
+
+Proactively applied the script-mode import fallback pattern from
+`fit_weights.py` (a PR #17 review finding) to `fill_opening_book.py`
+before it could recur as its own finding, and added `*.db`/`*.db-shm`/
+`*.db-wal` to `.gitignore` (the opening book's default WAL mode leaves
+sidecar files alongside the main `.db`).
+
+Verified both invocation modes end-to-end: `python -m tuning.fill_opening_book`
+and `python tuning/fill_opening_book.py` (script mode, exercising the
+fallback import) both wrote 300 entries in ~119s.
+
+Documented the tool in `docs/OPENING_BOOK.md` under a new "Filling with
+Exact Solver Ground Truth" section, distinguishing its ground-truth
+`evaluation` convention (side-to-move perspective) from the pre-existing
+self-play example's fixed-P0 convention.

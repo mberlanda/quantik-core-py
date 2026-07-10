@@ -254,3 +254,10 @@ qfen_validation_results.txt
 
 # Tuning dataset (regenerable via tuning/build_dataset.py)
 tuning/dataset.npz
+
+# Opening book databases (regenerable via tuning/fill_opening_book.py).
+# WAL-mode SQLite (OpeningBookConfig.enable_wal=True) also leaves -shm/-wal
+# sidecar files alongside the main .db.
+*.db
+*.db-shm
+*.db-wal
