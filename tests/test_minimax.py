@@ -93,6 +93,34 @@ def test_iterative_deepening_matches_fixed_depth():
     )
 
 
+def test_tt_matches_no_tt_across_sampled_positions():
+    # Regression for a TT-bound-classification bug: a TT hit narrows this
+    # node's alpha/beta before searching, but the final EXACT/LOWER/UPPER
+    # classification must compare `best_value` against the ORIGINAL window
+    # (pre-narrowing), not the narrowed one -- else a cutoff only reachable
+    # because of an unrelated entry's tighter window gets misrecorded as a
+    # bound proven against the caller's actual window, corrupting later
+    # reuse of that entry. The single fixed `_ANCHOR` position never
+    # exercised this path; sampling several positions with real transposing
+    # sibling lines (mid-game, more legal moves) does.
+    from tuning.build_dataset import sample_states
+
+    positions = sample_states(10, seed=4242)
+    for bb in positions:
+        s = State(bb)
+        v_tt = (
+            MinimaxEngine(cfg(max_depth=6, use_transposition_table=True))
+            .search(s)
+            .score
+        )
+        v_no_tt = (
+            MinimaxEngine(cfg(max_depth=6, use_transposition_table=False))
+            .search(s)
+            .score
+        )
+        assert v_tt == pytest.approx(v_no_tt), f"mismatch at {s.to_qfen()!r}"
+
+
 # ----- exact-solve correctness anchors -------------------------------------
 # A full solve from the EMPTY board is intractable in pure Python (~23.5M
 # unique canonical states cumulatively; canonical_key scans all 192

@@ -13,14 +13,24 @@ Run: python examples/minimax_demo.py
 
 import random
 import time
+from pathlib import Path
 from typing import Callable, Optional
 
+import quantik_core.evaluation as _evaluation_module
 from quantik_core import Move, State, apply_move
 from quantik_core.evaluation import EvalConfig
 from quantik_core.game_utils import check_game_winner, has_winning_line, WinStatus
 from quantik_core.mcts import MCTSConfig, MCTSEngine
 from quantik_core.minimax import MinimaxConfig, MinimaxEngine
 from quantik_core.move import generate_legal_moves_list
+
+# Mirrors EvalConfig.load()'s own default-path resolution, so this demo can
+# tell (and say honestly) whether "fitted" actually differs from "seeded" --
+# EvalConfig.load() silently falls back to seeded weights when the file is
+# absent, which would otherwise make the [2] comparison below misleading.
+_WEIGHTS_PATH = (
+    Path(_evaluation_module.__file__).resolve().parents[2] / "tuning" / "weights.json"
+)
 
 
 def format_move(move: Move) -> str:
@@ -133,6 +143,12 @@ def main() -> None:
     # Seeded vs fitted weights on a quiet mid-game position.
     quiet = State.from_qfen(".D.a/..../..d./.BBd")
     print("\n[2] Seeded vs fitted evaluation (shallow search):")
+    if not _WEIGHTS_PATH.exists():
+        print(
+            f"  note: {_WEIGHTS_PATH} not found -- 'fitted' falls back to seeded "
+            "weights (run `python -m tuning.fit_weights` to generate it), so "
+            "both rows below will be identical."
+        )
     for label, cfg in (("seeded", EvalConfig()), ("fitted", EvalConfig.load())):
         r = MinimaxEngine(MinimaxConfig(max_depth=2, eval_config=cfg)).search(quiet)
         print(f"  {label}: best {format_move(r.best_move)}  score={r.score:.2f}")

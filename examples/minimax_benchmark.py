@@ -79,6 +79,12 @@ def _sample_solved(n, seed, min_plies=8, max_plies=12):
 
 def bench_strength(games=8):
     print("\n[1] Playing strength")
+    if not _md._WEIGHTS_PATH.exists():
+        print(
+            f"  note: {_md._WEIGHTS_PATH} not found -- EvalConfig.load() falls "
+            "back to seeded weights, so this is NOT a fitted-eval benchmark "
+            "(run `python -m tuning.fit_weights` first for a fitted run)."
+        )
     mm = dict(max_depth=6, time_limit_s=0.15, eval_config=EvalConfig.load())
 
     def rate(results, mm_win):
@@ -162,6 +168,11 @@ def bench_solve():
 
 def bench_eval_quality(n=60):
     print(f"\n[4] Evaluation quality (n={n} solved positions)")
+    if not _md._WEIGHTS_PATH.exists():
+        print(
+            f"  note: {_md._WEIGHTS_PATH} not found -- 'fitted' below falls back "
+            "to seeded weights, so the two rows will be identical."
+        )
     samples = _sample_solved(n, seed=12345)
     for label, cfg in (("seeded", EvalConfig()), ("fitted", EvalConfig.load())):
         sign_hits = agree = 0

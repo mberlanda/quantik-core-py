@@ -67,6 +67,13 @@ class EvalConfig:
         defaults (`weights = [100, -100, 20, 3, 2, 0]`, `win = 10_000.0`) are
         returned when the target file is absent.
 
+        The default-path resolution walks up from this module's own file,
+        so it only finds `tuning/weights.json` for a source checkout or an
+        editable install (`pip install -e .`) -- `tuning/` is not packaged
+        into a built wheel/sdist. Consumers of a regular (non-editable)
+        install will always get the seeded defaults unless they pass an
+        explicit `path`.
+
         Args:
             path: Optional path to a weights JSON file. If `None`, defaults to
                 `<repo-root>/tuning/weights.json`.

@@ -242,6 +242,7 @@ logs/
 data/
 *.csv
 *.json
+!tuning/weights.json
 *.pkl
 *.pickle
 

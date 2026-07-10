@@ -71,7 +71,10 @@ complete them), mobility, and partial line-building. The evaluation is
 Weights are **fitted, not hand-guessed** (see `tuning/`, below). `EvalConfig()`
 holds the seeded starting weights `[100, -100, 20, 3, 2, 0]`; `EvalConfig.load()`
 reads the fitted weights from `tuning/weights.json` (falling back to seeded if
-absent).
+absent). `tuning/weights.json` is committed to the repo, so a source checkout
+or editable install (`pip install -e .`) picks it up automatically; a regular
+(non-editable) wheel install does not include `tuning/`, so `EvalConfig.load()`
+falls back to seeded weights there unless you pass an explicit `path`.
 
 ## Three "depths" — what is exact, and where sampling enters
 

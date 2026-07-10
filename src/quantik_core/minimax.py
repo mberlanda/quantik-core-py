@@ -309,6 +309,7 @@ class MinimaxEngine:
 
         tt_key: Optional[bytes] = None
         orig_alpha = alpha
+        orig_beta = beta
         if self.config.use_transposition_table:
             tt_key = (
                 precomputed_key
@@ -360,9 +361,14 @@ class MinimaxEngine:
             pv_out.extend(best_child_pv)
 
         if tt_key is not None:
+            # Classify against the ORIGINAL (pre-TT-narrowing) window, not
+            # the possibly-tightened `alpha`/`beta` used for this search --
+            # otherwise a cutoff triggered only by an unrelated TT entry's
+            # narrowed window could be misrecorded as a fail-high/fail-low
+            # against a window this call never actually proved against.
             if best_value <= orig_alpha:
                 bound = Bound.UPPER
-            elif self.config.use_alpha_beta and best_value >= beta:
+            elif self.config.use_alpha_beta and best_value >= orig_beta:
                 bound = Bound.LOWER
             else:
                 bound = Bound.EXACT
