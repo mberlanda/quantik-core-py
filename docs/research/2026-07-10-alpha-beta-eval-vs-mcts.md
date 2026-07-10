@@ -639,6 +639,31 @@ strategies over the same canonical state representation — exhaustive-frontier
 coverage, adaptive stochastic sampling, and exact deterministic search with
 a learned leaf heuristic — each strongest where the others are weakest.
 
+## Future work: cross-engine cooperation
+
+All three engines key off the same `canonical_key()`, so they share a state
+identity and can be made to help one another. Concrete follow-ups (each its own
+piece of work, listed roughly by increasing scope):
+
+1. **Mid-game strength & agreement benchmark.** Today the strength games start
+   from the empty board and the head-to-head baseline (MCTS-1500) is weak. A
+   more representative measurement plays minimax, UCT, and beam search from a
+   *shared set of random valid non-terminal mid-game positions* (both sides to
+   move), and adds a **move-agreement** metric: how often each stochastic
+   engine picks the exact-solver's move on the same position set.
+2. **Exact-solver → shared opening book.** The `OpeningBookDatabase` is keyed by
+   `canonical_key` and is engine-agnostic. A batch job can solve every
+   tractable position and write **exact** evaluations and best moves into the
+   book, upgrading statistical entries to ground truth for every engine that
+   consults it.
+3. **Hybrid opening→endgame player.** Use adaptive sampling (UCT or beam) while
+   the tree is intractable, then hand off to the **exact** minimax solve once
+   few enough cells remain — pairing each engine with the regime where it is
+   strongest and sidestepping the open-game intractability wall entirely.
+4. **Eval-guided MCTS rollouts.** Replace UCT's random playouts with the fitted
+   evaluation as a leaf/rollout policy — the evaluation from this work is kept a
+   pure function precisely so this stays a small change.
+
 ## References
 
 - Companion papers: [2026-07-07-beam-search-vs-mcts.md](2026-07-07-beam-search-vs-mcts.md),

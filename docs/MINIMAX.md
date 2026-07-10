@@ -73,6 +73,34 @@ holds the seeded starting weights `[100, -100, 20, 3, 2, 0]`; `EvalConfig.load()
 reads the fitted weights from `tuning/weights.json` (falling back to seeded if
 absent).
 
+## Three "depths" — what is exact, and where sampling enters
+
+These are independent and easy to conflate:
+
+| Depth | What it means | Exact? | Estimate / sampling |
+|-------|---------------|--------|---------------------|
+| **Runtime search depth** (`search(max_depth=d)`) | The top `d` plies from the search root are explored exhaustively (alpha-beta only prunes provably-irrelevant lines). | Top `d` plies: yes. | Depth-`d` leaves use the fitted **evaluation** estimate. |
+| **Solve depth** (`solve()` = `max_depth=16`) | The whole remaining game, down to true terminals. | **Fully exact** — no evaluation ever used. | None — but only *tractable* when few plies remain. |
+| **Training-sample depth** (dataset generation) | The ply at which positions are sampled to be labeled by the solver. | The label is exact (via `solve`). | **This is the only place random sampling enters.** Positions are sampled 8–12 plies in, because that is where `solve` is fast. |
+
+The last row is the subtle one: sampling at plies 8–12 is a property of **how
+training labels are produced**, not of how the engine searches at runtime. At
+runtime the engine exhaustively covers its top `d` plies from whatever position
+it is given.
+
+## Cross-engine cooperation (shared representation)
+
+Because every engine in this library keys off the same `canonical_key()`, they
+share a state identity and can help each other. The `OpeningBookDatabase`
+(`quantik_core.opening_book`) is keyed by `canonical_key` and stores
+`best_moves` / `evaluation` / terminal status — it is **engine-agnostic**, so
+MCTS, beam search, and minimax all read and write the same book. In particular
+the minimax **exact solver** can produce authoritative entries (exact value and
+best moves) that upgrade another engine's statistical estimates wherever a
+position is tractable to solve. See the research note for the planned
+cooperation directions (a hybrid opening→endgame player, an exact-solver book
+filler, eval-guided MCTS rollouts, and cross-engine move-agreement metrics).
+
 ## Tuning the weights (`tuning/`)
 
 A full solve from the empty board is intractable in pure Python (~23.5M unique
