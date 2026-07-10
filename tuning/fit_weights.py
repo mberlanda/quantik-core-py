@@ -5,10 +5,11 @@ weights are those whose sign best predicts the exact solver outcome. We fit
 them with plain-numpy logistic regression (batch gradient descent + small L2),
 which is deterministic given a seed and needs no extra dependency.
 
-Run: `python -m tuning.fit_weights` -> builds/loads `tuning/dataset.npz`,
-fits, writes `tuning/weights.json`, and prints seeded-vs-fitted sign accuracy.
-(Module mode is required: this file imports its sibling `tuning.build_dataset`
-as a package, which is not importable via a bare `python tuning/fit_weights.py`.)
+Run: `python -m tuning.fit_weights` (preferred) or `python tuning/fit_weights.py`
+-> builds/loads `tuning/dataset.npz`, fits, writes `tuning/weights.json`, and
+prints seeded-vs-fitted sign accuracy. Module mode is preferred since
+`tuning/` is a package, but `main()` also has an import fallback so the
+bare-script invocation works too.
 """
 
 from __future__ import annotations
