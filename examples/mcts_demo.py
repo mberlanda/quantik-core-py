@@ -31,11 +31,17 @@ class SearchResult:
 
 
 def format_move(move: Move) -> str:
-    """Format move for display."""
-    shape_name = chr(ord("A") + move.shape)
+    """Format move for display, player-aware.
+
+    QFEN convention: uppercase shape letters are player 0, lowercase are
+    player 1 (see `State.to_qfen`), so the letter case here follows suit.
+    """
+    shape_letter = chr(ord("A") + move.shape)
+    if move.player == 1:
+        shape_letter = shape_letter.lower()
     row = move.position // 4
     col = move.position % 4
-    return f"{shape_name} at ({row}, {col}) [pos {move.position}]"
+    return f"{shape_letter} at ({row}, {col}) [pos {move.position}]"
 
 
 def print_board(state: State):

@@ -185,6 +185,41 @@ class TestMCTSEngine:
         assert child.depth == 1
         assert child.parent_id == root_id
 
+    def test_expand_wires_use_transposition_table_enabled(self):
+        """_expand must forward config.use_transposition_table to the tree.
+
+        MCTSConfig.use_transposition_table was previously declared but never
+        consulted; this pins that _expand actually threads it through to
+        CompactGameTree.add_child_node rather than silently always merging.
+        """
+        config = MCTSConfig(random_seed=42, use_transposition_table=True)
+        engine = MCTSEngine(config)
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        with patch.object(
+            engine.tree, "add_child_node", wraps=engine.tree.add_child_node
+        ) as spy:
+            engine._expand(root_id)
+
+        spy.assert_called_once()
+        assert spy.call_args.kwargs["use_transposition_table"] is True
+
+    def test_expand_wires_use_transposition_table_disabled(self):
+        """Mutation guard: flipping the config value must flip the call arg."""
+        config = MCTSConfig(random_seed=42, use_transposition_table=False)
+        engine = MCTSEngine(config)
+        state = State.from_qfen("..../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+
+        with patch.object(
+            engine.tree, "add_child_node", wraps=engine.tree.add_child_node
+        ) as spy:
+            engine._expand(root_id)
+
+        spy.assert_called_once()
+        assert spy.call_args.kwargs["use_transposition_table"] is False
+
     def test_simulation(self):
         """Test random simulation."""
         config = MCTSConfig(max_depth=8, random_seed=42)
@@ -370,6 +405,44 @@ class TestMCTSEngine:
         node = engine.tree.get_node(child_id)
         assert node.flags & NODE_FLAG_TERMINAL
         assert node.flags & NODE_FLAG_WINNING_P0
+        assert float(node.terminal_value) == pytest.approx(1.0)
+
+    def test_expand_stalemate_at_p1_rooted_tree_attributes_p0_win(self):
+        """Rooting directly at a P1-to-move state must attribute the win correctly.
+
+        Integration guard for the create_root_node player_turn derivation:
+        the tree is rooted at a state where player 0 has already moved once
+        (so player 1 is to move), and player 1 is then blocked. The blocked
+        player loses, so player 0 must be recorded as the winner.
+
+        This exercises the fix's downstream consequence, not just the
+        isolated derivation: if create_root_node reverted to hardcoding
+        player_turn=0, the root would be treated as player-0-to-move and
+        the stalemate would be mis-attributed as a player-1 win, flipping
+        both the winning flag and the terminal value. The sibling
+        test_expand_stalemate_player1_loses cannot catch that regression
+        because it reaches player_turn==1 via a child of the root rather
+        than the root itself.
+        """
+        config = MCTSConfig(random_seed=42)
+        engine = MCTSEngine(config)
+
+        # Player 0 has placed one piece -> player 1 is to move at the root.
+        state = State.from_qfen("A.../..../..../....")
+        root_id = engine.tree.create_root_node(state)
+        assert int(engine.tree.get_node(root_id).player_turn) == 1
+
+        with (
+            patch("quantik_core.mcts.check_game_winner", return_value=WinStatus.NO_WIN),
+            patch("quantik_core.mcts.generate_legal_moves", return_value=(1, {})),
+        ):
+            result = engine._expand(root_id)
+
+        assert result is None
+        node = engine.tree.get_node(root_id)
+        assert node.flags & NODE_FLAG_TERMINAL
+        assert node.flags & NODE_FLAG_WINNING_P0
+        assert not (node.flags & NODE_FLAG_WINNING_P1)
         assert float(node.terminal_value) == pytest.approx(1.0)
 
     def test_simulate_stalemate_player0(self):

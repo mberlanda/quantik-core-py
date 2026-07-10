@@ -51,7 +51,7 @@ print(f"Memory usage: {stats['memory_usage']} bytes")
 | `max_iterations` | int | 10,000 | Maximum number of MCTS iterations |
 | `max_depth` | int | 16 | Maximum simulation depth |
 | `random_seed` | int\|None | None | Seed for reproducible results |
-| `use_transposition_table` | bool | True | Use existing tree nodes for transpositions |
+| `use_transposition_table` | bool | True | When `False`, expansion always allocates a fresh node instead of merging into an existing node that shares the same canonical state at the same depth |
 
 ### Exploration Weight Tuning
 
@@ -110,11 +110,14 @@ for child_id in children:
 
 ### Iteration Speed
 
-Typical performance on modern hardware:
+Measured on the current pure-Python engine (empty board, `random_seed=42`):
 
-- **Empty board**: 20,000-25,000 iterations/second
-- **Midgame**: 15,000-20,000 iterations/second
-- **Endgame**: 25,000-30,000 iterations/second
+- **Empty board**: ~150-210 iterations/second (measured over 1k-5k iteration
+  runs; the rate varies run-to-run within this band). Throughput is dominated
+  by per-iteration random-playout cost, not tree/UCB overhead, so it can drift
+  lower on longer runs as the tree deepens and playouts lengthen (see
+  `docs/research/2026-07-07-beam-search-vs-mcts.md` §5.4 for iteration counts
+  up to 25k).
 
 ### Memory Usage
 

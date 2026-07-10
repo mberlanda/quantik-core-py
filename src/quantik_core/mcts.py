@@ -234,7 +234,11 @@ class MCTSEngine:
 
             if new_state.canonical_key() not in existing_states:
                 # Add this child
-                child_id = self.tree.add_child_node(node_id, new_state)
+                child_id = self.tree.add_child_node(
+                    node_id,
+                    new_state,
+                    use_transposition_table=self.config.use_transposition_table,
+                )
 
                 # Mark parent as expanded if all moves tried
                 if len(existing_children) + 1 == len(all_moves):
