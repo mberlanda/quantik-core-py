@@ -184,7 +184,9 @@ if __name__ == "__main__":
 - Is the smoke test cheap? (It solves a near-terminal position and runs one shallow search per engine — a few seconds. Acceptable.)
 - No new runtime dependencies; heavy work under `__main__`.
 
-## Post-implementation notes (two defects found and fixed during execution)
+## Post-implementation notes
+
+Two defects found and fixed during initial execution:
 
 1. **`optimal_moves` must not call `.solve()`/`.search()` on a terminal
    child.** A legal move that immediately wins (completes a line, or leaves
@@ -207,7 +209,30 @@ if __name__ == "__main__":
    replaced the anchor with a mid-game position (8 plies in); the full smoke
    test now runs in well under a second.
 
-Actual run (`examples/cross_engine_benchmark.py`, 69.4s): move-agreement
-minimax=1.000, beam=0.975, mcts=0.500. Head-to-head from mid-game starts
-(minimax P0 vs MCTS P1): minimax won 4/8 — see the research note's
-"Future work" section (item 1) for the full writeup.
+A GitHub Copilot review of the resulting PR (#18) then found a third,
+more consequential defect:
+
+3. **`play_from` hard-coded `turn = 0`, silently misattributing wins.**
+   `sample_states()` returns positions with either color to move (verified:
+   5 of 8 positions in the default seed have P1 to move), but `play_from`
+   always started `turn = 0`, assuming `bb`'s side to move is P0. The move
+   computed at each ply was still correct (engines read the side to move
+   from the bitboard, not from `turn`), but *which engine got credited* for
+   that move was wrong whenever the sample's actual side to move was P1 —
+   `players[0]` ("minimax") would end up playing P1's pieces. Fixed by
+   deriving the actual starting color from `bb` via
+   `get_current_player_from_counts` and binding `mover_name`/`other_name`
+   to that color rather than a fixed P0/P1, matching the intended "as the
+   side to move" framing. The reported head-to-head result changed
+   materially as a result — see below. Also fixed in the same round:
+   `optimal_moves` allocated a fresh `MinimaxEngine` per child instead of
+   reusing one (matches the reuse pattern already established for
+   `MinimaxEngine.solve()` in PR #17), and `move_agreement` divided by
+   `len(positions)` without guarding the empty-sample case.
+
+Actual run (`examples/cross_engine_benchmark.py`, 69.4s, post all fixes):
+move-agreement minimax=1.000, beam=0.975, mcts=0.500. Head-to-head, credited
+to whichever engine is actually the side to move at each sampled position:
+minimax won **8/8** (up from an incorrectly-measured 4/8 before the `turn`
+fix) — see the research note's "Future work" section (item 1) for the full
+writeup.

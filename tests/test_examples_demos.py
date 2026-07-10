@@ -183,3 +183,41 @@ class TestCrossEngineBenchmark:
         legal = generate_legal_moves_list(bb)
         for name in ("minimax", "mcts", "beam"):
             assert cross_engine_benchmark.engine_move(name, bb) in legal
+
+    def test_move_agreement_handles_empty_sample(self, cross_engine_benchmark):
+        # sample_states can return fewer than n (or zero) positions; the
+        # division by len(positions) must not raise ZeroDivisionError.
+        result = cross_engine_benchmark.move_agreement(n=0, seed=1)
+        assert result == {"minimax": 0.0, "mcts": 0.0, "beam": 0.0}
+
+    def test_play_from_credits_the_actual_side_to_move(self, cross_engine_benchmark):
+        # Regression: play_from must bind mover_name to whichever color is
+        # ACTUALLY to move at bb, not a hard-coded P0. This anchor (P1 to
+        # move, per the class-level note above) has an immediate win for
+        # the side to move; mover_name="minimax" must be credited with
+        # that win even though P1 -- not P0 -- moves first here.
+        from quantik_core import State
+        from quantik_core.game_utils import (
+            count_total_pieces,
+            get_current_player_from_counts,
+        )
+
+        bb = State.from_qfen(self._ANCHOR).bb
+        p0, p1 = count_total_pieces(bb)
+        assert get_current_player_from_counts(p0, p1) == 1  # P1 to move
+        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+
+    def test_play_from_p0_to_move_case(self, cross_engine_benchmark):
+        # Same guarantee for the other parity: P0 to move (row 0 = A b C .
+        # plus a P1 piece elsewhere to balance the piece count) with an
+        # immediate win, D at pos 3 completing row 0.
+        from quantik_core import State
+        from quantik_core.game_utils import (
+            count_total_pieces,
+            get_current_player_from_counts,
+        )
+
+        bb = State.from_qfen("AbC./d.../..../....").bb
+        p0, p1 = count_total_pieces(bb)
+        assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
+        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True

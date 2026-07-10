@@ -651,11 +651,14 @@ piece of work, listed roughly by increasing scope):
    plies in, both sides to move) and reports **move-agreement**: how often
    each engine's move is in the exact solver's optimal-move set. Measured:
    minimax 1.000 (a shallow-search proxy for the solver), beam 0.975, MCTS
-   0.500. The head-to-head from these same neutral starting positions
-   (minimax P0 vs MCTS-1500 P1) is markedly less lopsided than the
-   empty-board result above — minimax won 4/8, versus ~100% from the empty
-   board — because a random mid-game position isn't systematically
-   favorable to either side the way a controlled opening is.
+   0.500. The head-to-head credits whichever engine is *actually* the side
+   to move at each sampled position (mixed parity — sampled positions have
+   either color to move, so a fixed P0/P1 assignment would silently
+   misattribute wins depending on the sample): minimax won 8/8 as the side
+   to move against MCTS-1500. Unlike the empty-board result above, this
+   isn't measuring a fixed opening-color advantage — it's minimax's edge
+   from getting to act on whatever position it's handed, mid-game
+   included.
 2. **Exact-solver → shared opening book.** The `OpeningBookDatabase` is keyed by
    `canonical_key` and is engine-agnostic. A batch job can solve every
    tractable position and write **exact** evaluations and best moves into the
