@@ -326,6 +326,12 @@ class MinimaxEngine:
 
         ordered = sorted(moves, key=_move_sort_key)
         children = _children(bb, ordered, self.config.dedup_children)
+        # Move ordering: try immediate winning replies first. A move that
+        # completes a line makes this node a forced win (child is terminal,
+        # value -(win-ply) negated to +(win-ply)), so exploring it first
+        # yields the earliest possible beta cutoff. Stable so the
+        # deterministic (shape, position) order is preserved among equals.
+        children.sort(key=lambda c: 0 if has_winning_line(c[1]) else 1)
 
         best_value = float("-inf")
         best_move: Optional[Move] = None
