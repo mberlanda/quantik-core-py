@@ -21,7 +21,8 @@ at all.
 from dataclasses import dataclass, field
 
 from .core import State
-from .move import Move
+from .game_utils import has_winning_line
+from .move import Move, generate_legal_moves_list
 from .minimax import MinimaxConfig, MinimaxEngine
 from .mcts import MCTSConfig, MCTSEngine
 from .beam_search import BeamSearchConfig, BeamSearchEngine
@@ -33,7 +34,8 @@ class HybridConfig:
 
     `handoff_empty_cells`: at or below this many empty cells, use the exact
     solver; above it, use `opening_engine`. Default 8 (>= 8 pieces placed),
-    where exact solves complete in well under a second.
+    where measured exact solves range roughly 0.25-1.3s (hardware-dependent;
+    see `docs/HYBRID.md`).
 
     `minimax_config.max_depth` and `.time_limit_s` are ignored for the
     endgame handoff: `HybridPlayer.search` always calls `MinimaxEngine
@@ -80,6 +82,18 @@ class HybridPlayer:
         return self.search(state).best_move
 
     def search(self, state: State) -> HybridResult:
+        # BeamSearchEngine already raises ValueError for a terminal root,
+        # but MinimaxEngine.solve() and MCTSEngine.search() do not -- both
+        # silently return SOME move on an already-decided position (a
+        # completed winning line that still happens to leave empty cells,
+        # or no legal moves at all) instead of raising. Validate up front
+        # so all three engines behave consistently regardless of which one
+        # this call happens to dispatch to.
+        if has_winning_line(state.bb) or not generate_legal_moves_list(state.bb):
+            raise ValueError(
+                "Cannot search from a terminal state (a winning line is "
+                "already complete, or the side to move has no legal moves)."
+            )
         if _empty_cells(state) <= self.config.handoff_empty_cells:
             move = MinimaxEngine(self.config.minimax_config).solve(state).best_move
             return HybridResult(best_move=move, engine_used="minimax", exact=True)

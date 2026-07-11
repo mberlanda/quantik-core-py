@@ -95,3 +95,33 @@ def test_invalid_engine_raises():
         HybridPlayer(HybridConfig(opening_engine="nope")).search(
             State.from_qfen(_OPEN_GAME_QFEN, validate=True)
         )
+
+
+def test_search_raises_on_already_terminal_state_minimax_path():
+    # Regression: a position with a completed winning line but empty
+    # cells remaining elsewhere previously fell through to
+    # MinimaxEngine.solve() (which only checks "no legal moves", not
+    # "already won") and silently returned a meaningless move with
+    # exact=True. Confirmed concretely: pre-fix, this returned
+    # HybridResult(best_move=..., engine_used="minimax", exact=True)
+    # instead of raising.
+    state = State.from_qfen("AbCd/..../..../....", validate=True)
+    assert has_winning_line(state.bb) and generate_legal_moves_list(state.bb)
+    player = HybridPlayer(HybridConfig(handoff_empty_cells=16))  # force minimax path
+    with pytest.raises(ValueError, match="terminal"):
+        player.search(state)
+
+
+def test_search_raises_on_already_terminal_state_mcts_path():
+    # Same regression, opening-engine side: MCTSEngine.search() also
+    # didn't validate terminality and silently returned a move.
+    state = State.from_qfen("AbCd/..../..../....", validate=True)
+    player = HybridPlayer(
+        HybridConfig(
+            handoff_empty_cells=0,
+            opening_engine="mcts",
+            mcts_config=MCTSConfig(max_iterations=10, random_seed=0),
+        )
+    )
+    with pytest.raises(ValueError, match="terminal"):
+        player.search(state)

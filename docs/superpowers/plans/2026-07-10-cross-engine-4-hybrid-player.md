@@ -241,3 +241,25 @@ discovered while implementing Follow-up 3 (PR #20): `CompactGameTree
 .create_root_node` marks the root as fully expanded at creation, so MCTS's
 root can get stuck with a single explored child regardless of
 `max_iterations`. `opening_engine="beam"` does not share this limitation.
+
+Two more review rounds followed. Round 2: an undocumented API-clarity gap
+(`minimax_config.max_depth`/`.time_limit_s`/`.eval_config` are silently
+ignored by `MinimaxEngine.solve()`, now documented in both places) and a
+cosmetic docstring line-wrap. Round 3 found the most severe issue in this
+PR: `HybridPlayer.search()` never validated that the input state was
+non-terminal before dispatching. `BeamSearchEngine.search()` already
+raises `ValueError` for a terminal root, but `MinimaxEngine.solve()` and
+`MCTSEngine.search()` do not -- both silently returned a meaningless move
+on an already-decided position (confirmed concretely: a completed-winning
+-line board with empty cells remaining elsewhere returned `HybridResult
+(..., engine_used="minimax", exact=True)` instead of raising, on both the
+minimax and MCTS paths). Fixed by validating up front in `search()` itself
+(`has_winning_line` or no legal moves → raise), so all three engines now
+behave consistently regardless of which one a call dispatches to. Two
+regression tests (one per previously-silent path) confirmed to fail
+against the pre-fix code. Also fixed: an inconsistent docstring claim
+("well under a second" vs. the documented 0.25-1.3s measured range), and
+an overclaim in `docs/HYBRID.md` about beam search's terminal-reaching
+guarantee (only *surviving* candidates are followed to a true terminal;
+`beam_width` pruning can discard a promising line before it's explored).
+Overall coverage after all three rounds: 92.02%.

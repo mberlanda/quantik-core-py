@@ -61,9 +61,13 @@ blend — at or below the threshold, the exact solver decides every move.
 
 ### Choosing `opening_engine`
 
-- **`"beam"`** (`BeamSearchEngine`) always reaches true terminal states
-  within its search horizon and is deterministic given a seed. See
-  `docs/BEAM_SEARCH.md`.
+- **`"beam"`** (`BeamSearchEngine`) is deterministic given a seed, and any
+  candidate that *survives* beam pruning is always followed all the way to
+  a true terminal state (unlike MCTS's rollouts, which can stop at
+  `max_depth` without resolving). This is not a guarantee of finding the
+  objectively best line, though: `beam_width` pruning can discard a
+  promising branch before it's explored deeply enough to reveal where it
+  leads. See `docs/BEAM_SEARCH.md`.
 - **`"mcts"`** (`MCTSEngine`) samples stochastically via UCB1. **Known
   limitation:** `CompactGameTree.create_root_node` currently marks the
   root node as fully expanded at creation instead of only once every
