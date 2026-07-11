@@ -7,15 +7,15 @@ Quantik's branching shrinks as pieces are placed, so a position with few
 empty cells has a small remaining tree that `MinimaxEngine.solve` resolves
 exactly and quickly.
 
-Known limitation when `opening_engine="mcts"`: `CompactGameTree
-.create_root_node` currently marks the root node as fully expanded at
-creation instead of only once every legal move has a child, which can
-leave MCTS's root with a single explored child regardless of
-`max_iterations` (see `docs/MCTS.md`'s "Known limitation" note). When that
-happens, the opening move MCTS returns is decided by move-generation
-order rather than search quality. `opening_engine="beam"` does not share
-this limitation -- `BeamSearchEngine` does not use `CompactGameTree`'s
-`NODE_FLAG_EXPANDED`/`_select` traversal at all.
+Known limitation when `opening_engine="mcts"`: `CompactGameTree.create_root_node`
+currently marks the root node as fully expanded at creation instead of only
+once every legal move has a child, which can leave MCTS's root with a
+single explored child regardless of `max_iterations` (see `docs/MCTS.md`'s
+"Known limitation" note). When that happens, the opening move MCTS returns
+is decided by move-generation order rather than search quality.
+`opening_engine="beam"` does not share this limitation -- `BeamSearchEngine`
+does not use `CompactGameTree`'s `NODE_FLAG_EXPANDED`/`_select` traversal
+at all.
 """
 
 from dataclasses import dataclass, field
@@ -34,6 +34,18 @@ class HybridConfig:
     `handoff_empty_cells`: at or below this many empty cells, use the exact
     solver; above it, use `opening_engine`. Default 8 (>= 8 pieces placed),
     where exact solves complete in well under a second.
+
+    `minimax_config.max_depth` and `.time_limit_s` are ignored for the
+    endgame handoff: `HybridPlayer.search` always calls `MinimaxEngine
+    .solve()`, which unconditionally overrides both to `max_depth=16,
+    time_limit_s=None` (`MinimaxEngine.solve`'s own docstring: "Exact
+    solve"). `.eval_config` is likewise never consulted there, since every
+    Quantik game resolves within 16 plies and `solve()` therefore never
+    reaches the heuristic depth-cutoff that would invoke it. Only the
+    other `MinimaxConfig` fields (`use_alpha_beta`, `use_transposition_
+    table`, `dedup_children`, `random_seed`) affect the endgame handoff;
+    this is by design -- the whole point of the handoff is a *guaranteed
+    exact* result, matching `HybridResult.exact=True`.
     """
 
     handoff_empty_cells: int = 8

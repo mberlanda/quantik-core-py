@@ -44,7 +44,7 @@ print(result.engine_used, result.exact, result.best_move)
 | `opening_engine` | str | `"mcts"` | `"mcts"` or `"beam"` — which engine drives play above the handoff threshold. |
 | `mcts_config` | `MCTSConfig` | defaults | Used when `opening_engine="mcts"`. |
 | `beam_config` | `BeamSearchConfig` | defaults | Used when `opening_engine="beam"`. |
-| `minimax_config` | `MinimaxConfig` | `max_depth=16` | Used for the endgame handoff; `max_depth=16` guarantees an exact solve (see `docs/MINIMAX.md`). |
+| `minimax_config` | `MinimaxConfig` | `max_depth=16` | Used for the endgame handoff via `MinimaxEngine.solve()`. **`max_depth` and `time_limit_s` are ignored**: `solve()` unconditionally overrides both to guarantee an exact result (see `docs/MINIMAX.md`). `eval_config` is also never consulted there, since `solve()` never reaches the heuristic depth-cutoff. Only `use_alpha_beta`/`use_transposition_table`/`dedup_children`/`random_seed` actually affect the endgame handoff. |
 
 ### Tuning `handoff_empty_cells`
 
