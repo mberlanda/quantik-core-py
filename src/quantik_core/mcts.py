@@ -7,12 +7,13 @@ integration into the compact game tree structure.
 
 import math
 import random
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 
 from quantik_core import State, Move, generate_legal_moves, apply_move
 from quantik_core.commons import Bitboard
+from quantik_core.evaluation import EvalConfig, evaluate
 from quantik_core.game_utils import check_game_winner, WinStatus
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
@@ -32,6 +33,13 @@ class MCTSConfig:
     max_depth: int = 16  # Maximum search depth
     random_seed: Optional[int] = None  # Seed for reproducibility
     use_transposition_table: bool = True  # Use existing tree nodes
+
+    # Optional eval-guided rollouts: when set, playout moves are chosen by
+    # the fitted handcrafted evaluation instead of uniformly at random.
+    # epsilon keeps some exploration (variance) so MCTS statistics stay
+    # meaningful. None => original pure-random rollouts (default).
+    rollout_eval_config: Optional[EvalConfig] = None
+    rollout_epsilon: float = 0.2
 
 
 class MCTSEngine:
@@ -252,6 +260,32 @@ class MCTSEngine:
         self.tree.storage.store_node(node_id, node)
         return None
 
+    def _select_rollout_move(
+        self, bb: Bitboard, current_player: int, all_moves: List[Move]
+    ) -> Move:
+        """Choose a playout move.
+
+        With no `rollout_eval_config`, this is a uniform random choice
+        (original behavior). Otherwise it is epsilon-greedy: with
+        probability `rollout_epsilon` a uniform random move, else the move
+        whose resulting position the fitted evaluation scores highest for
+        `current_player`. Ties break on the first max encountered.
+        """
+        cfg = self.config.rollout_eval_config
+        if cfg is None:
+            return random.choice(all_moves)
+        if random.random() < self.config.rollout_epsilon:
+            return random.choice(all_moves)
+        best_move = all_moves[0]
+        best_score = float("-inf")
+        for move in all_moves:
+            child_bb: Bitboard = apply_move(bb, move)  # type: ignore[assignment]
+            score = evaluate(child_bb, current_player, cfg)
+            if score > best_score:
+                best_score = score
+                best_move = move
+        return best_move
+
     def _simulate(self, node_id: int) -> float:
         """
         Simulate random playout from node.
@@ -298,8 +332,8 @@ class MCTSEngine:
                 # No legal moves: player who cannot move loses
                 return -1.0 if current_player == 0 else 1.0
 
-            # Pick random move
-            move = random.choice(all_moves)
+            # Pick a rollout move (random, or eval-guided if configured)
+            move = self._select_rollout_move(current_bb, current_player, all_moves)
             current_bb = apply_move(current_bb, move)  # type: ignore[assignment]
             depth += 1
 

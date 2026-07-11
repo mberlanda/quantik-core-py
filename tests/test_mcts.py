@@ -519,3 +519,84 @@ class TestMCTSIntegration:
 
         # Should have reasonable confidence
         assert win_prob >= 0.3  # At least better than random
+
+
+class TestEvalGuidedRollouts:
+    """Tests for the opt-in eval-guided rollout policy."""
+
+    def test_rollout_move_defaults_to_random_when_no_eval(self):
+        # With no eval config, the helper must just pick from the legal moves.
+        from quantik_core.move import generate_legal_moves_list
+
+        engine = MCTSEngine(MCTSConfig(max_iterations=1, random_seed=0))
+        bb = State.from_qfen("A.../..../..../....").bb
+        legal = generate_legal_moves_list(bb)
+        move = engine._select_rollout_move(bb, 1, legal)
+        assert move in legal
+
+    def test_eval_guided_rollout_is_deterministic_and_legal(self):
+        from quantik_core.evaluation import EvalConfig
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen("Ab../..Cd/..../....").bb
+        legal = generate_legal_moves_list(bb)
+        cfg = MCTSConfig(
+            max_iterations=1,
+            random_seed=7,
+            rollout_eval_config=EvalConfig(),
+            rollout_epsilon=0.0,
+        )
+        # epsilon=0 => pure greedy argmax over evaluate; deterministic.
+        m1 = MCTSEngine(cfg)._select_rollout_move(bb, 0, legal)
+        m2 = MCTSEngine(cfg)._select_rollout_move(bb, 0, legal)
+        assert m1 == m2 and m1 in legal
+
+    def test_eval_guided_search_runs_end_to_end(self):
+        # Integration smoke test: eval-guided rollouts must complete a real
+        # search() and return a legal move with a sane win probability.
+        # NOT asserting the specific move returned equals the objectively
+        # best one (see docs/superpowers/plans/2026-07-10-cross-engine-3-
+        # eval-guided-mcts.md "Post-implementation notes": a pre-existing,
+        # out-of-scope bug in CompactGameTree.create_root_node makes the
+        # root node born already NODE_FLAG_EXPANDED, so MCTS's root ever
+        # gets exactly one child regardless of rollout policy or iteration
+        # budget -- the discrete move search() returns is determined by
+        # generate_legal_moves()'s iteration order, not by search quality.
+        # This affects the pre-existing default/random-rollout path too,
+        # matching the loose style of the suite's other search()-level
+        # tests (e.g. test_search_near_win_position above).
+        from quantik_core.evaluation import EvalConfig
+        from quantik_core.move import generate_legal_moves_list
+
+        cfg = MCTSConfig(
+            max_iterations=200,
+            random_seed=1,
+            rollout_eval_config=EvalConfig.load(),
+            rollout_epsilon=0.2,
+        )
+        state = State.from_qfen("AbC./..../..../....")
+        best_move, win_prob = MCTSEngine(cfg).search(state)
+        assert best_move in generate_legal_moves_list(state.bb)
+        assert 0.0 <= win_prob <= 1.0
+
+    def test_default_mcts_unchanged(self):
+        # Regression: default config still returns a legal move; no eval used.
+        best_move, prob = MCTSEngine(
+            MCTSConfig(max_iterations=200, random_seed=0)
+        ).search(State.from_qfen("ABc./d.../..../...."))
+        assert best_move is not None and 0.0 <= prob <= 1.0
+
+    def test_default_config_behavior_is_byte_for_byte_unchanged(self):
+        # Binding constraint: rollout_eval_config=None must reproduce the
+        # exact same search result as before this feature existed, since
+        # _select_rollout_move's cfg-is-None branch consumes random draws
+        # identically to the original `random.choice(all_moves)` call site
+        # it replaced (no extra random numbers drawn before returning).
+        # Reference value captured by running this exact scenario against
+        # mcts.py BEFORE this feature was added.
+        state = State.from_qfen("AB../cd../..../....")
+        move, prob = MCTSEngine(MCTSConfig(max_iterations=100, random_seed=42)).search(
+            state
+        )
+        assert move == Move(player=0, shape=0, position=2)
+        assert prob == 0.5
