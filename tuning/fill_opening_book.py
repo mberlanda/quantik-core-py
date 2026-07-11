@@ -17,11 +17,7 @@ from typing import Dict, List, Optional, Union
 
 from quantik_core import Move, State
 from quantik_core.commons import Bitboard
-from quantik_core.game_utils import (
-    count_total_pieces,
-    get_current_player_from_counts,
-    has_winning_line,
-)
+from quantik_core.game_utils import count_total_pieces, has_winning_line
 from quantik_core.minimax import MinimaxConfig, MinimaxEngine
 from quantik_core.move import generate_legal_moves_list
 from quantik_core.opening_book import (
@@ -29,6 +25,7 @@ from quantik_core.opening_book import (
     OpeningBookDatabase,
     TerminalStatus,
 )
+from quantik_core.state_validator import validate_game_state
 
 try:
     from tuning.build_dataset import sample_states
@@ -75,10 +72,20 @@ def exact_entry(
     examples appear to carry a pre-existing bug; fixing them is out of
     scope for this change, but a reader comparing conventions across the
     opening-book-writing code in this repo should not assume they agree.
+
+    Raises `ValidationError` for an invalid `bb` (piece-count/overlap/
+    turn-balance/placement violations) rather than treating it as a
+    terminal loss: `generate_legal_moves_list` returns an empty list for
+    BOTH a genuine no-legal-moves terminal AND an invalid bitboard, so
+    that check alone can't tell them apart -- validating up front lets
+    invalid input fail loudly instead of silently writing a bogus
+    terminal-win entry into the database.
     """
+    stm, _ = validate_game_state(bb, raise_on_error=True)
     p0, p1 = count_total_pieces(bb)
-    stm = get_current_player_from_counts(p0, p1)
-    already_decided = has_winning_line(bb) or not generate_legal_moves_list(bb)
+    already_decided = has_winning_line(bb) or not generate_legal_moves_list(
+        bb, player_id=stm
+    )
     if already_decided:
         stm_wins = False
         best_moves: List[Move] = []

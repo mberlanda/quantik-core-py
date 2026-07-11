@@ -1,4 +1,7 @@
+import pytest
+
 from quantik_core import State
+from quantik_core.commons import ValidationError
 from tuning.fill_opening_book import exact_entry, fill
 from quantik_core.opening_book import (
     OpeningBookConfig,
@@ -53,6 +56,20 @@ def test_exact_entry_handles_no_legal_moves_without_solving():
     e = exact_entry(bb)
     assert e["evaluation"] == -1.0
     assert e["best_moves"] == []
+
+
+def test_exact_entry_raises_on_invalid_bitboard():
+    # Regression: generate_legal_moves_list() returns [] for BOTH a
+    # genuine no-legal-moves terminal AND an invalid bitboard -- that
+    # check alone can't tell them apart. Two P0 shapes overlapping on
+    # cell 0, with one P1 piece elsewhere so the piece-count TURN BALANCE
+    # alone looks superficially valid (2 vs 1) and wouldn't have raised
+    # via the old get_current_player_from_counts() check either -- only
+    # full validation (piece overlap) catches this. An invalid bb must
+    # raise, not silently be written to the book as a bogus terminal win.
+    overlapping_bb = (0b1, 0b1, 0, 0, 0b10, 0, 0, 0)
+    with pytest.raises(ValidationError):
+        exact_entry(overlapping_bb)
 
 
 def test_fill_writes_and_is_idempotent(tmp_path):
