@@ -290,3 +290,23 @@ class TestGeneratePuzzlesComputeSolutionLine:
         assert is_terminal is True
         final_bb = apply_move(bb, move)
         assert check_game_winner(final_bb) == WinStatus.NO_WIN
+
+    def test_returns_none_for_an_already_won_root(self, generate_puzzles):
+        # Regression: generate_legal_moves_list does not stop returning
+        # moves once a line is already completed elsewhere on the board
+        # (it only reflects piece availability + placement legality), so
+        # without an explicit check_game_winner(bb) guard at the top,
+        # MinimaxEngine.search would silently search from an already-
+        # decided position as if it were a normal interior node.
+        from quantik_core import State
+        from quantik_core.game_utils import WinStatus, check_game_winner
+        from quantik_core.move import generate_legal_moves_list
+
+        # Row 0 = A b C d: a completed line (4 distinct shapes), reached by
+        # P0,P1,P0,P1 alternating and thus a valid, balanced piece count --
+        # yet 40 legal moves remain on the rest of the empty board.
+        bb = State.from_qfen("AbCd/..../..../....").bb
+        assert check_game_winner(bb) != WinStatus.NO_WIN
+        assert generate_legal_moves_list(bb)  # moves still "look" legal
+
+        assert generate_puzzles.compute_solution_line(bb, winning_player=1) is None

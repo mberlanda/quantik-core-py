@@ -92,8 +92,13 @@ def compute_solution_line(
     ending on a heuristic-scored, non-terminal leaf, is correctly treated
     as "no verified win" rather than trusted at face value.
     """
-    if not generate_legal_moves_list(bb):
-        return None  # already terminal: no forced win to compute from here
+    if check_game_winner(bb) != WinStatus.NO_WIN or not generate_legal_moves_list(bb):
+        # Already terminal: a completed line doesn't stop
+        # generate_legal_moves_list from returning further moves for the
+        # remaining empty cells, so without this guard MinimaxEngine.search
+        # would silently treat an already-decided position as an ordinary
+        # interior node instead of raising or refusing.
+        return None
 
     engine = MinimaxEngine(
         MinimaxConfig(max_depth=depth_limit, time_limit_s=SOLVE_TIMEOUT_SECS)
