@@ -236,7 +236,9 @@ class BeamAdapter(EngineAdapter):
         else:
             ranked = result.ranked_root_moves()
             if not ranked:
-                raise ValueError(f"{self.name}: beam search produced no candidate moves")
+                raise ValueError(
+                    f"{self.name}: beam search produced no candidate moves"
+                )
             move = ranked[0].move
 
         score = None
