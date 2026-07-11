@@ -221,3 +221,92 @@ class TestCrossEngineBenchmark:
         p0, p1 = count_total_pieces(bb)
         assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
         assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+
+
+@pytest.fixture(scope="module")
+def generate_puzzles():
+    return _load_demo_module("generate_puzzles.py")
+
+
+class TestGeneratePuzzlesComputeSolutionLine:
+    # P0 to move, mate-in-one: D at pos 3 completes row 0 (A b C .).
+    _MATE_IN_ONE = "AbC./d.../..../...."
+
+    def test_finds_forced_win_for_the_actual_mover(self, generate_puzzles):
+        from quantik_core import State
+
+        bb = State.from_qfen(self._MATE_IN_ONE).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=0, depth_limit=2
+        )
+
+        assert steps is not None
+        assert len(steps) == 1
+        move, qfen_after, is_terminal = steps[0]
+        assert move.player == 0
+        assert is_terminal is True
+
+    def test_returns_none_when_the_named_player_does_not_win(self, generate_puzzles):
+        # P0 has the forced mate-in-one here, not P1: asking for a forced
+        # win credited to P1 must return None rather than reporting P0's
+        # winning line as if it belonged to P1.
+        from quantik_core import State
+
+        bb = State.from_qfen(self._MATE_IN_ONE).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=1, depth_limit=2
+        )
+
+        assert steps is None
+
+    # P1 to move; shape=0 at position=0 leaves P0 with zero legal replies --
+    # a forced win WITHOUT completing a line. Deterministically the move
+    # MinimaxEngine.search picks among the tied-optimal candidates here
+    # (sorted (shape, position) ascending; this one sorts first). See
+    # TestCrossEngineBenchmark._ANCHOR in this file for the same position
+    # and its full derivation.
+    _NO_LEGAL_REPLY_WIN = ".ba./..CC/DcbD/cA.A"
+
+    def test_marks_no_legal_reply_terminal_as_a_win_not_a_draw(self, generate_puzzles):
+        # Regression: check_game_winner() alone doesn't see a win here (no
+        # line is completed), so is_final must also check whether the
+        # resulting side has zero legal moves -- matching
+        # MinimaxEngine._negamax's own terminal convention (no legal moves
+        # is a win for whoever just moved; Quantik has no draws). Before
+        # this check existed, a genuine forced win reached via a no-legal-
+        # reply terminal was reported as unverified (None).
+        from quantik_core import State, apply_move
+        from quantik_core.game_utils import WinStatus, check_game_winner
+
+        bb = State.from_qfen(self._NO_LEGAL_REPLY_WIN).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=1, depth_limit=1
+        )
+
+        assert steps is not None
+        assert len(steps) == 1
+        move, qfen_after, is_terminal = steps[0]
+        assert move.shape == 0 and move.position == 0
+        assert is_terminal is True
+        final_bb = apply_move(bb, move)
+        assert check_game_winner(final_bb) == WinStatus.NO_WIN
+
+    def test_returns_none_for_an_already_won_root(self, generate_puzzles):
+        # Regression: generate_legal_moves_list does not stop returning
+        # moves once a line is already completed elsewhere on the board
+        # (it only reflects piece availability + placement legality), so
+        # without an explicit check_game_winner(bb) guard at the top,
+        # MinimaxEngine.search would silently search from an already-
+        # decided position as if it were a normal interior node.
+        from quantik_core import State
+        from quantik_core.game_utils import WinStatus, check_game_winner
+        from quantik_core.move import generate_legal_moves_list
+
+        # Row 0 = A b C d: a completed line (4 distinct shapes), reached by
+        # P0,P1,P0,P1 alternating and thus a valid, balanced piece count --
+        # yet 40 legal moves remain on the rest of the empty board.
+        bb = State.from_qfen("AbCd/..../..../....").bb
+        assert check_game_winner(bb) != WinStatus.NO_WIN
+        assert generate_legal_moves_list(bb)  # moves still "look" legal
+
+        assert generate_puzzles.compute_solution_line(bb, winning_player=1) is None

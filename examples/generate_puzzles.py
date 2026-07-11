@@ -12,12 +12,13 @@ Usage:
 
 import os
 import sys
-import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from quantik_core import Move, State, apply_move, generate_legal_moves
+from quantik_core import Move, State, apply_move
 from quantik_core.game_utils import WinStatus, check_game_winner
+from quantik_core.minimax import MinimaxConfig, MinimaxEngine
+from quantik_core.move import generate_legal_moves_list
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -71,133 +72,52 @@ def format_move(move: Move, is_winning: bool = False) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _minimax(  # noqa: C901
-    bb: tuple,
-    winning_player: int,
-    depth_limit: int,
-    memo: Dict[tuple, Tuple[int, Optional[Move]]],
-    deadline: float,
-) -> Tuple[Optional[int], Optional[Move]]:
-    """
-    Return (distance_in_plies, best_move) for a forced win by *winning_player*,
-    or (None, None) when no forced win is found within *depth_limit*.
-
-    Winning player's turns  -> minimise distance.
-    Opponent's turns        -> maximise distance (best defence); if any move
-                               escapes the forced loss the position is not won.
-    """
-    winner = check_game_winner(bb)
-    if winner != WinStatus.NO_WIN:
-        is_ours = (winner == WinStatus.PLAYER_0_WINS and winning_player == 0) or (
-            winner == WinStatus.PLAYER_1_WINS and winning_player == 1
-        )
-        return (0, None) if is_ours else (None, None)
-
-    if depth_limit <= 0 or time.time() > deadline:
-        return None, None
-
-    if bb in memo:
-        cached_dist, cached_move = memo[bb]
-        if cached_dist is not None and cached_dist <= depth_limit:
-            return cached_dist, cached_move
-
-    current_player, moves_by_shape = generate_legal_moves(bb)
-    all_moves: List[Move] = []
-    for shape_moves in moves_by_shape.values():
-        all_moves.extend(shape_moves)
-
-    if not all_moves:
-        return None, None
-
-    # ---- move ordering: try immediate wins first, skip losing moves ----
-    ordered: List[Move] = []
-    for m in all_moves:
-        nbb = apply_move(bb, m)
-        w = check_game_winner(nbb)
-        if w != WinStatus.NO_WIN:
-            is_ours = (w == WinStatus.PLAYER_0_WINS and winning_player == 0) or (
-                w == WinStatus.PLAYER_1_WINS and winning_player == 1
-            )
-            if is_ours:
-                memo[bb] = (1, m)
-                return 1, m
-            continue
-        ordered.append(m)
-
-    if current_player == winning_player:
-        best_dist: Optional[int] = None
-        best_move: Optional[Move] = None
-        for m in ordered:
-            nbb = apply_move(bb, m)
-            d, _ = _minimax(nbb, winning_player, depth_limit - 1, memo, deadline)
-            if d is not None:
-                d += 1
-                if best_dist is None or d < best_dist:
-                    best_dist = d
-                    best_move = m
-        if best_dist is not None:
-            memo[bb] = (best_dist, best_move)
-        return best_dist, best_move
-    else:
-        worst_dist: Optional[int] = None
-        worst_move: Optional[Move] = None
-        for m in ordered:
-            nbb = apply_move(bb, m)
-            d, _ = _minimax(nbb, winning_player, depth_limit - 1, memo, deadline)
-            if d is None:
-                return None, None  # opponent escapes
-            d += 1
-            if worst_dist is None or d > worst_dist:
-                worst_dist = d
-                worst_move = m
-        if worst_dist is not None:
-            memo[bb] = (worst_dist, worst_move)
-        return worst_dist, worst_move
-
-
 def compute_solution_line(
     bb: tuple,
     winning_player: int,
     depth_limit: int = 8,
 ) -> Optional[List[Tuple[Move, str, bool]]]:
     """
-    Compute the full forced winning sequence from *bb*.
+    Verify a forced win for *winning_player* from *bb* and return the full
+    winning sequence as (move, qfen_after, is_terminal) tuples, or None if
+    no forced win could be verified within SOLVE_TIMEOUT_SECS.
 
-    Returns a list of (move, qfen_after, is_terminal) tuples,
-    or None if no forced win can be verified.
+    Delegates to `MinimaxEngine` (negamax + alpha-beta + transposition
+    table) instead of a hand-rolled search. The returned principal
+    variation is replayed here and checked directly against both terminal
+    conditions `MinimaxEngine._negamax` itself recognizes -- a completed
+    line (`check_game_winner`) or the resulting side having no legal
+    moves (also a win for whoever just moved; Quantik has no draws) --
+    so a search cut short by the time limit, and therefore possibly
+    ending on a heuristic-scored, non-terminal leaf, is correctly treated
+    as "no verified win" rather than trusted at face value.
     """
-    memo: Dict[tuple, Tuple[int, Optional[Move]]] = {}
-    deadline = time.time() + SOLVE_TIMEOUT_SECS
-
-    dist, first = _minimax(bb, winning_player, depth_limit, memo, deadline)
-    if dist is None or first is None:
+    if check_game_winner(bb) != WinStatus.NO_WIN or not generate_legal_moves_list(bb):
+        # Already terminal: a completed line doesn't stop
+        # generate_legal_moves_list from returning further moves for the
+        # remaining empty cells, so without this guard MinimaxEngine.search
+        # would silently treat an already-decided position as an ordinary
+        # interior node instead of raising or refusing.
         return None
+
+    engine = MinimaxEngine(
+        MinimaxConfig(max_depth=depth_limit, time_limit_s=SOLVE_TIMEOUT_SECS)
+    )
+    result = engine.search(State(bb))
 
     steps: List[Tuple[Move, str, bool]] = []
     current = bb
-    remaining = depth_limit
-
-    while remaining > 0:
-        w = check_game_winner(current)
-        if w != WinStatus.NO_WIN:
-            break
-
-        d, best = _minimax(current, winning_player, remaining, memo, deadline)
-        if d is None or best is None:
-            break
-
-        nbb = apply_move(current, best)
-        qfen_after = State(nbb).to_qfen()
-        w = check_game_winner(nbb)
-        is_final = w != WinStatus.NO_WIN
-        steps.append((best, qfen_after, is_final))
-
+    for move in result.pv:
+        current = apply_move(current, move)
+        qfen_after = State(current).to_qfen()
+        is_final = check_game_winner(
+            current
+        ) != WinStatus.NO_WIN or not generate_legal_moves_list(current)
+        steps.append((move, qfen_after, is_final))
         if is_final:
             break
-        current = nbb
-        remaining -= 1
 
-    if steps and steps[-1][2]:
+    if steps and steps[-1][2] and steps[-1][0].player == winning_player:
         return steps
     return None
 
