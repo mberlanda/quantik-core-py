@@ -78,14 +78,24 @@ class TestMCTSEngine:
         config = MCTSConfig(max_iterations=500, random_seed=42)
         engine = MCTSEngine(config)
 
-        # P0: A at (0,0), B at (0,1); P1: c at (0,2), d at (1,0)
-        # Row 0 has shapes A, B, C — P0 can win by placing D at (0,3)
+        # P0: A at (0,0), B at (0,1); P1: c at (0,2), d at (1,0). Two
+        # immediate wins exist here: D at (0,3) completes row 0 (A,B,C,D),
+        # and C at (1,1) completes the top-left quadrant (A,B,d,C) --
+        # verified against MinimaxEngine.solve() and has_winning_line.
         state = State.from_qfen("ABc./d.../..../....")
         move, win_prob = engine.search(state)
 
-        # Should find a winning move (reasonable win probability)
+        # Should find a winning move with high confidence. Regression:
+        # before fixing (1) CompactGameTree.create_root_node marking the
+        # root already-expanded and (2) _calculate_ucb using the child's
+        # own player_turn instead of the parent's mover to pick the win
+        # count, this returned win_prob=0.276 for a NON-winning move.
+        from quantik_core import apply_move
+        from quantik_core.game_utils import has_winning_line
+
         assert isinstance(move, Move)
-        assert win_prob > 0.3  # Should have decent confidence
+        assert has_winning_line(apply_move(state.bb, move))
+        assert win_prob > 0.9
 
     def test_reproducibility_with_seed(self):
         """Test that same seed produces same results."""
@@ -148,6 +158,48 @@ class TestMCTSEngine:
         assert ucb > 0
         assert ucb < float("inf")
 
+    def test_ucb_uses_parent_movers_perspective_not_childs(self):
+        """Regression: UCB must select by win rate for the PARENT's mover.
+
+        add_child_node always sets child.player_turn = 1 - parent.player_turn,
+        so using the child's own player_turn to pick which win_count
+        field to read selects by how often the OPPONENT won through that
+        child -- the exact opposite of what UCB1 should optimize for the
+        player actually choosing among these children. Concretely: a
+        child where the root's own mover (P0) won 9/10 simulated games
+        must score HIGHER than a child where P0 only won 1/10, not lower.
+        """
+        engine = MCTSEngine(MCTSConfig(random_seed=1))
+        root_id = engine.tree.create_root_node(State.from_qfen("..../..../..../...."))
+        root = engine.tree.get_node(root_id)
+        assert int(root.player_turn) == 0  # P0 to move at the root
+
+        good_for_root_id = engine.tree.add_child_node(
+            root_id, State.from_qfen("A.../..../..../....")
+        )
+        bad_for_root_id = engine.tree.add_child_node(
+            root_id, State.from_qfen(".A../..../..../....")
+        )
+
+        good = engine.tree.get_node(good_for_root_id)
+        good.visit_count = np.uint32(10)
+        good.win_count_p0 = np.uint32(9)  # good for P0 (the root's mover)
+        good.win_count_p1 = np.uint32(1)
+        engine.tree.storage.store_node(good_for_root_id, good)
+
+        bad = engine.tree.get_node(bad_for_root_id)
+        bad.visit_count = np.uint32(10)
+        bad.win_count_p0 = np.uint32(1)  # bad for P0
+        bad.win_count_p1 = np.uint32(9)
+        engine.tree.storage.store_node(bad_for_root_id, bad)
+
+        root.visit_count = np.uint32(20)
+        engine.tree.storage.store_node(root_id, root)
+
+        ucb_good = engine._calculate_ucb(root_id, good_for_root_id)
+        ucb_bad = engine._calculate_ucb(root_id, bad_for_root_id)
+        assert ucb_good > ucb_bad
+
     def test_ucb_unvisited_child(self):
         """Test UCB returns infinity for unvisited children."""
         config = MCTSConfig(random_seed=42)
@@ -185,6 +237,27 @@ class TestMCTSEngine:
         child = engine.tree.get_node(child_id)
         assert child.depth == 1
         assert child.parent_id == root_id
+
+    def test_root_explores_multiple_children_not_stuck_at_one(self):
+        """Regression: the root must gain more than one child over several
+        search iterations.
+
+        Before fixing CompactGameTree.create_root_node (it marked the root
+        NODE_FLAG_EXPANDED at creation instead of only once every legal
+        move had a child), MCTSEngine._select treated the root as fully
+        explored as soon as it had a single child, so the root got exactly
+        one explored child for the entire search regardless of
+        max_iterations. A wide-branching position run for enough
+        iterations to clearly exceed one-child-only behavior must now show
+        multiple root children.
+        """
+        state = State.from_qfen("..../..../..../....")
+        engine = MCTSEngine(MCTSConfig(max_iterations=200, random_seed=1))
+        engine.search(state)
+
+        assert engine.root_id is not None
+        root_children = engine.tree.get_children(engine.root_id)
+        assert len(root_children) > 1
 
     def test_expand_wires_use_transposition_table_enabled(self):
         """_expand must forward config.use_transposition_table to the tree.
@@ -621,22 +694,22 @@ class TestEvalGuidedRollouts:
     def test_eval_guided_search_runs_end_to_end(self):
         # Integration smoke test: eval-guided rollouts must complete a real
         # search() and return a legal move with a sane win probability.
-        # NOT asserting the specific move returned equals the objectively
-        # best one (see docs/superpowers/plans/2026-07-10-cross-engine-3-
-        # eval-guided-mcts.md "Post-implementation notes": a pre-existing,
-        # out-of-scope bug in CompactGameTree.create_root_node makes the
-        # root node born already NODE_FLAG_EXPANDED, so MCTS's root ever
-        # gets exactly one child regardless of rollout policy or iteration
-        # budget -- the discrete move search() returns is determined by
-        # generate_legal_moves()'s iteration order, not by search quality.
-        # This affects the pre-existing default/random-rollout path too,
-        # matching the loose style of the suite's other search()-level
-        # tests (e.g. test_search_near_win_position above).
+        # This position (near-empty, 42 legal moves at the root -- P1 to
+        # move, with a mate-in-one at shape=3/pos=3) previously required a
+        # downgraded, non-move-specific assertion here (see git history):
+        # CompactGameTree.create_root_node marked the root already-
+        # expanded, so MCTS's root got exactly one explored child
+        # regardless of iteration budget, and _calculate_ucb separately
+        # used the child's own player_turn instead of the parent's mover
+        # to pick the win-rate perspective, inverting exploitation
+        # entirely. With both fixed, MCTS reliably finds the actual
+        # mate-in-one here -- restored to the plan's originally-intended
+        # assertion.
         from quantik_core.evaluation import EvalConfig
         from quantik_core.move import generate_legal_moves_list
 
         cfg = MCTSConfig(
-            max_iterations=200,
+            max_iterations=400,
             random_seed=1,
             rollout_eval_config=EvalConfig.load(),
             rollout_epsilon=0.2,
@@ -644,6 +717,7 @@ class TestEvalGuidedRollouts:
         state = State.from_qfen("AbC./..../..../....")
         best_move, win_prob = MCTSEngine(cfg).search(state)
         assert best_move in generate_legal_moves_list(state.bb)
+        assert best_move.shape == 3 and best_move.position == 3
         assert 0.0 <= win_prob <= 1.0
 
     def test_default_mcts_unchanged(self):

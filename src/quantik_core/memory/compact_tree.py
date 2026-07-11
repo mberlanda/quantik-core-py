@@ -289,6 +289,18 @@ class CompactGameTree:
         turn-relative logic. Uses total-piece parity rather than the
         strict turn-balance validator so synthetic/terminal states
         (e.g. constructed directly for tests) don't raise.
+
+        `flags` starts at 0 (neither terminal nor expanded):
+        `NODE_FLAG_EXPANDED` is meant to be set only once every legal move
+        has a corresponding child (see `MCTSEngine._expand`'s own bookkeeping,
+        `if len(existing_children) + 1 == len(all_moves): ... EXPANDED`).
+        A root created already-expanded made `MCTSEngine._select` treat
+        the root as fully explored as soon as it had a SINGLE child,
+        stopping it from ever adding a second one -- MCTS's root got
+        exactly one explored child for the entire search, regardless of
+        `max_iterations`, with the returned move decided by move-
+        generation order rather than search quality. `BeamSearchEngine`
+        does not consult this flag, so it was unaffected.
         """
         canonical_state_data = initial_state.pack()
         player0_counts, player1_counts = count_pieces_by_shape(initial_state.bb)
@@ -301,7 +313,7 @@ class CompactGameTree:
             parent_id=np.uint32(0),  # Root has no parent
             depth=np.uint16(0),
             player_turn=np.uint8(player_turn),
-            flags=np.uint8(NODE_FLAG_EXPANDED),
+            flags=np.uint8(0),
             num_children=np.uint16(0),
             first_child_id=np.uint32(0),
             multiplicity=np.uint32(1),

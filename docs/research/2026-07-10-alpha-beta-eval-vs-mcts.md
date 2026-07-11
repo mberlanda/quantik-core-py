@@ -422,6 +422,20 @@ a fitted leaf heuristic reliably outplays both an undirected random mover
 and a moderately-budgeted stochastic search — the two engines are not
 merely different in character, one dominates the other at these settings.
 
+> **2026-07-11 caveat — superseded by the MCTS fix below.** The
+> `vs UCT, 1,500 iterations` row above, and every other MCTS number in this
+> document (§7's tables, item 1's move-agreement=0.500, the "vs MCTS-1500"
+> matchups), was measured against a version of `MCTSEngine` where the root
+> node could only ever explore a single child (see "A pre-existing MCTS bug"
+> below, now fixed in PR #22). Re-measured post-fix on
+> `examples/minimax_benchmark.py`: `minimax as P1` against UCT-1,500 flipped
+> to **0/8** (minimax as P0 stayed 8/8; `vs random` unaffected both sides).
+> `examples/cross_engine_benchmark.py`'s move-agreement for MCTS rose from
+> 0.500 to 0.725. This document's historical numbers are left as-is (they
+> accurately describe what was measured, when) rather than rewritten
+> throughout — treat every MCTS figure above this note as describing the
+> pre-fix engine, not current behavior.
+
 ### 7.2 Search performance: alpha-beta and TT prune ratios
 
 Fixed depth-4 search from a mid-game anchor position
@@ -674,16 +688,33 @@ piece of work, listed roughly by increasing scope):
    .HybridPlayer`. Samples with MCTS or beam search while the tree is
    intractable, then hands off to the **exact** minimax solve once few
    enough cells remain (default: 8 empty cells, where solves measured
-   ~0.25–1.3s). `opening_engine="beam"` is unaffected by item 4's MCTS
-   root-expansion bug; `opening_engine="mcts"` inherits it.
+   ~0.25–1.3s). `opening_engine="beam"` was always unaffected by the MCTS
+   root-expansion bug below; `opening_engine="mcts"` inherited it until
+   the fix in PR #22 (see below).
 4. **Eval-guided MCTS rollouts.** ✅ Done — `MCTSConfig.rollout_eval_config`/
    `rollout_epsilon`, opt-in and purely additive (`None` reproduces the
-   original pure-random rollouts exactly). Measured cost: 3,000 iterations
-   from the empty board, 9.8s random vs. 41.8s eval-guided (~4.3x). See the
-   next item — this feature's practical value turned out to be much smaller
-   than intended, for a reason discovered while implementing it.
+   original pure-random rollouts exactly). Measured cost (re-measured
+   post-fix, see below): 3,000 iterations from the empty board, 10.6s
+   random vs. 53.8s eval-guided (~5.1x). See the next item — this
+   feature's practical value was much smaller than intended at the time
+   it was implemented, for a reason discovered while implementing it and
+   since resolved.
 
-### A pre-existing MCTS bug discovered while implementing item 4
+### A pre-existing MCTS bug discovered while implementing item 4 — resolved 2026-07-11
+
+**Status: fixed**, in PR #22, together with a second,
+independently-discovered bug in `_calculate_ucb` (it computed the
+win-rate term from the *child's* `player_turn` instead of the *parent's*
+mover — backwards from the perspective of whichever player was actually
+choosing among the children). Both had to be fixed together: fixing only
+the root-expansion bug below left `search()` still returning a
+non-winning move on a hand-verified mate-in-one position, because the
+now-correctly-explored win-rate comparisons were themselves inverted.
+Post-fix, MCTS reliably finds forced wins it previously missed (10/10
+seeds on the regression position), and the root explores multiple
+children rather than getting stuck on one (`test_root_explores_multiple_
+children_not_stuck_at_one` in `tests/test_mcts.py`). The description below
+is left as originally written, describing the bug as found.
 
 `CompactGameTree.create_root_node` (`src/quantik_core/memory/
 compact_tree.py:304`) creates the root node with `NODE_FLAG_EXPANDED`
@@ -706,12 +737,13 @@ checking for the objectively best move. It plausibly explains MCTS's
 consistently weak showing in every cross-engine benchmark so far
 (item 1's move-agreement=0.500, the "vs MCTS-1500" matchups above) — MCTS
 may never have explored more than one root move in any of them. **Not
-fixed here** (out of scope for the eval-guided-rollouts plan, shared with
-`beam_search.py`'s tree — though that engine doesn't reference
-`NODE_FLAG_EXPANDED`/`_select` and appears unaffected — and fixing it would
-change existing MCTS search results, which every other engine's benchmarks
-in this document were measured against). Worth a dedicated, carefully
--scoped follow-up.
+fixed at the time this section was written** (out of scope for the
+eval-guided-rollouts plan, shared with `beam_search.py`'s tree — though
+that engine doesn't reference `NODE_FLAG_EXPANDED`/`_select` and appears
+unaffected — and fixing it would change existing MCTS search results,
+which every other engine's benchmarks in this document were measured
+against). Fixed as the dedicated follow-up this section called for — see
+the "resolved 2026-07-11" note above.
 
 ## References
 

@@ -68,14 +68,7 @@ blend — at or below the threshold, the exact solver decides every move.
   objectively best line, though: `beam_width` pruning can discard a
   promising branch before it's explored deeply enough to reveal where it
   leads. See `docs/BEAM_SEARCH.md`.
-- **`"mcts"`** (`MCTSEngine`) samples stochastically via UCB1. **Known
-  limitation:** `CompactGameTree.create_root_node` currently marks the
-  root node as fully expanded at creation instead of only once every
-  legal move has a child, which can leave MCTS's root with a single
-  explored child regardless of `max_iterations` — see `docs/MCTS.md`'s
-  "Known limitation" note. When that happens, the opening move MCTS
-  contributes is decided by move-generation order, not search quality.
-  `opening_engine="beam"` does not share this limitation.
+- **`"mcts"`** (`MCTSEngine`) samples stochastically via UCB1.
 
 ## API
 

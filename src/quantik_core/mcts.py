@@ -149,6 +149,14 @@ class MCTSEngine:
 
         UCB1 = win_rate + c * sqrt(ln(parent_visits) / child_visits)
 
+        The win rate must be from the perspective of `parent`'s mover --
+        the player *choosing* among `parent`'s children -- not the
+        child's own player_turn (the opponent, since add_child_node
+        always alternates player_turn). Using the child's player_turn
+        here selected children by how often the OPPONENT won through
+        them, systematically preferring moves that were worse for
+        whoever was actually choosing.
+
         Args:
             parent_id: Parent node ID
             child_id: Child node ID
@@ -163,21 +171,16 @@ class MCTSEngine:
         if child.visit_count == 0:
             return float("inf")
 
+        mover = int(parent.player_turn)
+
         # If parent unvisited, return child win rate only
         if parent.visit_count == 0:
-            player = int(child.player_turn)
-            if player == 0:
-                wins = child.win_count_p0
-            else:
-                wins = child.win_count_p1
+            wins = child.win_count_p0 if mover == 0 else child.win_count_p1
             return float(wins / child.visit_count)
 
-        # Calculate win rate from perspective of current player
-        player = int(child.player_turn)
-        if player == 0:
-            wins = child.win_count_p0
-        else:
-            wins = child.win_count_p1
+        # Win rate from the perspective of the player choosing (parent's
+        # mover), not the child's own player_turn.
+        wins = child.win_count_p0 if mover == 0 else child.win_count_p1
 
         win_rate = wins / child.visit_count
 

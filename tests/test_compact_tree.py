@@ -288,7 +288,14 @@ class TestCompactGameTree:
         assert root_node.depth == 0
         assert root_node.player_turn == 0
         assert root_node.parent_id == 0
-        assert root_node.flags == NODE_FLAG_EXPANDED
+        # Regression: the root must NOT start already-expanded.
+        # NODE_FLAG_EXPANDED is meant to be set only once every legal move
+        # has a corresponding child (see MCTSEngine._expand's bookkeeping).
+        # A root born already-expanded made MCTSEngine._select treat it as
+        # fully explored as soon as it had a single child, so MCTS's root
+        # got exactly one explored child for the entire search regardless
+        # of max_iterations -- fixed in create_root_node.
+        assert root_node.flags == 0
 
     def test_root_node_creation_derives_player_turn_from_piece_counts(self):
         """A root state where player 0 has moved once must record player_turn=1.

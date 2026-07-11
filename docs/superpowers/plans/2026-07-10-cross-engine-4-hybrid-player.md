@@ -278,3 +278,17 @@ rounds' patterns:
   overlapping-piece regression scenario from PR #19's test.
 
 Overall coverage after all four rounds: 92.03%.
+
+### Resolved in PR #22
+
+The MCTS root-expansion limitation documented above (`opening_engine=
+"mcts"` getting stuck with a single explored child) is fixed:
+`create_root_node` no longer marks the root pre-expanded, and a second,
+independently-discovered bug in `_calculate_ucb` (win-rate computed from
+the child's `player_turn` instead of the parent's mover) was fixed
+alongside it -- both were needed for `opening_engine="mcts"` to actually
+pick moves by search quality rather than move-generation order. The
+"Known limitation" language has been removed from `docs/HYBRID.md` and
+`src/quantik_core/hybrid.py`'s module docstring accordingly. See
+`docs/superpowers/plans/2026-07-10-cross-engine-3-eval-guided-mcts.md`'s
+own resolution note for the fix details.

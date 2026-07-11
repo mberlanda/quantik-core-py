@@ -86,23 +86,17 @@ under `evaluate()` is chosen. `rollout_eval_config=None` (the default)
 reproduces the original pure-random rollouts exactly — this option is
 purely additive.
 
-**Known limitation:** `CompactGameTree.create_root_node` currently marks
-the root node as fully expanded at creation instead of only once every
-legal move has a child, which can leave the root with a single explored
-child regardless of `max_iterations`. When that happens, the move
-`search()` returns is decided by move-generation order rather than by
-search quality — eval-guided rollouts may then only affect the reported
-`win_prob` for that one branch, not which move is actually returned. This
-is a pre-existing issue in the tree-expansion logic, not specific to
-rollout selection; see the research note's "Future work" section for the
-full writeup.
-
 **Cost:** evaluating every candidate move at every playout step is far more
 expensive per iteration than a single `random.choice`. Measured: 3,000
-iterations from the empty board took 9.8s with random rollouts vs. 41.8s
+iterations from the empty board took 10.6s with random rollouts vs. 53.8s
 with `rollout_eval_config=EvalConfig.load()` (`rollout_epsilon=0.2`) — a
-~4.3x slowdown. Use fewer `max_iterations`, or budget for proportionally
-slower searches, when this is enabled.
+~5.1x slowdown (re-measured after fixing two root-exploration/UCB
+perspective bugs in `CompactGameTree.create_root_node` and
+`MCTSEngine._calculate_ucb`; the root now actually explores multiple
+children instead of getting stuck on one, so both configurations do more
+real work per run than the pre-fix numbers this section previously
+quoted). Use fewer `max_iterations`, or budget for proportionally slower
+searches, when this is enabled.
 
 ### Exploration Weight Tuning
 

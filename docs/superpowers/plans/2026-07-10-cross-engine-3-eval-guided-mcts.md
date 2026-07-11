@@ -267,3 +267,31 @@ section -- likely explains MCTS's consistently weak showing in every
 cross-engine benchmark so far this session (PR #17's "vs MCTS-1500"
 matchups, PR #18's move-agreement=0.500 result): MCTS may have never
 actually been exploring more than one root move in any of them.
+
+### Resolved in PR #22
+
+Both this bug and a second, independent one were fixed as a dedicated
+follow-up (not this plan's PR, per the scope decision above):
+
+1. `create_root_node` now creates the root with `flags=0` instead of
+   `NODE_FLAG_EXPANDED`, so `_select` correctly keeps returning the root
+   for expansion until every legal move has a child, matching `_expand`'s
+   own bookkeeping.
+2. A second bug in `_calculate_ucb` was found while validating fix (1):
+   it computed the win-rate term from the *child's* `player_turn` instead
+   of the *parent's* mover, so UCB was systematically preferring
+   whichever branch the opponent won through most -- backwards from the
+   perspective of the player actually choosing among children. Both had
+   to be fixed together; fixing only (1) still produced a non-winning
+   `search()` result on the plan's own mate-in-one test (`win_prob=0.276`
+   on a losing move) because the win-rate comparisons it now had access
+   to were themselves inverted.
+
+Post-fix, `test_eval_guided_search_runs_end_to_end` was restored to
+assert the actual mate-in-one move (`shape=3, position=3`) rather than
+the loose `isinstance`/probability-threshold check described above.
+`root only ever has one child` is no longer true: root now explores
+`>1` children on any position with a real search budget (see
+`test_root_explores_multiple_children_not_stuck_at_one` in
+`tests/test_mcts.py`). See `docs/research/2026-07-10-alpha-beta-eval-vs-mcts.md`'s
+"Future work" section for the corresponding resolution note.
