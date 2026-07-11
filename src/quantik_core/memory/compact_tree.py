@@ -290,9 +290,9 @@ class CompactGameTree:
         strict turn-balance validator so synthetic/terminal states
         (e.g. constructed directly for tests) don't raise.
 
-        `flags` starts at 0 (neither terminal nor expanded): `NODE_FLAG_
-        EXPANDED` is meant to be set only once every legal move has a
-        corresponding child (see `MCTSEngine._expand`'s own bookkeeping,
+        `flags` starts at 0 (neither terminal nor expanded):
+        `NODE_FLAG_EXPANDED` is meant to be set only once every legal move
+        has a corresponding child (see `MCTSEngine._expand`'s own bookkeeping,
         `if len(existing_children) + 1 == len(all_moves): ... EXPANDED`).
         A root created already-expanded made `MCTSEngine._select` treat
         the root as fully explored as soon as it had a SINGLE child,

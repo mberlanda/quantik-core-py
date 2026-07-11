@@ -90,8 +90,9 @@ purely additive.
 expensive per iteration than a single `random.choice`. Measured: 3,000
 iterations from the empty board took 10.6s with random rollouts vs. 53.8s
 with `rollout_eval_config=EvalConfig.load()` (`rollout_epsilon=0.2`) — a
-~5.1x slowdown (re-measured after the root-expansion/UCB fixes in
-`fix/mcts-root-expansion`; the root now actually explores multiple
+~5.1x slowdown (re-measured after fixing two root-exploration/UCB
+perspective bugs in `CompactGameTree.create_root_node` and
+`MCTSEngine._calculate_ucb`; the root now actually explores multiple
 children instead of getting stuck on one, so both configurations do more
 real work per run than the pre-fix numbers this section previously
 quoted). Use fewer `max_iterations`, or budget for proportionally slower

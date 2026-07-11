@@ -268,7 +268,7 @@ cross-engine benchmark so far this session (PR #17's "vs MCTS-1500"
 matchups, PR #18's move-agreement=0.500 result): MCTS may have never
 actually been exploring more than one root move in any of them.
 
-### Resolved on branch `fix/mcts-root-expansion`
+### Resolved in PR #22
 
 Both this bug and a second, independent one were fixed as a dedicated
 follow-up (not this plan's PR, per the scope decision above):

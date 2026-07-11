@@ -427,7 +427,7 @@ merely different in character, one dominates the other at these settings.
 > document (§7's tables, item 1's move-agreement=0.500, the "vs MCTS-1500"
 > matchups), was measured against a version of `MCTSEngine` where the root
 > node could only ever explore a single child (see "A pre-existing MCTS bug"
-> below, now fixed on `fix/mcts-root-expansion`). Re-measured post-fix on
+> below, now fixed in PR #22). Re-measured post-fix on
 > `examples/minimax_benchmark.py`: `minimax as P1` against UCT-1,500 flipped
 > to **0/8** (minimax as P0 stayed 8/8; `vs random` unaffected both sides).
 > `examples/cross_engine_benchmark.py`'s move-agreement for MCTS rose from
@@ -690,7 +690,7 @@ piece of work, listed roughly by increasing scope):
    enough cells remain (default: 8 empty cells, where solves measured
    ~0.25–1.3s). `opening_engine="beam"` was always unaffected by the MCTS
    root-expansion bug below; `opening_engine="mcts"` inherited it until
-   the fix on `fix/mcts-root-expansion` (see below).
+   the fix in PR #22 (see below).
 4. **Eval-guided MCTS rollouts.** ✅ Done — `MCTSConfig.rollout_eval_config`/
    `rollout_epsilon`, opt-in and purely additive (`None` reproduces the
    original pure-random rollouts exactly). Measured cost (re-measured
@@ -702,8 +702,8 @@ piece of work, listed roughly by increasing scope):
 
 ### A pre-existing MCTS bug discovered while implementing item 4 — resolved 2026-07-11
 
-**Status: fixed**, on branch `fix/mcts-root-expansion`, together with a
-second, independently-discovered bug in `_calculate_ucb` (it computed the
+**Status: fixed**, in PR #22, together with a second,
+independently-discovered bug in `_calculate_ucb` (it computed the
 win-rate term from the *child's* `player_turn` instead of the *parent's*
 mover — backwards from the perspective of whichever player was actually
 choosing among the children). Both had to be fixed together: fixing only

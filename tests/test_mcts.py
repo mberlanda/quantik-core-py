@@ -161,8 +161,8 @@ class TestMCTSEngine:
     def test_ucb_uses_parent_movers_perspective_not_childs(self):
         """Regression: UCB must select by win rate for the PARENT's mover.
 
-        add_child_node always sets child.player_turn = 1 - parent.player_
-        turn, so using the child's own player_turn to pick which win_count
+        add_child_node always sets child.player_turn = 1 - parent.player_turn,
+        so using the child's own player_turn to pick which win_count
         field to read selects by how often the OPPONENT won through that
         child -- the exact opposite of what UCB1 should optimize for the
         player actually choosing among these children. Concretely: a

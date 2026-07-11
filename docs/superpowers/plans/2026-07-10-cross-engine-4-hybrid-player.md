@@ -279,7 +279,7 @@ rounds' patterns:
 
 Overall coverage after all four rounds: 92.03%.
 
-### Resolved on branch `fix/mcts-root-expansion`
+### Resolved in PR #22
 
 The MCTS root-expansion limitation documented above (`opening_engine=
 "mcts"` getting stuck with a single explored child) is fixed:
