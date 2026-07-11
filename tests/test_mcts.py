@@ -1,5 +1,6 @@
 """Tests for MCTS implementation."""
 
+import random
 from unittest.mock import patch
 
 import pytest
@@ -550,6 +551,55 @@ class TestEvalGuidedRollouts:
         m1 = MCTSEngine(cfg)._select_rollout_move(bb, 0, legal)
         m2 = MCTSEngine(cfg)._select_rollout_move(bb, 0, legal)
         assert m1 == m2 and m1 in legal
+
+    def test_rollout_epsilon_zero_does_not_consume_a_random_draw(self):
+        # Regression: with rollout_epsilon<=0, the epsilon draw must be
+        # skipped entirely rather than calling random.random() only to
+        # compare it against a value it can never be less than -- that
+        # would needlessly advance the shared global RNG state on every
+        # eval-guided rollout step.
+        from quantik_core.evaluation import EvalConfig
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen("Ab../..Cd/..../....").bb
+        legal = generate_legal_moves_list(bb)
+        engine = MCTSEngine(
+            MCTSConfig(
+                max_iterations=1,
+                random_seed=7,
+                rollout_eval_config=EvalConfig(),
+                rollout_epsilon=0.0,
+            )
+        )
+        state_before = random.getstate()
+        engine._select_rollout_move(bb, 0, legal)
+        assert random.getstate() == state_before
+
+    def test_rollout_move_prefers_immediate_win_over_heuristic_score(self):
+        # Regression: evaluate() expects a non-terminal position and its
+        # linear heuristic score isn't guaranteed to rank a decided win
+        # above a merely good-looking non-winning alternative. An
+        # immediately-decisive candidate move must always win the greedy
+        # pick outright, without being scored by evaluate() at all. Anchor
+        # has exactly 2 legal moves: one decisive (D at pos 2, completes a
+        # line), one not (D at pos 0) -- verified directly against
+        # has_winning_line/generate_legal_moves_list before writing this.
+        from quantik_core.evaluation import EvalConfig
+        from quantik_core.move import generate_legal_moves_list
+
+        bb = State.from_qfen(".B.A/a.b./.CCd/bdA.").bb
+        legal = generate_legal_moves_list(bb)
+        decisive_move = Move(player=0, shape=3, position=2)
+        non_decisive_move = Move(player=0, shape=3, position=0)
+        assert set(legal) == {decisive_move, non_decisive_move}
+        cfg = MCTSConfig(
+            max_iterations=1,
+            random_seed=0,
+            rollout_eval_config=EvalConfig(),
+            rollout_epsilon=0.0,
+        )
+        move = MCTSEngine(cfg)._select_rollout_move(bb, 0, legal)
+        assert move == decisive_move
 
     def test_eval_guided_search_runs_end_to_end(self):
         # Integration smoke test: eval-guided rollouts must complete a real

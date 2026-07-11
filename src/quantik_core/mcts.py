@@ -14,7 +14,8 @@ import numpy as np
 from quantik_core import State, Move, generate_legal_moves, apply_move
 from quantik_core.commons import Bitboard
 from quantik_core.evaluation import EvalConfig, evaluate
-from quantik_core.game_utils import check_game_winner, WinStatus
+from quantik_core.game_utils import check_game_winner, has_winning_line, WinStatus
+from quantik_core.move import generate_legal_moves_list
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
     NODE_FLAG_TERMINAL,
@@ -269,17 +270,31 @@ class MCTSEngine:
         (original behavior). Otherwise it is epsilon-greedy: with
         probability `rollout_epsilon` a uniform random move, else the move
         whose resulting position the fitted evaluation scores highest for
-        `current_player`. Ties break on the first max encountered.
+        `current_player`. An immediately-decisive move (completes a line,
+        or leaves the opponent with no legal reply -- both wins for
+        `current_player`, the mover) always wins the greedy pick outright,
+        since `evaluate()` expects a non-terminal position and a linear
+        heuristic score isn't guaranteed to rank a decided win above a
+        merely good-looking alternative. Ties break on the first max
+        encountered.
         """
         cfg = self.config.rollout_eval_config
         if cfg is None:
             return random.choice(all_moves)
-        if random.random() < self.config.rollout_epsilon:
+        # `rollout_epsilon <= 0` means pure-greedy: skip the draw entirely
+        # rather than call random.random() only to compare it against a
+        # value it can never be less than -- avoids needlessly advancing
+        # the shared global RNG state on every eval-guided rollout step.
+        if self.config.rollout_epsilon > 0 and random.random() < (
+            self.config.rollout_epsilon
+        ):
             return random.choice(all_moves)
         best_move = all_moves[0]
         best_score = float("-inf")
         for move in all_moves:
             child_bb: Bitboard = apply_move(bb, move)  # type: ignore[assignment]
+            if has_winning_line(child_bb) or not generate_legal_moves_list(child_bb):
+                return move
             score = evaluate(child_bb, current_player, cfg)
             if score > best_score:
                 best_score = score
