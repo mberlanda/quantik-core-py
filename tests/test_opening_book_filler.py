@@ -62,7 +62,7 @@ def test_fill_writes_and_is_idempotent(tmp_path):
         n1 = fill(db, n=15, seed=1)
         assert n1 > 0
         sample = State.from_qfen(_WIN_ANCHOR)
-        db.add_position(sample, **{k: v for k, v in exact_entry(sample.bb).items()})
+        db.add_position(sample, **exact_entry(sample.bb))
         entry = db.get_position(sample)
         assert entry is not None and entry.evaluation == 1.0
     # Reopen and re-fill: must not error (upsert).

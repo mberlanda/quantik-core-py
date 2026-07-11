@@ -13,9 +13,10 @@ python tuning/fill_opening_book.py -> writes quantik_opening_book.db
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from quantik_core import Move, State
+from quantik_core.commons import Bitboard
 from quantik_core.game_utils import (
     count_total_pieces,
     get_current_player_from_counts,
@@ -38,7 +39,7 @@ except ImportError:
     from build_dataset import sample_states  # type: ignore[import-not-found]
 
 
-def exact_entry(bb) -> Dict:
+def exact_entry(bb: Bitboard) -> Dict[str, Union[float, int, List[Move]]]:
     """Solve `bb` exactly and return kwargs for `add_position` (minus `state`).
 
     `evaluation` is +1.0 if the side to move wins with perfect play, else
