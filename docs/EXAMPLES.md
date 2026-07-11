@@ -104,3 +104,18 @@ choice matches:
 ```bash
 python examples/cross_engine_benchmark.py
 ```
+
+## Hybrid Player
+
+`quantik_core.hybrid.HybridPlayer` samples with MCTS or beam search while
+the tree is intractable, then hands off to the exact minimax solver once
+few enough cells remain — see `docs/HYBRID.md`.
+
+```python
+from quantik_core import State
+from quantik_core.hybrid import HybridPlayer, HybridConfig
+
+move = HybridPlayer(HybridConfig()).select_move(
+    State.from_qfen("A.b./..../..../....")
+)
+```

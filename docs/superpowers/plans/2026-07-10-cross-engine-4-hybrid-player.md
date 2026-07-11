@@ -34,7 +34,7 @@
 - `@dataclass HybridResult`: `best_move: Move`, `engine_used: str` (`"minimax"` / `"mcts"` / `"beam"`), `exact: bool`.
 - `class HybridPlayer`: `__init__(self, config: HybridConfig)`; `select_move(self, state: State) -> Move`; `search(self, state: State) -> HybridResult`.
 
-- [ ] **Step 1: Write failing tests** (`tests/test_hybrid.py`):
+- [x] **Step 1: Write failing tests** (`tests/test_hybrid.py`):
 
 ```python
 import pytest
@@ -89,9 +89,9 @@ def test_invalid_engine_raises():
             State.from_qfen("A.b./..../..../...."))
 ```
 
-- [ ] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_hybrid.py -x --no-cov`. (If `AbC./d.a./B..c/....` is not a valid 8-piece P0-to-move position or already has a winning line, adjust the QFEN so it is a legal non-terminal 8-piece position with P0 to move; verify with `State.from_qfen(q, validate=True)` and `has_winning_line`.)
+- [x] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_hybrid.py -x --no-cov`. (If `AbC./d.a./B..c/....` is not a valid 8-piece P0-to-move position or already has a winning line, adjust the QFEN so it is a legal non-terminal 8-piece position with P0 to move; verify with `State.from_qfen(q, validate=True)` and `has_winning_line`.)
 
-- [ ] **Step 3: Implement `src/quantik_core/hybrid.py`.** Full content:
+- [x] **Step 3: Implement `src/quantik_core/hybrid.py`.** Full content:
 
 ```python
 """Hybrid opening->endgame player for Quantik.
@@ -172,25 +172,25 @@ class HybridPlayer:
         raise ValueError(f"Unknown opening_engine: {engine!r}")
 ```
 
-- [ ] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_hybrid.py -v --no-cov`.
+- [x] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_hybrid.py -v --no-cov`.
 
-- [ ] **Step 5: Full gate** — `./auto-lint.sh` then `./dev-check.sh` (coverage ≥ 90%; the new module is small and fully exercised by the tests above).
+- [x] **Step 5: Full gate** — `./auto-lint.sh` then `./dev-check.sh` (coverage ≥ 90%; the new module is small and fully exercised by the tests above).
 
-- [ ] **Step 6: Commit** — `git add src/quantik_core/hybrid.py tests/test_hybrid.py`; commit `feat(hybrid): opening->endgame composite player`.
+- [x] **Step 6: Commit** — `git add src/quantik_core/hybrid.py tests/test_hybrid.py`; commit `feat(hybrid): opening->endgame composite player`.
 
 ---
 
 ## Task 2: Docs + example
 
 **Files:** Create `docs/HYBRID.md`; modify `docs/EXAMPLES.md`.
-- [ ] **Step 1:** `docs/HYBRID.md` — explain the handoff rationale (branching shrinks; exact solve becomes tractable), the `handoff_empty_cells` trade-off (higher = more exact play but slower moves near the boundary), and the `opening_engine` choice. Include a runnable snippet:
+- [x] **Step 1:** `docs/HYBRID.md` — explain the handoff rationale (branching shrinks; exact solve becomes tractable), the `handoff_empty_cells` trade-off (higher = more exact play but slower moves near the boundary), and the `opening_engine` choice. Include a runnable snippet:
   ```python
   from quantik_core import State
   from quantik_core.hybrid import HybridPlayer, HybridConfig
   move = HybridPlayer(HybridConfig()).select_move(State.from_qfen("A.b./..../..../...."))
   ```
-- [ ] **Step 2:** Add the same snippet to `docs/EXAMPLES.md` under a "Hybrid Player" heading; verify it runs.
-- [ ] **Step 3:** Commit — `docs: add HYBRID.md and example`.
+- [x] **Step 2:** Add the same snippet to `docs/EXAMPLES.md` under a "Hybrid Player" heading; verify it runs.
+- [x] **Step 3:** Commit — `docs: add HYBRID.md and example`.
 
 ---
 
@@ -199,3 +199,38 @@ class HybridPlayer:
 - Both opening engines return a guaranteed-legal move; beam guards the `best_leaf is None` case.
 - Invalid `opening_engine` raises `ValueError` (tested).
 - Optional extension (note only): consult a shared opening book (`OpeningBookDatabase.get_position`) before searching, returning its `best_moves[0]` on a hit — combine with Follow-up 2.
+
+## Post-implementation notes
+
+Verified every claimed API (`State.get_occupied_bb()`, `State.from_qfen
+(qfen, validate)`, `Move`'s home module, `MinimaxEngine.solve().best_move`,
+`MCTSEngine.search()`, `BeamSearchConfig`/`BeamSearchResult`/
+`ranked_root_moves()`) against the actual current source files before
+writing code — all matched exactly, unlike several earlier plans in this
+series.
+
+One defect found and fixed: the plan's own `test_endgame_uses_exact_solver
+_and_finds_mate` used `"AbC./d.a./B..c/...."` as an 8-piece P0-to-move
+anchor, but this QFEN fails `State.from_qfen(q, validate=True)` (the plan's
+own Step 2 anticipated this possibility and said to adjust it if so).
+Replaced with a genuinely valid, freshly-sampled 8-piece P0-to-move
+position (`"c.../.aBD/bcD./A..."`), which happens to also be a forced
+mate-in-1 (score 9999 = win − 1 ply), matching the test's name; solves in
+~1.3s.
+
+`hybrid.py`'s `best_leaf is None` fallback branch (line 84, the beam-search
+guard) is not exercised by any test — `BeamSearchResult.best_leaf` is only
+`None` when both `terminal_leaves` and the final frontier are empty, which
+doesn't appear reachable through normal validated-config beam search
+behavior (a non-terminal root with legal moves always produces at least
+one frontier candidate). Left uncovered as defensive code, consistent with
+an identical guard pattern in `examples/cross_engine_benchmark.py`
+(Follow-up 1) that is also untested there. Overall coverage is 92.00%,
+comfortably above the 90% gate.
+
+Documented (in both `docs/HYBRID.md` and the module's own docstring) that
+`opening_engine="mcts"` inherits the pre-existing MCTS root-expansion bug
+discovered while implementing Follow-up 3 (PR #20): `CompactGameTree
+.create_root_node` marks the root as fully expanded at creation, so MCTS's
+root can get stuck with a single explored child regardless of
+`max_iterations`. `opening_engine="beam"` does not share this limitation.
