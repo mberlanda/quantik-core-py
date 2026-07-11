@@ -51,7 +51,7 @@ print(f"Memory usage: {stats['memory_usage']} bytes")
 | `max_iterations` | int | 10,000 | Maximum number of MCTS iterations |
 | `max_depth` | int | 16 | Maximum simulation depth |
 | `random_seed` | int\|None | None | Seed for reproducible results |
-| `time_limit_s` | float\|None | None | Optional wall-clock budget in seconds for `search()`; checked at the end of each iteration, so at least one iteration always completes. `None` keeps the pure iteration-count behavior |
+| `time_limit_s` | float\|None | None | Optional wall-clock budget in seconds for `search()`; checked after each completed iteration. `None` keeps the pure iteration-count behavior |
 | `use_transposition_table` | bool | True | When `False`, expansion always allocates a fresh node instead of merging into an existing node that shares the same canonical state at the same depth |
 | `rollout_eval_config` | `EvalConfig`\|None | None | When set, playout moves are chosen by the fitted handcrafted evaluation instead of uniformly at random (see "Eval-guided rollouts" below) |
 | `rollout_epsilon` | float | 0.2 | With `rollout_eval_config` set, the probability of an exploratory random move instead of the eval-greedy one |

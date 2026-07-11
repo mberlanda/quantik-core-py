@@ -34,9 +34,9 @@ class MCTSConfig:
     max_iterations: int = 10000  # Maximum number of MCTS iterations
     max_depth: int = 16  # Maximum search depth
     random_seed: Optional[int] = None  # Seed for reproducibility
-    # Optional wall-clock budget for `search`, in seconds. Checked at the
-    # END of each iteration, so at least one iteration always completes.
-    # None (default) => iteration count is the only stop condition.
+    # Optional wall-clock budget for `search`, in seconds. Checked after
+    # each completed iteration; None (default) means iteration count is
+    # the only stop condition.
     time_limit_s: Optional[float] = None
     use_transposition_table: bool = True  # Use existing tree nodes
 
