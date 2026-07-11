@@ -218,15 +218,22 @@ position (`"c.../.aBD/bcD./A..."`), which happens to also be a forced
 mate-in-1 (score 9999 = win − 1 ply), matching the test's name; solves in
 ~1.3s.
 
-`hybrid.py`'s `best_leaf is None` fallback branch (line 84, the beam-search
-guard) is not exercised by any test — `BeamSearchResult.best_leaf` is only
-`None` when both `terminal_leaves` and the final frontier are empty, which
-doesn't appear reachable through normal validated-config beam search
-behavior (a non-terminal root with legal moves always produces at least
-one frontier candidate). Left uncovered as defensive code, consistent with
-an identical guard pattern in `examples/cross_engine_benchmark.py`
-(Follow-up 1) that is also untested there. Overall coverage is 92.00%,
-comfortably above the 90% gate.
+A GitHub Copilot review of the resulting PR (#21) found a genuine crash
+risk in that same `best_leaf is None` fallback: if `ranked_root_moves()`
+also returned empty, `result.ranked_root_moves()[0].move` raised a bare
+`IndexError` with no context. Fixed to raise a clear `ValueError` instead,
+with a regression test that constructs an empty `BeamSearchResult`
+directly (`best_leaf=None`, no terminal/frontier leaves) via `unittest
+.mock.patch`, confirmed to fail with the original `IndexError` against
+the pre-fix code. That test also closes the coverage gap this branch
+previously had. Six more (mostly cosmetic-but-correct) findings in the
+same review round: `bin(x).count("1")` → `int.bit_count()` (matching the
+convention used throughout the rest of the codebase), and all four
+`from_qfen` calls in the test file switched to `validate=True` so an
+accidentally-illegal anchor fails loudly at parse time — plus the
+mate-in-1 test's name now matches an actual assertion (`has_winning_line`
+on the applied move), where it previously only checked the move was
+legal, not that it won. Overall coverage after all fixes: 92.01%.
 
 Documented (in both `docs/HYBRID.md` and the module's own docstring) that
 `opening_engine="mcts"` inherits the pre-existing MCTS root-expansion bug

@@ -55,7 +55,7 @@ class HybridResult:
 
 
 def _empty_cells(state: State) -> int:
-    return 16 - bin(state.get_occupied_bb()).count("1")
+    return 16 - state.get_occupied_bb().bit_count()
 
 
 class HybridPlayer:
@@ -81,6 +81,13 @@ class HybridPlayer:
             if result.best_leaf is not None and result.best_leaf.moves:
                 move = result.best_leaf.moves[0]
             else:
-                move = result.ranked_root_moves()[0].move
+                ranked = result.ranked_root_moves()
+                if not ranked:
+                    raise ValueError(
+                        "BeamSearchEngine returned no best_leaf and no "
+                        "ranked_root_moves() for a non-terminal state; "
+                        "cannot select a move."
+                    )
+                move = ranked[0].move
             return HybridResult(best_move=move, engine_used="beam", exact=False)
         raise ValueError(f"Unknown opening_engine: {engine!r}")
