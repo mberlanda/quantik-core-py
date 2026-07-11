@@ -31,22 +31,32 @@ Committed on branch `worktree-cross-engine-benchmark-24`:
 - Part 2: `benchmarks.dataset` and `benchmarks.reference`.
 - Part 3: metrics helpers, engine adapters, and correctness preflight.
 - Part 4: agreement/cost, head-to-head, and stability runners.
-- Part 5 started: result bundles, Markdown reports, and the
+- Part 5: result bundles, Markdown reports, and the
   `examples/cross_engine_benchmark.py` `dataset`/`run`/`report` CLI.
+- Shared dataset artifact committed at `benchmarks/positions-v1.json`.
+  It contains 36 positions, including 22 exact references, with checksum
+  `a9aa7c316092be3b9a22c54e4306315e54d38af5bbe931f600c9ccd48213b9aa`.
+- Smoke run completed against the committed dataset using the fixed-time
+  family with `--time-limit 0.25 --seeds 3 --h2h-positions 4 --h2h-seeds 1`.
+  The ignored bundle/report under `benchmarks/results/` contained 360
+  observations and 48 head-to-head games.
 
 Fresh local verification:
 
 - `tests/test_benchmark_*.py` module set: 73 passed in 99 seconds with
   `--no-cov`.
 - `tests/test_examples_demos.py`: 18 passed with `--no-cov`.
+- `./auto-lint.sh`: passed before commit `2004528`.
+- `./dev-check.sh`: passed after commit `2004528` with 630 tests passing,
+  92.16% coverage, Black clean, mypy clean, and package/twine checks passing.
 
 Remaining before handoff/merge:
 
-- Commit documentation updates and this progress ledger.
-- Generate and commit `benchmarks/positions-v1.json`.
-- Smoke-run the real artifact and inspect the generated Markdown report.
-- Run `./dev-check.sh`.
-- Push, request fresh Copilot review on PR #28, then address any new comments.
+- GitHub Actions were retriggered by the latest push; wait for the matrix to
+  finish and address any failures.
+- Fresh Copilot review was requested on PR #28 after the latest verified push.
+  All existing review threads are resolved; address any new review comments.
+- Merge PR #28 after CI and review are clean.
 
 ## Shared conventions (all five)
 
@@ -63,8 +73,7 @@ Remaining before handoff/merge:
 - Format before every commit: `.venv/bin/python -m black src tests examples benchmarks`
   (benchmarks/ is not in dev-check's black target list, but flake8 runs on `.`,
   so keep it clean anyway).
-- Commit trailer on every commit: your standard Claude co-author trailer,
-  e.g. `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- Commit messages/trailers should stay model-neutral for this worktree.
 - Every new test must be FAST (each new test file < ~60s): tiny MCTS
   iteration counts (≤200), small beam widths (≤8), near-endgame anchor
   positions. The canonical fast anchor is QFEN `.ba./..CC/DcbD/cA.A`
