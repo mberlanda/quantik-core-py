@@ -209,8 +209,9 @@ def _expand_chunk(
         sym_count = state.symmetry_count()
 
         all_moves: list = []
+        current_player = 0
         if winner == WinStatus.NO_WIN:
-            _, moves_by_shape = generate_legal_moves(bb)
+            current_player, moves_by_shape = generate_legal_moves(bb)
             for shape_moves in moves_by_shape.values():
                 all_moves.extend(shape_moves)
 
@@ -221,8 +222,16 @@ def _expand_chunk(
             ev, w0, w1, dr = -1.0, 0, 1, 0
             terminal = 2  # WIN_P1
         elif not all_moves:
-            ev, w0, w1, dr = 0.0, 0, 0, 1
-            terminal = 3  # STALEMATE
+            # No legal moves for current_player: Quantik has no draws, so
+            # the OTHER player wins here -- matching Board.get_game_result()
+            # and MinimaxEngine._negamax's convention, not a stalemate/draw.
+            winner_player = 1 - current_player
+            if winner_player == 0:
+                ev, w0, w1, dr = 1.0, 1, 0, 0
+                terminal = 1  # WIN_P0
+            else:
+                ev, w0, w1, dr = -1.0, 0, 1, 0
+                terminal = 2  # WIN_P1
         else:
             ev, w0, w1, dr = 0.0, 0, 0, 0
             terminal = 0  # INTERIOR

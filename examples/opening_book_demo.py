@@ -77,16 +77,19 @@ def explore_positions(bb: tuple, depth: int, max_depth: int, positions: dict) ->
         all_moves.extend(shape_moves)
 
     if not all_moves:
-        # Stalemate
+        # No legal moves for current_player: Quantik has no draws, so the
+        # OTHER player wins here -- matching Board.get_game_result() and
+        # MinimaxEngine._negamax's convention, not a stalemate/draw.
+        winner_player = 1 - current_player
         positions[(canonical_key, depth)] = {
             "state": state,
             "depth": depth,
             "visit_count": 1,
-            "win_count_p0": 0,
-            "win_count_p1": 0,
-            "draw_count": 1,
+            "win_count_p0": 1 if winner_player == 0 else 0,
+            "win_count_p1": 1 if winner_player == 1 else 0,
+            "draw_count": 0,
             "best_moves": [],
-            "evaluation": 0.0,
+            "evaluation": 1.0 if winner_player == 0 else -1.0,
         }
         return
 
