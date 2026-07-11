@@ -156,6 +156,26 @@ class TestStochasticAdapters:
         assert obs.depth_reached >= 1
         assert "candidates_generated" in obs.extra
 
+    def test_beam_raises_cleanly_when_no_candidate_moves(self, monkeypatch):
+        class EmptyBeamResult:
+            best_leaf = None
+
+            @staticmethod
+            def ranked_root_moves():
+                return []
+
+        class EmptyBeamEngine:
+            def __init__(self, config):
+                self.config = config
+
+            def search(self, state):
+                return EmptyBeamResult()
+
+        monkeypatch.setattr("benchmarks.adapters.BeamSearchEngine", EmptyBeamEngine)
+
+        with pytest.raises(ValueError, match="no candidate moves"):
+            BeamAdapter(beam_width=4, max_depth=4).select(_anchor_bb(), "anchor")
+
 
 class TestFixedTimeFamily:
     def test_equal_budget_adapters(self):

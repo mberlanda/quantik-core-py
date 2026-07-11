@@ -1114,3 +1114,10 @@ class TestBeamSearchTimeLimit:
             BeamSearchEngine(BeamSearchConfig(time_limit_s=0.0))
         with pytest.raises(ValueError):
             BeamSearchEngine(BeamSearchConfig(time_limit_s=-0.5))
+
+    @pytest.mark.parametrize("bad_limit", [float("nan"), float("inf")])
+    def test_non_finite_time_limit_rejected(self, bad_limit):
+        from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(time_limit_s=bad_limit))

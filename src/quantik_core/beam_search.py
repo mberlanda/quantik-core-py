@@ -9,6 +9,7 @@ by `MCTSEngine` so results from both engines can enrich the same
 transposition table.
 """
 
+import math
 import random
 import time
 from dataclasses import dataclass, field
@@ -258,9 +259,11 @@ class BeamSearchEngine:
                 raise ValueError("rollout_schedule must not be empty")
             if any(count < 1 for count in config.rollout_schedule):
                 raise ValueError("rollout_schedule entries must all be >= 1")
-        if config.time_limit_s is not None and config.time_limit_s <= 0:
+        if config.time_limit_s is not None and (
+            config.time_limit_s <= 0 or not math.isfinite(config.time_limit_s)
+        ):
             raise ValueError(
-                f"time_limit_s must be positive, got {config.time_limit_s}"
+                f"time_limit_s must be positive and finite, got {config.time_limit_s}"
             )
 
         self.config = config

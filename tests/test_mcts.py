@@ -42,6 +42,20 @@ class TestMCTSConfig:
         assert config.max_depth == 10
         assert config.random_seed == 42
         assert config.use_transposition_table is False
+        assert config.time_limit_s is None
+
+    def test_time_limit_preserves_existing_positional_fields(self):
+        """Adding time_limit_s must not shift older positional arguments."""
+        config = MCTSConfig(2.0, 5000, 10, 42, False, None, 0.3)
+
+        assert config.exploration_weight == 2.0
+        assert config.max_iterations == 5000
+        assert config.max_depth == 10
+        assert config.random_seed == 42
+        assert config.use_transposition_table is False
+        assert config.rollout_eval_config is None
+        assert config.rollout_epsilon == 0.3
+        assert config.time_limit_s is None
 
 
 class TestMCTSEngine:
@@ -635,6 +649,13 @@ class TestMCTSTimeLimit:
             MCTSEngine(MCTSConfig(time_limit_s=0.0))
         with pytest.raises(ValueError):
             MCTSEngine(MCTSConfig(time_limit_s=-1.0))
+
+    @pytest.mark.parametrize("bad_limit", [float("nan"), float("inf")])
+    def test_non_finite_time_limit_rejected(self, bad_limit):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        with pytest.raises(ValueError):
+            MCTSEngine(MCTSConfig(time_limit_s=bad_limit))
 
 
 class TestEvalGuidedRollouts:

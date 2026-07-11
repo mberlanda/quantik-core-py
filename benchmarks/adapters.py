@@ -234,7 +234,10 @@ class BeamAdapter(EngineAdapter):
         if result.best_leaf is not None and result.best_leaf.moves:
             move = result.best_leaf.moves[0]
         else:
-            move = result.ranked_root_moves()[0].move
+            ranked = result.ranked_root_moves()
+            if not ranked:
+                raise ValueError(f"{self.name}: beam search produced no candidate moves")
+            move = ranked[0].move
 
         score = None
         if result.best_leaf is not None:

@@ -34,10 +34,6 @@ class MCTSConfig:
     max_iterations: int = 10000  # Maximum number of MCTS iterations
     max_depth: int = 16  # Maximum search depth
     random_seed: Optional[int] = None  # Seed for reproducibility
-    # Optional wall-clock budget for `search`, in seconds. Checked after
-    # each completed iteration; None (default) means iteration count is
-    # the only stop condition.
-    time_limit_s: Optional[float] = None
     use_transposition_table: bool = True  # Use existing tree nodes
 
     # Optional eval-guided rollouts: when set, playout moves are chosen by
@@ -46,6 +42,10 @@ class MCTSConfig:
     # meaningful. None => original pure-random rollouts (default).
     rollout_eval_config: Optional[EvalConfig] = None
     rollout_epsilon: float = 0.2
+    # Optional wall-clock budget for `search`, in seconds. Checked after
+    # each completed iteration; None (default) means iteration count is
+    # the only stop condition.
+    time_limit_s: Optional[float] = None
 
 
 class MCTSEngine:
@@ -65,9 +65,11 @@ class MCTSEngine:
                 "rollout_epsilon must be in [0.0, 1.0], got "
                 f"{config.rollout_epsilon}"
             )
-        if config.time_limit_s is not None and config.time_limit_s <= 0:
+        if config.time_limit_s is not None and (
+            config.time_limit_s <= 0 or not math.isfinite(config.time_limit_s)
+        ):
             raise ValueError(
-                f"time_limit_s must be positive, got {config.time_limit_s}"
+                f"time_limit_s must be positive and finite, got {config.time_limit_s}"
             )
         self.config = config
         if config.random_seed is not None:
