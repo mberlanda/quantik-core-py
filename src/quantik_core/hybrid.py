@@ -26,6 +26,7 @@ from .move import Move, generate_legal_moves_list
 from .minimax import MinimaxConfig, MinimaxEngine
 from .mcts import MCTSConfig, MCTSEngine
 from .beam_search import BeamSearchConfig, BeamSearchEngine
+from .state_validator import validate_game_state
 
 
 @dataclass
@@ -76,12 +77,24 @@ class HybridPlayer:
     """Composite player: sampling in the open game, exact solve in the endgame."""
 
     def __init__(self, config: HybridConfig) -> None:
+        if not (0 <= config.handoff_empty_cells <= 16):
+            raise ValueError(
+                "handoff_empty_cells must be in [0, 16] (a 4x4 board has "
+                f"16 cells), got {config.handoff_empty_cells}"
+            )
         self.config = config
 
     def select_move(self, state: State) -> Move:
         return self.search(state).best_move
 
     def search(self, state: State) -> HybridResult:
+        # generate_legal_moves_list() returns [] for BOTH a genuine
+        # no-legal-moves terminal AND an invalid bitboard (piece overlap,
+        # turn-balance violation, ...) -- that check alone can't tell them
+        # apart, so validate first: an invalid state should raise
+        # ValidationError, not be misclassified as "terminal".
+        validate_game_state(state.bb, raise_on_error=True)
+
         # BeamSearchEngine already raises ValueError for a terminal root,
         # but MinimaxEngine.solve() and MCTSEngine.search() do not -- both
         # silently return SOME move on an already-decided position (a

@@ -262,4 +262,19 @@ against the pre-fix code. Also fixed: an inconsistent docstring claim
 an overclaim in `docs/HYBRID.md` about beam search's terminal-reaching
 guarantee (only *surviving* candidates are followed to a true terminal;
 `beam_width` pruning can discard a promising line before it's explored).
-Overall coverage after all three rounds: 92.02%.
+
+Round 4 found two more real issues, both quick follow-ons of earlier
+rounds' patterns:
+- `handoff_empty_cells` (a 0-16 empty-cell threshold on a 4x4 board) was
+  unvalidated. Added a range check in `HybridPlayer.__init__`, matching
+  the precedent set by PR #20's `rollout_epsilon` validation.
+- The round-3 terminal-state check had the exact same misclassification
+  bug already found and fixed in PR #19's `exact_entry()`:
+  `generate_legal_moves_list()` returns `[]` for both a genuine
+  no-legal-moves terminal AND an invalid bitboard, so an invalid state
+  was being raised as a misleading "terminal state" `ValueError` instead
+  of `ValidationError`. Fixed by calling `validate_game_state(state.bb,
+  raise_on_error=True)` before the terminal check, reusing the same
+  overlapping-piece regression scenario from PR #19's test.
+
+Overall coverage after all four rounds: 92.03%.

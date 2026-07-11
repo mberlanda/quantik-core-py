@@ -125,3 +125,24 @@ def test_search_raises_on_already_terminal_state_mcts_path():
     )
     with pytest.raises(ValueError, match="terminal"):
         player.search(state)
+
+
+def test_rejects_out_of_range_handoff_empty_cells():
+    for bad_value in (-1, 17):
+        with pytest.raises(ValueError, match="handoff_empty_cells"):
+            HybridPlayer(HybridConfig(handoff_empty_cells=bad_value))
+
+
+def test_search_raises_validation_error_on_invalid_bitboard_not_terminal():
+    # Regression: generate_legal_moves_list() returns [] for BOTH a
+    # genuine no-legal-moves terminal AND an invalid bitboard -- prior to
+    # this fix, an invalid state was misclassified as "terminal" with a
+    # misleading ValueError instead of ValidationError. Same overlapping
+    # -piece construction as tests/test_opening_book_filler.py's
+    # equivalent regression test (PR #19): turn balance alone (2 vs 1)
+    # looks superficially valid, so only full validation catches it.
+    from quantik_core.commons import ValidationError
+
+    overlapping_bb = (0b1, 0b1, 0, 0, 0b10, 0, 0, 0)
+    with pytest.raises(ValidationError):
+        HybridPlayer(HybridConfig()).search(State(overlapping_bb))
