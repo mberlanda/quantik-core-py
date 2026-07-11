@@ -13,7 +13,7 @@ python tuning/fill_opening_book.py -> writes quantik_opening_book.db
 
 from __future__ import annotations
 
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from quantik_core import Move, State
 from quantik_core.commons import Bitboard
@@ -39,11 +39,19 @@ except ImportError:
     from build_dataset import sample_states  # type: ignore[import-not-found]
 
 
-def exact_entry(bb: Bitboard) -> Dict[str, Union[float, int, List[Move]]]:
+def exact_entry(
+    bb: Bitboard, engine: Optional[MinimaxEngine] = None
+) -> Dict[str, Union[float, int, List[Move]]]:
     """Solve `bb` exactly and return kwargs for `add_position` (minus `state`).
 
     `evaluation` is +1.0 if the side to move wins with perfect play, else
     -1.0 (Quantik has no draws). `best_moves` is the solver's best move.
+
+    `engine` lets a caller solving many positions (e.g. `fill()`'s loop)
+    reuse one `MinimaxEngine` instead of paying a fresh allocation per
+    call -- `solve()` resets all its per-call state (TT, node count, PV),
+    so reuse across independent positions is safe. When omitted (the
+    default for standalone/test use), a fresh engine is constructed.
 
     `MinimaxEngine.solve`/`search` assume a non-terminal root: a
     no-legal-moves position raises, and a position with an already-completed
@@ -62,7 +70,8 @@ def exact_entry(bb: Bitboard) -> Dict[str, Union[float, int, List[Move]]]:
         stm_wins = False
         best_moves: List[Move] = []
     else:
-        result = MinimaxEngine(MinimaxConfig(max_depth=16)).solve(State(bb))
+        solver = engine if engine is not None else MinimaxEngine(MinimaxConfig(max_depth=16))
+        result = solver.solve(State(bb))
         stm_wins = result.score > 0
         best_moves = [result.best_move]
     winner = stm if stm_wins else 1 - stm
@@ -85,12 +94,16 @@ def exact_entry(bb: Bitboard) -> Dict[str, Union[float, int, List[Move]]]:
 
 
 def fill(db: OpeningBookDatabase, n: int = 300, seed: int = 20260710) -> int:
-    """Sample `n` tractable positions, solve each, and upsert into `db`.
+    """Sample up to `n` tractable positions, solve each, and upsert into `db`.
 
-    Returns the number of positions written."""
+    `sample_states()` stops after a bounded number of attempts, so it can
+    return fewer than `n` distinct positions; this returns however many
+    were actually written, which may be less than `n`.
+    """
     written = 0
+    engine = MinimaxEngine(MinimaxConfig(max_depth=16))
     for bb in sample_states(n, seed):
-        db.add_position(State(bb), **exact_entry(bb))
+        db.add_position(State(bb), **exact_entry(bb, engine=engine))
         written += 1
     return written
 
