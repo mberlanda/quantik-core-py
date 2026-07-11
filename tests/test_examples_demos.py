@@ -221,3 +221,40 @@ class TestCrossEngineBenchmark:
         p0, p1 = count_total_pieces(bb)
         assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
         assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+
+
+@pytest.fixture(scope="module")
+def generate_puzzles():
+    return _load_demo_module("generate_puzzles.py")
+
+
+class TestGeneratePuzzlesComputeSolutionLine:
+    # P0 to move, mate-in-one: D at pos 3 completes row 0 (A b C .).
+    _MATE_IN_ONE = "AbC./d.../..../...."
+
+    def test_finds_forced_win_for_the_actual_mover(self, generate_puzzles):
+        from quantik_core import State
+
+        bb = State.from_qfen(self._MATE_IN_ONE).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=0, depth_limit=2
+        )
+
+        assert steps is not None
+        assert len(steps) == 1
+        move, qfen_after, is_terminal = steps[0]
+        assert move.player == 0
+        assert is_terminal is True
+
+    def test_returns_none_when_the_named_player_does_not_win(self, generate_puzzles):
+        # P0 has the forced mate-in-one here, not P1: asking for a forced
+        # win credited to P1 must return None rather than reporting P0's
+        # winning line as if it belonged to P1.
+        from quantik_core import State
+
+        bb = State.from_qfen(self._MATE_IN_ONE).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=1, depth_limit=2
+        )
+
+        assert steps is None
