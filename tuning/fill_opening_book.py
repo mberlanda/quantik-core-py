@@ -53,16 +53,16 @@ def exact_entry(
     `MinimaxEngine.solve`/`search` assume a non-terminal root: a
     no-legal-moves position raises, and a position with an already-completed
     winning line (but empty cells remaining, so `search` wouldn't raise) is
-    silently mis-scored -- treated as an interior node instead of an already
-    -decided one. `sample_states()` filters these out, but `exact_entry` is
-    a public, reusable mapping function, so a terminal `bb` (either
-    condition) is handled directly here instead of being solved: the side
-    to move has already lost, matching the convention `_negamax` uses
-    throughout `minimax.py`.
+    silently mis-scored -- treated as an interior node instead of an
+    already-decided one. `sample_states()` filters these out, but
+    `exact_entry` is a public, reusable mapping function, so a terminal
+    `bb` (either condition) is handled directly here instead of being
+    solved: the side to move has already lost, matching the convention
+    `_negamax` uses throughout `minimax.py`.
 
     A no-legal-moves position is scored as a WIN for the opponent here
-    (`is_terminal=WIN_P0`/`WIN_P1`, `draw_count=0`), NOT `TerminalStatus
-    .STALEMATE`/a draw. This intentionally diverges from
+    (`is_terminal=WIN_P0`/`WIN_P1`, `draw_count=0`), NOT
+    `TerminalStatus.STALEMATE`/a draw. This intentionally diverges from
     `examples/opening_book_demo.py` and `examples/generate_opening_book.py`,
     which both encode no-legal-moves as a draw -- but `board.py`'s own
     `Board.get_game_result()` (the authoritative game-rules implementation)
