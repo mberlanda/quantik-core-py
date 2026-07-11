@@ -6,16 +6,6 @@ solver once few enough cells remain. The handoff is by empty-cell count:
 Quantik's branching shrinks as pieces are placed, so a position with few
 empty cells has a small remaining tree that `MinimaxEngine.solve` resolves
 exactly and quickly.
-
-Known limitation when `opening_engine="mcts"`: `CompactGameTree.create_root_node`
-currently marks the root node as fully expanded at creation instead of only
-once every legal move has a child, which can leave MCTS's root with a
-single explored child regardless of `max_iterations` (see `docs/MCTS.md`'s
-"Known limitation" note). When that happens, the opening move MCTS returns
-is decided by move-generation order rather than search quality.
-`opening_engine="beam"` does not share this limitation -- `BeamSearchEngine`
-does not use `CompactGameTree`'s `NODE_FLAG_EXPANDED`/`_select` traversal
-at all.
 """
 
 from dataclasses import dataclass, field
