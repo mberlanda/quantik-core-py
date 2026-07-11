@@ -7,13 +7,15 @@ integration into the compact game tree structure.
 
 import math
 import random
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 
 from quantik_core import State, Move, generate_legal_moves, apply_move
 from quantik_core.commons import Bitboard
-from quantik_core.game_utils import check_game_winner, WinStatus
+from quantik_core.evaluation import EvalConfig, evaluate
+from quantik_core.game_utils import check_game_winner, has_winning_line, WinStatus
+from quantik_core.move import generate_legal_moves_list
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
     NODE_FLAG_TERMINAL,
@@ -33,6 +35,13 @@ class MCTSConfig:
     random_seed: Optional[int] = None  # Seed for reproducibility
     use_transposition_table: bool = True  # Use existing tree nodes
 
+    # Optional eval-guided rollouts: when set, playout moves are chosen by
+    # the fitted handcrafted evaluation instead of uniformly at random.
+    # epsilon keeps some exploration (variance) so MCTS statistics stay
+    # meaningful. None => original pure-random rollouts (default).
+    rollout_eval_config: Optional[EvalConfig] = None
+    rollout_epsilon: float = 0.2
+
 
 class MCTSEngine:
     """
@@ -44,6 +53,13 @@ class MCTSEngine:
 
     def __init__(self, config: MCTSConfig):
         """Initialize MCTS engine with configuration."""
+        if config.rollout_eval_config is not None and not (
+            0.0 <= config.rollout_epsilon <= 1.0
+        ):
+            raise ValueError(
+                "rollout_epsilon must be in [0.0, 1.0], got "
+                f"{config.rollout_epsilon}"
+            )
         self.config = config
         if config.random_seed is not None:
             random.seed(config.random_seed)
@@ -252,6 +268,46 @@ class MCTSEngine:
         self.tree.storage.store_node(node_id, node)
         return None
 
+    def _select_rollout_move(
+        self, bb: Bitboard, current_player: int, all_moves: List[Move]
+    ) -> Move:
+        """Choose a playout move.
+
+        With no `rollout_eval_config`, this is a uniform random choice
+        (original behavior). Otherwise it is epsilon-greedy: with
+        probability `rollout_epsilon` a uniform random move, else the move
+        whose resulting position the fitted evaluation scores highest for
+        `current_player`. An immediately-decisive move (completes a line,
+        or leaves the opponent with no legal reply -- both wins for
+        `current_player`, the mover) always wins the greedy pick outright,
+        since `evaluate()` expects a non-terminal position and a linear
+        heuristic score isn't guaranteed to rank a decided win above a
+        merely good-looking alternative. Ties break on the first max
+        encountered.
+        """
+        cfg = self.config.rollout_eval_config
+        if cfg is None:
+            return random.choice(all_moves)
+        # `rollout_epsilon <= 0` means pure-greedy: skip the draw entirely
+        # rather than call random.random() only to compare it against a
+        # value it can never be less than -- avoids needlessly advancing
+        # the shared global RNG state on every eval-guided rollout step.
+        if self.config.rollout_epsilon > 0 and random.random() < (
+            self.config.rollout_epsilon
+        ):
+            return random.choice(all_moves)
+        best_move = all_moves[0]
+        best_score = float("-inf")
+        for move in all_moves:
+            child_bb: Bitboard = apply_move(bb, move)  # type: ignore[assignment]
+            if has_winning_line(child_bb) or not generate_legal_moves_list(child_bb):
+                return move
+            score = evaluate(child_bb, current_player, cfg)
+            if score > best_score:
+                best_score = score
+                best_move = move
+        return best_move
+
     def _simulate(self, node_id: int) -> float:
         """
         Simulate random playout from node.
@@ -298,8 +354,8 @@ class MCTSEngine:
                 # No legal moves: player who cannot move loses
                 return -1.0 if current_player == 0 else 1.0
 
-            # Pick random move
-            move = random.choice(all_moves)
+            # Pick a rollout move (random, or eval-guided if configured)
+            move = self._select_rollout_move(current_bb, current_player, all_moves)
             current_bb = apply_move(current_bb, move)  # type: ignore[assignment]
             depth += 1
 

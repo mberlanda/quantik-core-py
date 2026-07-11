@@ -659,18 +659,57 @@ piece of work, listed roughly by increasing scope):
    isn't measuring a fixed opening-color advantage — it's minimax's edge
    from getting to act on whatever position it's handed, mid-game
    included.
-2. **Exact-solver → shared opening book.** The `OpeningBookDatabase` is keyed by
-   `canonical_key` and is engine-agnostic. A batch job can solve every
-   tractable position and write **exact** evaluations and best moves into the
-   book, upgrading statistical entries to ground truth for every engine that
-   consults it.
+2. **Exact-solver → shared opening book.** ✅ Done —
+   `tuning/fill_opening_book.py`. Solves tractable positions (8–12 plies in)
+   exactly and writes ground-truth `evaluation`/winner/best-move entries into
+   the shared, engine-agnostic `OpeningBookDatabase`. A GitHub Copilot review
+   of the PR found five real issues across ten rounds, the most severe being
+   a data-integrity bug: an invalid bitboard (piece overlap) was silently
+   written as a fabricated terminal-win entry, since `generate_legal_moves_
+   list` returns `[]` for both a genuine no-legal-moves terminal and invalid
+   input. Fixed by validating up front (`validate_game_state(bb,
+   raise_on_error=True)`) rather than inferring terminality from an empty
+   move list.
 3. **Hybrid opening→endgame player.** Use adaptive sampling (UCT or beam) while
    the tree is intractable, then hand off to the **exact** minimax solve once
    few enough cells remain — pairing each engine with the regime where it is
    strongest and sidestepping the open-game intractability wall entirely.
-4. **Eval-guided MCTS rollouts.** Replace UCT's random playouts with the fitted
-   evaluation as a leaf/rollout policy — the evaluation from this work is kept a
-   pure function precisely so this stays a small change.
+4. **Eval-guided MCTS rollouts.** ✅ Done — `MCTSConfig.rollout_eval_config`/
+   `rollout_epsilon`, opt-in and purely additive (`None` reproduces the
+   original pure-random rollouts exactly). Measured cost: 3,000 iterations
+   from the empty board, 9.8s random vs. 41.8s eval-guided (~4.3x). See the
+   next item — this feature's practical value turned out to be much smaller
+   than intended, for a reason discovered while implementing it.
+
+### A pre-existing MCTS bug discovered while implementing item 4
+
+`CompactGameTree.create_root_node` (`src/quantik_core/memory/
+compact_tree.py:304`) creates the root node with `NODE_FLAG_EXPANDED`
+already set, instead of that flag being set only once all of the root's
+legal moves have been added as children. Consequence: `_select()` treats
+the root as fully explored as soon as it has *any* single child, so
+**MCTS's root ever gets exactly one child, for the entire search, regardless
+of `max_iterations`** — confirmed directly (`len(tree.get_children(root_id))
+== 1` after 2,000 iterations on a 42-legal-move position). The discrete
+move `MCTSEngine.search()` returns is therefore determined entirely by
+`generate_legal_moves()`'s fixed iteration order, not by simulation
+quality, UCB exploration, or rollout policy — eval-guided rollouts (or any
+future rollout-policy work) can only ever influence the *value estimate*
+of whichever single branch move-ordering happened to pick, never the
+actual move chosen. This is pre-existing (reproduces identically with
+`rollout_eval_config=None`, i.e. the original unmodified code path) and
+was never caught because existing `search()`-level tests use deliberately
+loose assertions (`isinstance(move, Move)`, `win_prob > 0.3`) rather than
+checking for the objectively best move. It plausibly explains MCTS's
+consistently weak showing in every cross-engine benchmark so far
+(item 1's move-agreement=0.500, the "vs MCTS-1500" matchups above) — MCTS
+may never have explored more than one root move in any of them. **Not
+fixed here** (out of scope for the eval-guided-rollouts plan, shared with
+`beam_search.py`'s tree — though that engine doesn't reference
+`NODE_FLAG_EXPANDED`/`_select` and appears unaffected — and fixing it would
+change existing MCTS search results, which every other engine's benchmarks
+in this document were measured against). Worth a dedicated, carefully
+-scoped follow-up.
 
 ## References
 
