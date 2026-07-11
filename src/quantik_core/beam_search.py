@@ -10,6 +10,7 @@ transposition table.
 """
 
 import random
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -55,6 +56,11 @@ class BeamSearchConfig:
     # candidates) and narrow-and-precise late, e.g. rollout_schedule=
     # [1, 1, 1, 8] alongside beam_schedule=[3, 51, 726, 64].
     rollout_schedule: Optional[Sequence[int]] = None
+    # Optional wall-clock budget for `search`, in seconds. Checked between
+    # depth levels (after each completed level), so depth 1 always
+    # completes and a wide level can overshoot the budget -- callers that
+    # need honest numbers should measure actual elapsed time themselves.
+    time_limit_s: Optional[float] = None
 
 
 @dataclass
@@ -252,6 +258,10 @@ class BeamSearchEngine:
                 raise ValueError("rollout_schedule must not be empty")
             if any(count < 1 for count in config.rollout_schedule):
                 raise ValueError("rollout_schedule entries must all be >= 1")
+        if config.time_limit_s is not None and config.time_limit_s <= 0:
+            raise ValueError(
+                f"time_limit_s must be positive, got {config.time_limit_s}"
+            )
 
         self.config = config
         self.tree = (
@@ -290,8 +300,16 @@ class BeamSearchEngine:
         frontier: List[_FrontierEntry] = [(root_id, initial_state.bb, (), 0.0, 1)]
         max_depth_reached = 0
 
+        deadline = (
+            time.monotonic() + self.config.time_limit_s
+            if self.config.time_limit_s is not None
+            else None
+        )
+
         for depth in range(1, self.config.max_depth + 1):
             if not frontier:
+                break
+            if depth > 1 and deadline is not None and time.monotonic() >= deadline:
                 break
 
             candidates = self._expand_frontier(frontier, depth, stats, terminal_leaves)

@@ -1068,3 +1068,49 @@ class TestRolloutSchedule:
         assert result_a.stats == result_b.stats
         assert result_a.best_leaf is not None and result_b.best_leaf is not None
         assert result_a.best_leaf.moves == result_b.best_leaf.moves
+
+
+class TestBeamSearchTimeLimit:
+    """Optional wall-clock budget on BeamSearchEngine.search."""
+
+    def test_time_limit_stops_deepening_early(self):
+        from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+        # Empty board + wide beam: a full 16-ply search takes many seconds,
+        # so a tiny budget must stop well short of max_depth.
+        engine = BeamSearchEngine(
+            BeamSearchConfig(
+                beam_width=64, max_depth=16, time_limit_s=0.05, random_seed=0
+            )
+        )
+        result = engine.search(State.empty())
+        assert 1 <= result.max_depth_reached < 16
+
+    def test_depth_one_always_completes(self):
+        from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+        engine = BeamSearchEngine(
+            BeamSearchConfig(
+                beam_width=4, max_depth=16, time_limit_s=1e-9, random_seed=0
+            )
+        )
+        result = engine.search(State.empty())
+        assert result.max_depth_reached >= 1
+        assert result.best_leaf is not None
+
+    def test_no_time_limit_behavior_unchanged(self):
+        from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+        engine = BeamSearchEngine(
+            BeamSearchConfig(beam_width=4, max_depth=3, random_seed=0)
+        )
+        result = engine.search(State.empty())
+        assert result.max_depth_reached == 3
+
+    def test_non_positive_time_limit_rejected(self):
+        from quantik_core.beam_search import BeamSearchConfig, BeamSearchEngine
+
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(time_limit_s=0.0))
+        with pytest.raises(ValueError):
+            BeamSearchEngine(BeamSearchConfig(time_limit_s=-0.5))

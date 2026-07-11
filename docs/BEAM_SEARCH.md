@@ -50,8 +50,9 @@ print(f"Value (P0 perspective): {result.best_leaf.value}")
 | `initial_tree_capacity` | int | 4096 | Initial `CompactGameTree` node capacity |
 | `beam_schedule` | `Sequence[int]`\|None | None | Depth-dependent beam width (see Tuning below); `None` uses the flat `beam_width` everywhere |
 | `rollout_schedule` | `Sequence[int]`\|None | None | Depth-dependent rollout budget for the **built-in** evaluator only (custom evaluators ignore it); same indexing semantics as `beam_schedule`; `None` uses the flat `rollouts_per_candidate` everywhere |
+| `time_limit_s` | float\|None | None | Optional wall-clock budget in seconds for `search()`; checked between depth levels (depth 1 always completes), so a wide level can overshoot the cap. `None` keeps depth/width as the only stop conditions |
 
-Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`, an empty or non-positive `beam_schedule` or `rollout_schedule`) raise `ValueError` from `BeamSearchEngine.__init__`.
+Invalid values (`beam_width < 1`, `max_depth` outside `1..16`, `rollouts_per_candidate < 1`, an empty or non-positive `beam_schedule` or `rollout_schedule`, or `time_limit_s <= 0`) raise `ValueError` from `BeamSearchEngine.__init__`.
 
 ### Evaluator Contract
 
