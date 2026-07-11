@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 from quantik_core import Move, State, apply_move
 from quantik_core.game_utils import WinStatus, check_game_winner
 from quantik_core.minimax import MinimaxConfig, MinimaxEngine
+from quantik_core.move import generate_legal_moves_list
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -83,12 +84,17 @@ def compute_solution_line(
 
     Delegates to `MinimaxEngine` (negamax + alpha-beta + transposition
     table) instead of a hand-rolled search. The returned principal
-    variation is replayed here and checked against `check_game_winner`
-    directly, so a search cut short by the time limit -- and therefore
-    possibly ending on a heuristic-scored, non-terminal leaf -- is
-    correctly treated as "no verified win" rather than trusted at face
-    value.
+    variation is replayed here and checked directly against both terminal
+    conditions `MinimaxEngine._negamax` itself recognizes -- a completed
+    line (`check_game_winner`) or the resulting side having no legal
+    moves (also a win for whoever just moved; Quantik has no draws) --
+    so a search cut short by the time limit, and therefore possibly
+    ending on a heuristic-scored, non-terminal leaf, is correctly treated
+    as "no verified win" rather than trusted at face value.
     """
+    if not generate_legal_moves_list(bb):
+        return None  # already terminal: no forced win to compute from here
+
     engine = MinimaxEngine(
         MinimaxConfig(max_depth=depth_limit, time_limit_s=SOLVE_TIMEOUT_SECS)
     )
@@ -99,7 +105,9 @@ def compute_solution_line(
     for move in result.pv:
         current = apply_move(current, move)
         qfen_after = State(current).to_qfen()
-        is_final = check_game_winner(current) != WinStatus.NO_WIN
+        is_final = check_game_winner(
+            current
+        ) != WinStatus.NO_WIN or not generate_legal_moves_list(current)
         steps.append((move, qfen_after, is_final))
         if is_final:
             break

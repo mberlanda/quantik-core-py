@@ -258,3 +258,35 @@ class TestGeneratePuzzlesComputeSolutionLine:
         )
 
         assert steps is None
+
+    # P1 to move; shape=0 at position=0 leaves P0 with zero legal replies --
+    # a forced win WITHOUT completing a line. Deterministically the move
+    # MinimaxEngine.search picks among the tied-optimal candidates here
+    # (sorted (shape, position) ascending; this one sorts first). See
+    # TestCrossEngineBenchmark._ANCHOR in this file for the same position
+    # and its full derivation.
+    _NO_LEGAL_REPLY_WIN = ".ba./..CC/DcbD/cA.A"
+
+    def test_marks_no_legal_reply_terminal_as_a_win_not_a_draw(self, generate_puzzles):
+        # Regression: check_game_winner() alone doesn't see a win here (no
+        # line is completed), so is_final must also check whether the
+        # resulting side has zero legal moves -- matching
+        # MinimaxEngine._negamax's own terminal convention (no legal moves
+        # is a win for whoever just moved; Quantik has no draws). Before
+        # this check existed, a genuine forced win reached via a no-legal-
+        # reply terminal was reported as unverified (None).
+        from quantik_core import State, apply_move
+        from quantik_core.game_utils import WinStatus, check_game_winner
+
+        bb = State.from_qfen(self._NO_LEGAL_REPLY_WIN).bb
+        steps = generate_puzzles.compute_solution_line(
+            bb, winning_player=1, depth_limit=1
+        )
+
+        assert steps is not None
+        assert len(steps) == 1
+        move, qfen_after, is_terminal = steps[0]
+        assert move.shape == 0 and move.position == 0
+        assert is_terminal is True
+        final_bb = apply_move(bb, move)
+        assert check_game_winner(final_bb) == WinStatus.NO_WIN
