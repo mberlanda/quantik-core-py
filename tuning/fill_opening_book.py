@@ -62,6 +62,19 @@ def exact_entry(
     condition) is handled directly here instead of being solved: the side
     to move has already lost, matching the convention `_negamax` uses
     throughout `minimax.py`.
+
+    A no-legal-moves position is scored as a WIN for the opponent here
+    (`is_terminal=WIN_P0`/`WIN_P1`, `draw_count=0`), NOT `TerminalStatus
+    .STALEMATE`/a draw. This intentionally diverges from
+    `examples/opening_book_demo.py` and `examples/generate_opening_book.py`,
+    which both encode no-legal-moves as a draw -- but `board.py`'s own
+    `Board.get_game_result()` (the authoritative game-rules implementation)
+    is explicit that "If a player has no legal moves, the other player
+    wins", and Quantik has no draws at all (confirmed: `WinStatus` has no
+    draw member, only `NO_WIN`/`PLAYER_0_WINS`/`PLAYER_1_WINS`). Those two
+    examples appear to carry a pre-existing bug; fixing them is out of
+    scope for this change, but a reader comparing conventions across the
+    opening-book-writing code in this repo should not assume they agree.
     """
     p0, p1 = count_total_pieces(bb)
     stm = get_current_player_from_counts(p0, p1)

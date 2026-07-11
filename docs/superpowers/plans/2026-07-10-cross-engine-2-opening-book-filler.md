@@ -198,3 +198,35 @@ Documented the tool in `docs/OPENING_BOOK.md` under a new "Filling with
 Exact Solver Ground Truth" section, distinguishing its ground-truth
 `evaluation` convention (side-to-move perspective) from the pre-existing
 self-play example's fixed-P0 convention.
+
+A GitHub Copilot review of the resulting PR (#19) found four more issues
+across four rounds:
+- `exact_entry()` called `.solve()` unconditionally, without handling a
+  terminal `bb` itself (a completed winning line, or no legal moves) --
+  `search()` raises on the latter and mis-scores the former. Fixed by
+  scoring both cases directly (the side to move has already lost),
+  matching `_negamax`'s convention. Added two regression tests, verified
+  both fail against the pre-fix code.
+- Untyped `exact_entry()` params/return and a redundant dict comprehension
+  in the test -- both cleaned up.
+- `fill()` allocated a fresh `MinimaxEngine` per position instead of
+  reusing one (same pattern as `optimal_moves()` in PR #18) -- fixed by
+  adding an optional `engine` param to `exact_entry()`. Also corrected
+  `fill()`'s docstring: `sample_states()` can return fewer than `n`.
+- **A genuine repo-wide convention conflict**, not a bug in this PR:
+  `exact_entry()` encodes a no-legal-moves position as a win for the
+  opponent (`draw_count=0`), while `examples/opening_book_demo.py` and
+  `examples/generate_opening_book.py` both encode the same case as
+  `TerminalStatus.STALEMATE`/a draw. Verified against the authoritative
+  source, `Board.get_game_result()` in `src/quantik_core/board.py`:
+  "If a player has no legal moves, the other player wins" -- and
+  `WinStatus` has no draw member at all. Kept `exact_entry()`'s correct
+  encoding and documented the discrepancy prominently (in the function
+  docstring and `docs/OPENING_BOOK.md`) rather than silently matching
+  what appears to be a pre-existing bug in those two examples; fixing
+  them is out of scope for this PR.
+
+A GitHub Copilot coding-agent execution request (posted as a PR comment)
+ran `main(n=3000, seed=20260710)` and reported back: 3000 entries written
+in 1568.4s (~26 min, before the engine-reuse fix above), `quantik_opening_book.db`
+at 584K.

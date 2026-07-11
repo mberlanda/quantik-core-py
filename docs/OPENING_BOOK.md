@@ -332,6 +332,19 @@ perspective used by the self-play example above; check `evaluation`
 alongside `win_count_p0`/`win_count_p1`, which are always in absolute
 P0/P1 terms, if you need to compare the two.
 
+**Note on the no-legal-moves case:** this filler encodes a no-legal-moves
+position as a **win for the opponent** (`is_terminal=WIN_P0`/`WIN_P1`,
+`draw_count=0`), matching `Board.get_game_result()` (the authoritative
+game-rules implementation, which is explicit that "if a player has no
+legal moves, the other player wins") and `MinimaxEngine`'s own `_negamax`
+convention. The "Building from Game Tree" self-play example above and
+`examples/generate_opening_book.py` both instead encode this as
+`TerminalStatus.STALEMATE`/a draw (`draw_count=1`) — Quantik has no
+draws, so that appears to be a pre-existing bug in those examples rather
+than a legitimate alternate convention. If you mix entries from both
+sources in the same database, `is_terminal`/`draw_count` will not be
+self-consistent for no-legal-moves positions.
+
 ## Statistics and Analytics
 
 ### Database Statistics
