@@ -670,10 +670,12 @@ piece of work, listed roughly by increasing scope):
    input. Fixed by validating up front (`validate_game_state(bb,
    raise_on_error=True)`) rather than inferring terminality from an empty
    move list.
-3. **Hybrid opening→endgame player.** Use adaptive sampling (UCT or beam) while
-   the tree is intractable, then hand off to the **exact** minimax solve once
-   few enough cells remain — pairing each engine with the regime where it is
-   strongest and sidestepping the open-game intractability wall entirely.
+3. **Hybrid opening→endgame player.** ✅ Done — `quantik_core.hybrid
+   .HybridPlayer`. Samples with MCTS or beam search while the tree is
+   intractable, then hands off to the **exact** minimax solve once few
+   enough cells remain (default: 8 empty cells, where solves measured
+   ~0.25–1.3s). `opening_engine="beam"` is unaffected by item 4's MCTS
+   root-expansion bug; `opening_engine="mcts"` inherits it.
 4. **Eval-guided MCTS rollouts.** ✅ Done — `MCTSConfig.rollout_eval_config`/
    `rollout_epsilon`, opt-in and purely additive (`None` reproduces the
    original pure-random rollouts exactly). Measured cost: 3,000 iterations

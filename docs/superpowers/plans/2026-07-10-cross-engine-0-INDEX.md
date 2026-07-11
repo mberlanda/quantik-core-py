@@ -10,7 +10,7 @@ other — though the suggested order below front-loads the cheapest wins.
 | 1 | `...cross-engine-1-midgame-benchmark.md` | Example + smoke test only (`examples/cross_engine_benchmark.py`) | No (examples not measured) | Small | ✅ Done (branch `feat/cross-engine-midgame-benchmark`) |
 | 2 | `...cross-engine-2-opening-book-filler.md` | Tool + tests (`tuning/fill_opening_book.py`) | No | Small–medium | ✅ Done (branch `feat/cross-engine-opening-book-filler`) |
 | 3 | `...cross-engine-3-eval-guided-mcts.md` | **Library change** (`src/quantik_core/mcts.py`) | **Yes — ./dev-check.sh, ≥90%** | Medium | ✅ Done (branch `feat/cross-engine-eval-guided-mcts`) — found a significant pre-existing MCTS bug along the way, see plan's "Post-implementation notes" |
-| 4 | `...cross-engine-4-hybrid-player.md` | **New library module** (`src/quantik_core/hybrid.py`) | **Yes — ./dev-check.sh, ≥90%** | Medium | Not started |
+| 4 | `...cross-engine-4-hybrid-player.md` | **New library module** (`src/quantik_core/hybrid.py`) | **Yes — ./dev-check.sh, ≥90%** | Medium | ✅ Done (branch `feat/cross-engine-hybrid-player`) |
 
 ## Shared conventions (all four)
 - Work in an isolated worktree/branch; open a PR per plan (or bundle 1+2 and 3+4 if you prefer fewer PRs — they don't conflict).
