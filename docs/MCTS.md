@@ -68,11 +68,16 @@ from quantik_core.evaluation import EvalConfig
 
 config = MCTSConfig(
     max_iterations=2000,
-    rollout_eval_config=EvalConfig.load(),  # fitted weights
+    rollout_eval_config=EvalConfig.load(),  # fitted weights if available
     rollout_epsilon=0.2,
 )
 move, win_prob = MCTSEngine(config).search(state)
 ```
+
+`EvalConfig.load()` only loads the *fitted* weights from `tuning/weights.json`
+for a source checkout or editable install (`pip install -e .`) — `tuning/`
+isn't packaged into a built wheel, so it silently falls back to the seeded
+defaults there. See `docs/MINIMAX.md`'s Tuning section for the full caveat.
 
 At each rollout step, with probability `rollout_epsilon` the move is still
 uniformly random (keeping some variance so MCTS's statistics stay
