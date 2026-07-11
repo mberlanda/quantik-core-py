@@ -83,7 +83,9 @@ def exact_entry(
         stm_wins = False
         best_moves: List[Move] = []
     else:
-        solver = engine if engine is not None else MinimaxEngine(MinimaxConfig(max_depth=16))
+        solver = (
+            engine if engine is not None else MinimaxEngine(MinimaxConfig(max_depth=16))
+        )
         result = solver.solve(State(bb))
         stm_wins = result.score > 0
         best_moves = [result.best_move]
