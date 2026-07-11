@@ -51,11 +51,13 @@ def test_exact_entry_handles_completed_winning_line_without_solving():
 
 def test_exact_entry_handles_no_legal_moves_without_solving():
     # Regression, the other terminal condition: no winning line, but the
-    # side to move has zero legal moves (search() raises on this).
+    # side to move (P0) has zero legal moves (search() raises on this).
     bb = State.from_qfen(".DbC/c.ab/cD.a/AA.C").bb
     e = exact_entry(bb)
     assert e["evaluation"] == -1.0
     assert e["best_moves"] == []
+    assert e["win_count_p0"] == 0 and e["win_count_p1"] == 1
+    assert e["is_terminal"] == TerminalStatus.WIN_P1
 
 
 def test_exact_entry_raises_on_invalid_bitboard():

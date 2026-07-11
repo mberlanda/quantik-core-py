@@ -230,3 +230,34 @@ A GitHub Copilot coding-agent execution request (posted as a PR comment)
 ran `main(n=3000, seed=20260710)` and reported back: 3000 entries written
 in 1568.4s (~26 min, before the engine-reuse fix above), `quantik_opening_book.db`
 at 584K.
+
+Six more review rounds followed (10 total). Round 5 found real fixes worth
+noting:
+- A `black --check` CI failure that a local `./auto-lint.sh` run had
+  (apparently stalely) reported clean -- since re-verified explicitly
+  with `black --check .` before every subsequent commit in this PR and
+  the two that followed it.
+- **The most severe finding of the review**: `exact_entry()` treated any
+  empty `generate_legal_moves_list(bb)` as a legitimate no-legal-moves
+  terminal, but that function also returns `[]` for a genuinely
+  **invalid** bitboard (piece overlap, turn-balance violation, illegal
+  placement) -- there was no way to tell the two apart. Confirmed
+  concretely: the pre-fix code, given an overlapping-piece board with a
+  piece count that looked superficially balanced (2 vs 1, so the old
+  `get_current_player_from_counts()`-only check didn't catch it),
+  silently returned `win_count_p0=1` -- fabricating a decided game result
+  from invalid input. Fixed by calling `validate_game_state(bb,
+  raise_on_error=True)` up front, which also supplies the authoritative
+  side-to-move (now threaded into `generate_legal_moves_list`'s
+  `player_id` too). Added a regression test using this exact scenario.
+
+Rounds 6-10 were minor: an `assert`-under-`python -O` idiom fix (assert
+is stripped in optimized runs, so replaced with an explicit `RuntimeError`
+guard), two docstring line-wrap cosmetic fixes, a docstring wording
+clarification (`best_moves` is a list, not a single move), and a test-
+completeness suggestion (asserting `win_count_*`/`is_terminal` in the
+no-legal-moves regression test, not just `evaluation`) -- all applied
+since they were cheap, even though the last few were closer to
+diminishing returns than earlier rounds. The review loop was capped at
+10 rounds by deliberate choice, not because round 10 ran out of findings
+on its own.

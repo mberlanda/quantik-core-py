@@ -42,7 +42,8 @@ def exact_entry(
     """Solve `bb` exactly and return kwargs for `add_position` (minus `state`).
 
     `evaluation` is +1.0 if the side to move wins with perfect play, else
-    -1.0 (Quantik has no draws). `best_moves` is the solver's best move.
+    -1.0 (Quantik has no draws). `best_moves` is a single-element list
+    holding the solver's best move (empty for an already-terminal `bb`).
 
     `engine` lets a caller solving many positions (e.g. `fill()`'s loop)
     reuse one `MinimaxEngine` instead of paying a fresh allocation per
