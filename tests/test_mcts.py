@@ -525,6 +525,23 @@ class TestMCTSIntegration:
 class TestEvalGuidedRollouts:
     """Tests for the opt-in eval-guided rollout policy."""
 
+    def test_rejects_out_of_range_rollout_epsilon(self):
+        from quantik_core.evaluation import EvalConfig
+
+        for bad_epsilon in (-0.1, 1.1):
+            with pytest.raises(ValueError):
+                MCTSEngine(
+                    MCTSConfig(
+                        rollout_eval_config=EvalConfig(),
+                        rollout_epsilon=bad_epsilon,
+                    )
+                )
+
+    def test_rollout_epsilon_out_of_range_ignored_without_eval_config(self):
+        # No validation needed when rollout_eval_config is None -- epsilon
+        # is unused in that path.
+        MCTSEngine(MCTSConfig(rollout_eval_config=None, rollout_epsilon=5.0))
+
     def test_rollout_move_defaults_to_random_when_no_eval(self):
         # With no eval config, the helper must just pick from the legal moves.
         from quantik_core.move import generate_legal_moves_list

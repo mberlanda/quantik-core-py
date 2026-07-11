@@ -53,6 +53,13 @@ class MCTSEngine:
 
     def __init__(self, config: MCTSConfig):
         """Initialize MCTS engine with configuration."""
+        if config.rollout_eval_config is not None and not (
+            0.0 <= config.rollout_epsilon <= 1.0
+        ):
+            raise ValueError(
+                "rollout_epsilon must be in [0.0, 1.0], got "
+                f"{config.rollout_epsilon}"
+            )
         self.config = config
         if config.random_seed is not None:
             random.seed(config.random_seed)
