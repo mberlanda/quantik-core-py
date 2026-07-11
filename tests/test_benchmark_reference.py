@@ -42,6 +42,15 @@ class TestSolvePosition:
         assert ref["optimal_moves"] == sorted(ref["optimal_moves"])
         assert ref["pv"][0] in ref["optimal_moves"]
 
+    def test_solver_metadata_reports_caller_budget(self):
+        bb = State.from_qfen(ANCHOR).bb
+
+        ref = reference.solve_position(bb, budget_s=30.0)
+
+        assert ref is not None
+        assert "budget_s=30.0" in ref["solver"]
+        assert "remaining_budget" not in ref["solver"]
+
     def test_budget_exhaustion_returns_none_not_partial(self):
         bb = State.from_qfen("Ab../..../..../....").bb
 

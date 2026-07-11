@@ -85,7 +85,7 @@ def solve_position(bb, budget_s: float) -> Optional[dict]:
         "nodes": nodes,
         "solve_time_s": round(time.monotonic() - started_at, 6),
         "solver": (
-            "MinimaxEngine(max_depth=16, time_limit_s=remaining_budget) "
+            f"MinimaxEngine(max_depth=16, budget_s={budget_s}) "
             f"quantik-core {quantik_core.__version__}"
         ),
     }
