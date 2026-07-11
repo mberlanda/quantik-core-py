@@ -82,6 +82,11 @@ def exact_entry(
     terminal-win entry into the database.
     """
     stm, _ = validate_game_state(bb, raise_on_error=True)
+    # validate_game_state is typed Optional[PlayerId] because it can return
+    # (None, error) -- but raise_on_error=True means we only reach here on
+    # ValidationResult.OK, which always pairs with a concrete player. This
+    # assert makes that invariant explicit for readers and type checkers.
+    assert stm is not None
     p0, p1 = count_total_pieces(bb)
     already_decided = has_winning_line(bb) or not generate_legal_moves_list(
         bb, player_id=stm
