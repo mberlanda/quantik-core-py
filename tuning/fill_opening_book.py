@@ -62,17 +62,16 @@ def exact_entry(
     `_negamax` uses throughout `minimax.py`.
 
     A no-legal-moves position is scored as a WIN for the opponent here
-    (`is_terminal=WIN_P0`/`WIN_P1`, `draw_count=0`), NOT
-    `TerminalStatus.STALEMATE`/a draw. This intentionally diverges from
-    `examples/opening_book_demo.py` and `examples/generate_opening_book.py`,
-    which both encode no-legal-moves as a draw -- but `board.py`'s own
-    `Board.get_game_result()` (the authoritative game-rules implementation)
-    is explicit that "If a player has no legal moves, the other player
-    wins", and Quantik has no draws at all (confirmed: `WinStatus` has no
-    draw member, only `NO_WIN`/`PLAYER_0_WINS`/`PLAYER_1_WINS`). Those two
-    examples appear to carry a pre-existing bug; fixing them is out of
-    scope for this change, but a reader comparing conventions across the
-    opening-book-writing code in this repo should not assume they agree.
+    (`is_terminal=WIN_P0`/`WIN_P1`, `draw_count=0`), matching `board.py`'s
+    own `Board.get_game_result()` (the authoritative game-rules
+    implementation, which is explicit that "If a player has no legal
+    moves, the other player wins") -- Quantik has no draws at all
+    (confirmed: `WinStatus` has no draw member, only
+    `NO_WIN`/`PLAYER_0_WINS`/`PLAYER_1_WINS`). `examples/opening_book_demo.py`
+    and `examples/generate_opening_book.py` previously encoded
+    no-legal-moves as `TerminalStatus.STALEMATE`/a draw instead; both were
+    fixed to match this convention, so all opening-book-writing code paths
+    in this repo now agree.
 
     Raises `ValidationError` for an invalid `bb` (piece-count/overlap/
     turn-balance/placement violations) rather than treating it as a

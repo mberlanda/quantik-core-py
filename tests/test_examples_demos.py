@@ -221,3 +221,65 @@ class TestCrossEngineBenchmark:
         p0, p1 = count_total_pieces(bb)
         assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
         assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+
+
+@pytest.fixture(scope="module")
+def opening_book_demo():
+    return _load_demo_module("opening_book_demo.py")
+
+
+@pytest.fixture(scope="module")
+def generate_opening_book():
+    return _load_demo_module("generate_opening_book.py")
+
+
+class TestOpeningBookNoLegalMovesIsAWinNotADraw:
+    """Regression: Quantik has no draws. A position with no legal moves
+    and no completed line must be scored as a win for whichever player is
+    NOT to move (Board.get_game_result()'s own convention), not as a
+    stalemate/draw -- see docs/OPENING_BOOK.md's "no-legal-moves case"
+    callout and tuning/fill_opening_book.py's exact_entry, which already
+    follows this convention.
+    """
+
+    # No legal moves, no completed line (found by random self-play search):
+    # P0 to move (6 pieces each), every empty cell blocks every remaining
+    # shape for P0 via row/col/box constraints. P1 -- who is NOT to move --
+    # must be credited with the win.
+    _NO_LEGAL_MOVES_NO_WIN = "ca.c/DDbb/BC.a/B.C."
+
+    def test_explore_positions_credits_the_non_mover(self, opening_book_demo):
+        from quantik_core import State
+        from quantik_core.game_utils import check_game_winner, WinStatus
+
+        bb = State.from_qfen(self._NO_LEGAL_MOVES_NO_WIN).bb
+        assert check_game_winner(bb) == WinStatus.NO_WIN  # no completed line
+
+        positions: dict = {}
+        opening_book_demo.explore_positions(
+            bb, depth=0, max_depth=0, positions=positions
+        )
+
+        canonical_key = State(bb).canonical_key()
+        data = positions[(canonical_key, 0)]
+        assert data["draw_count"] == 0
+        assert data["win_count_p0"] == 0
+        assert data["win_count_p1"] == 1
+        assert data["evaluation"] == -1.0
+
+    def test_expand_chunk_credits_the_non_mover(self, generate_opening_book):
+        from quantik_core import State
+
+        bb = State.from_qfen(self._NO_LEGAL_MOVES_NO_WIN).bb
+
+        results = generate_opening_book._expand_chunk(
+            [bb], depth=12, dropout_rate=0.0, dropout_from_depth=999, seed=0
+        )
+
+        assert len(results) == 1
+        result = results[0]
+        assert result["draws"] == 0
+        assert result["w0"] == 0
+        assert result["w1"] == 1
+        assert result["eval"] == -1.0
+        assert result["is_terminal"] == 2  # WIN_P1

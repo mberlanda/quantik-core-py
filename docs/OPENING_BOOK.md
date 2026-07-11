@@ -337,13 +337,14 @@ position as a **win for the opponent** (`is_terminal=WIN_P0`/`WIN_P1`,
 `draw_count=0`), matching `Board.get_game_result()` (the authoritative
 game-rules implementation, which is explicit that "if a player has no
 legal moves, the other player wins") and `MinimaxEngine`'s own `_negamax`
-convention. The "Building from Game Tree" self-play example above and
-`examples/generate_opening_book.py` both instead encode this as
-`TerminalStatus.STALEMATE`/a draw (`draw_count=1`) — Quantik has no
-draws, so that appears to be a pre-existing bug in those examples rather
-than a legitimate alternate convention. If you mix entries from both
-sources in the same database, `is_terminal`/`draw_count` will not be
-self-consistent for no-legal-moves positions.
+convention. The "Building from Game Tree" self-play example above
+(`examples/opening_book_demo.py::explore_positions`) and
+`examples/generate_opening_book.py::_expand_chunk` previously encoded
+this as `TerminalStatus.STALEMATE`/a draw (`draw_count=1`) — Quantik has
+no draws, so that was a genuine bug rather than a legitimate alternate
+convention; both were fixed to match this filler's convention. All three
+opening-book-writing code paths in this repo now agree on the
+no-legal-moves case.
 
 ## Statistics and Analytics
 
