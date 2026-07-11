@@ -71,6 +71,15 @@ class TestGenerate:
         with pytest.raises(ValueError):
             dataset.generate({"midgame": 3}, seed=1)
 
+    def test_allows_phase_to_come_back_short_when_sampling_exhausts(self, monkeypatch):
+        def always_terminal(_rng, _plies):
+            return None
+
+        monkeypatch.setattr(dataset, "_random_position", always_terminal)
+        payload = dataset.generate({"endgame": 1}, seed=1)
+        assert payload["requested"] == {"endgame": 1}
+        assert payload["positions"] == []
+
 
 class TestArtifactIO:
     def test_save_load_roundtrip(self, tmp_path):
