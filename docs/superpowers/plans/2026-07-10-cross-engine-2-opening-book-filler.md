@@ -36,7 +36,7 @@
 
 **Convention (document in the module docstring):** the book `evaluation` is stored from the **side-to-move's** perspective: `+1.0` if the side to move wins with perfect play, `-1.0` if it loses. `win_count_p0/p1` record the exact winner as a single ground-truth "game".
 
-- [ ] **Step 1: Write failing tests**:
+- [x] **Step 1: Write failing tests**:
 
 ```python
 import numpy as np  # noqa: F401  (parity with repo style; remove if unused)
@@ -75,9 +75,9 @@ def test_fill_writes_and_is_idempotent(tmp_path):
         fill(db, n=15, seed=1)
 ```
 
-- [ ] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_opening_book_filler.py -x --no-cov`. Ensure `tuning/` is importable (a `tuning/__init__.py` already exists from the minimax feature).
+- [x] **Step 2: Run, verify fail** — `.venv/bin/pytest tests/test_opening_book_filler.py -x --no-cov`. Ensure `tuning/` is importable (a `tuning/__init__.py` already exists from the minimax feature).
 
-- [ ] **Step 3: Implement `tuning/fill_opening_book.py`.** Full content:
+- [x] **Step 3: Implement `tuning/fill_opening_book.py`.** Full content:
 
 ```python
 """Fill the shared opening book with EXACT minimax-solved entries.
@@ -157,11 +157,11 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_opening_book_filler.py -v --no-cov`.
+- [x] **Step 4: Run tests, verify pass** — `.venv/bin/pytest tests/test_opening_book_filler.py -v --no-cov`.
 
-- [ ] **Step 5: Smoke-run** — `.venv/bin/python tuning/fill_opening_book.py` with a small `n` (edit call or run `python -c "from tuning.fill_opening_book import main; main(n=30)"`). Confirm it writes a DB and prints a count. Do NOT commit the `.db` file — add `*.db` to `.gitignore` if not already ignored (`grep -q '\.db' .gitignore || echo '*.db' >> .gitignore`).
+- [x] **Step 5: Smoke-run** — `.venv/bin/python tuning/fill_opening_book.py` with a small `n` (edit call or run `python -c "from tuning.fill_opening_book import main; main(n=30)"`). Confirm it writes a DB and prints a count. Do NOT commit the `.db` file — add `*.db` to `.gitignore` if not already ignored (`grep -q '\.db' .gitignore || echo '*.db' >> .gitignore`).
 
-- [ ] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add tuning/fill_opening_book.py tests/test_opening_book_filler.py .gitignore`; commit `feat(tuning): exact-solver opening-book filler`.
+- [x] **Step 6: Lint + commit** — `./auto-lint.sh`; `git add tuning/fill_opening_book.py tests/test_opening_book_filler.py .gitignore`; commit `feat(tuning): exact-solver opening-book filler`.
 
 ---
 
@@ -170,3 +170,94 @@ if __name__ == "__main__":
 - `evaluation` perspective documented (side-to-move) and consistent with `win_count_*`.
 - No `.db` artifact committed.
 - Optional extension (note in the module, do not implement unless asked): store the FULL optimal-move set instead of just `result.best_move`, by solving each child (more expensive).
+
+## Post-implementation notes
+
+Both plan test anchors reused the SAME `"AbC./..../..../...."` position
+already found to be intractable in follow-up 1: `exact_entry()` calls
+`MinimaxEngine.solve()` on the **root** itself (not a child), and
+`_search_root` deliberately does not prune across root siblings, so a
+near-empty root requires exhaustively evaluating ~40 non-winning branches
+from the intractable early game (timed out after 30s, never completed).
+Replaced with a deep (12-piece) P0-to-move anchor with a single forced
+win-in-1 (`"ad.b/.cDb/CaBC/D.A."`, solves in 0.58s); the second anchor
+(a pre-existing 8-piece forced-loss-in-4 position from
+`tests/test_minimax.py`) was already fine.
+
+Proactively applied the script-mode import fallback pattern from
+`fit_weights.py` (a PR #17 review finding) to `fill_opening_book.py`
+before it could recur as its own finding, and added `*.db`/`*.db-shm`/
+`*.db-wal` to `.gitignore` (the opening book's default WAL mode leaves
+sidecar files alongside the main `.db`).
+
+Verified both invocation modes end-to-end: `python -m tuning.fill_opening_book`
+and `python tuning/fill_opening_book.py` (script mode, exercising the
+fallback import) both wrote 300 entries in ~119s.
+
+Documented the tool in `docs/OPENING_BOOK.md` under a new "Filling with
+Exact Solver Ground Truth" section, distinguishing its ground-truth
+`evaluation` convention (side-to-move perspective) from the pre-existing
+self-play example's fixed-P0 convention.
+
+A GitHub Copilot review of the resulting PR (#19) found four more issues
+across four rounds:
+- `exact_entry()` called `.solve()` unconditionally, without handling a
+  terminal `bb` itself (a completed winning line, or no legal moves) --
+  `search()` raises on the latter and mis-scores the former. Fixed by
+  scoring both cases directly (the side to move has already lost),
+  matching `_negamax`'s convention. Added two regression tests, verified
+  both fail against the pre-fix code.
+- Untyped `exact_entry()` params/return and a redundant dict comprehension
+  in the test -- both cleaned up.
+- `fill()` allocated a fresh `MinimaxEngine` per position instead of
+  reusing one (same pattern as `optimal_moves()` in PR #18) -- fixed by
+  adding an optional `engine` param to `exact_entry()`. Also corrected
+  `fill()`'s docstring: `sample_states()` can return fewer than `n`.
+- **A genuine repo-wide convention conflict**, not a bug in this PR:
+  `exact_entry()` encodes a no-legal-moves position as a win for the
+  opponent (`draw_count=0`), while `examples/opening_book_demo.py` and
+  `examples/generate_opening_book.py` both encode the same case as
+  `TerminalStatus.STALEMATE`/a draw. Verified against the authoritative
+  source, `Board.get_game_result()` in `src/quantik_core/board.py`:
+  "If a player has no legal moves, the other player wins" -- and
+  `WinStatus` has no draw member at all. Kept `exact_entry()`'s correct
+  encoding and documented the discrepancy prominently (in the function
+  docstring and `docs/OPENING_BOOK.md`) rather than silently matching
+  what appears to be a pre-existing bug in those two examples; fixing
+  them is out of scope for this PR.
+
+A GitHub Copilot coding-agent execution request (posted as a PR comment)
+ran `main(n=3000, seed=20260710)` and reported back: 3000 entries written
+in 1568.4s (~26 min, before the engine-reuse fix above), `quantik_opening_book.db`
+at 584K.
+
+Six more review rounds followed (10 total). Round 5 found real fixes worth
+noting:
+- A `black --check` CI failure that a local `./auto-lint.sh` run had
+  (apparently stalely) reported clean -- since re-verified explicitly
+  with `black --check .` before every subsequent commit in this PR and
+  the two that followed it.
+- **The most severe finding of the review**: `exact_entry()` treated any
+  empty `generate_legal_moves_list(bb)` as a legitimate no-legal-moves
+  terminal, but that function also returns `[]` for a genuinely
+  **invalid** bitboard (piece overlap, turn-balance violation, illegal
+  placement) -- there was no way to tell the two apart. Confirmed
+  concretely: the pre-fix code, given an overlapping-piece board with a
+  piece count that looked superficially balanced (2 vs 1, so the old
+  `get_current_player_from_counts()`-only check didn't catch it),
+  silently returned `win_count_p0=1` -- fabricating a decided game result
+  from invalid input. Fixed by calling `validate_game_state(bb,
+  raise_on_error=True)` up front, which also supplies the authoritative
+  side-to-move (now threaded into `generate_legal_moves_list`'s
+  `player_id` too). Added a regression test using this exact scenario.
+
+Rounds 6-10 were minor: an `assert`-under-`python -O` idiom fix (assert
+is stripped in optimized runs, so replaced with an explicit `RuntimeError`
+guard), two docstring line-wrap cosmetic fixes, a docstring wording
+clarification (`best_moves` is a list, not a single move), and a test-
+completeness suggestion (asserting `win_count_*`/`is_terminal` in the
+no-legal-moves regression test, not just `evaluation`) -- all applied
+since they were cheap, even though the last few were closer to
+diminishing returns than earlier rounds. The review loop was capped at
+10 rounds by deliberate choice, not because round 10 ran out of findings
+on its own.

@@ -8,7 +8,7 @@ other — though the suggested order below front-loads the cheapest wins.
 | # | Plan | Scope | Coverage gate? | Rough size | Status |
 |---|------|-------|----------------|-----------|--------|
 | 1 | `...cross-engine-1-midgame-benchmark.md` | Example + smoke test only (`examples/cross_engine_benchmark.py`) | No (examples not measured) | Small | ✅ Done (branch `feat/cross-engine-midgame-benchmark`) |
-| 2 | `...cross-engine-2-opening-book-filler.md` | Tool + tests (`tuning/fill_opening_book.py`) | No | Small–medium | Not started |
+| 2 | `...cross-engine-2-opening-book-filler.md` | Tool + tests (`tuning/fill_opening_book.py`) | No | Small–medium | ✅ Done (branch `feat/cross-engine-opening-book-filler`) |
 | 3 | `...cross-engine-3-eval-guided-mcts.md` | **Library change** (`src/quantik_core/mcts.py`) | **Yes — ./dev-check.sh, ≥90%** | Medium | Not started |
 | 4 | `...cross-engine-4-hybrid-player.md` | **New library module** (`src/quantik_core/hybrid.py`) | **Yes — ./dev-check.sh, ≥90%** | Medium | Not started |
 
