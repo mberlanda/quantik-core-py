@@ -675,6 +675,118 @@ class TestCrossEngineBenchmarkCLI:
             == manifest_before
         )
 
+    def test_resume_allows_different_worker_count(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main([*base_args, "--workers", "1"]) == 0
+        first_bundle = json.loads(bundle_path.read_text())
+
+        assert (
+            cross_engine_benchmark.main([*base_args, "--resume", "--workers", "2"]) == 0
+        )
+        second_bundle = json.loads(bundle_path.read_text())
+
+        assert second_bundle["observations"] == first_bundle["observations"]
+
+    def test_run_rejects_zero_workers(self, cross_engine_benchmark, tmp_path):
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--workers",
+                    "0",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
     def test_parser_rejects_unknown_family(self, cross_engine_benchmark):
         with pytest.raises(SystemExit):
             cross_engine_benchmark.build_parser().parse_args(

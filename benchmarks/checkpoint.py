@@ -16,7 +16,7 @@ from benchmarks.stability import aggregate_stability
 MANIFEST = "manifest.json"
 OBSERVATIONS = "observations.jsonl"
 H2H_RECORDS = "h2h.jsonl"
-_RESUME_CONFIG_EXCLUDES = {"checkpoint_dir", "output", "resume"}
+_RESUME_CONFIG_EXCLUDES = {"checkpoint_dir", "output", "resume", "workers"}
 
 
 def append_jsonl(path, row: dict) -> None:

@@ -8,6 +8,7 @@ can have either color to move.
 
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor
 from typing import Dict, List, Sequence, Tuple
 
 from quantik_core import State, apply_move
@@ -38,39 +39,64 @@ def play_game(mover, responder, bb, seed: int) -> Tuple[str, int]:
         plies += 1
 
 
+def _h2h_tasks(adapter_a, adapter_b, positions: Sequence[dict], seeds, skip_keys):
+    skipped = set(skip_keys or ())
+    for position in positions:
+        for seed in seeds:
+            for mover, responder in ((adapter_a, adapter_b), (adapter_b, adapter_a)):
+                key = (position["id"], mover.name, responder.name, seed)
+                if key not in skipped:
+                    yield mover, responder, position, seed
+
+
+def _play_h2h_record(task) -> dict:
+    mover, responder, position, seed = task
+    bb = State.from_qfen(position["qfen"]).bb
+    winner, plies = play_game(mover, responder, bb, seed)
+    return {
+        "position_id": position["id"],
+        "phase": position["phase"],
+        "mover": mover.name,
+        "responder": responder.name,
+        "winner": winner,
+        "plies": plies,
+        "seed": seed,
+    }
+
+
 def iter_head_to_head(
     adapter_a,
     adapter_b,
     positions: Sequence[dict],
     seeds: Sequence[int],
     skip_keys=None,
+    workers: int = 1,
 ):
     """Play both engine orientations per position and seed."""
-    skipped = set(skip_keys or ())
-    for position in positions:
-        bb = State.from_qfen(position["qfen"]).bb
-        for seed in seeds:
-            for mover, responder in ((adapter_a, adapter_b), (adapter_b, adapter_a)):
-                key = (position["id"], mover.name, responder.name, seed)
-                if key in skipped:
-                    continue
-                winner, plies = play_game(mover, responder, bb, seed)
-                yield {
-                    "position_id": position["id"],
-                    "phase": position["phase"],
-                    "mover": mover.name,
-                    "responder": responder.name,
-                    "winner": winner,
-                    "plies": plies,
-                    "seed": seed,
-                }
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+
+    tasks = list(_h2h_tasks(adapter_a, adapter_b, positions, seeds, skip_keys))
+    if not tasks:
+        return
+    if workers == 1:
+        for task in tasks:
+            yield _play_h2h_record(task)
+        return
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        yield from executor.map(_play_h2h_record, tasks)
 
 
 def run_head_to_head(
-    adapter_a, adapter_b, positions: Sequence[dict], seeds: Sequence[int]
+    adapter_a,
+    adapter_b,
+    positions: Sequence[dict],
+    seeds: Sequence[int],
+    workers: int = 1,
 ) -> List[dict]:
     """Play both engine orientations per position and seed."""
-    return list(iter_head_to_head(adapter_a, adapter_b, positions, seeds))
+    return list(iter_head_to_head(adapter_a, adapter_b, positions, seeds, workers=workers))
 
 
 def aggregate_head_to_head(records: List[dict], name_a: str, name_b: str) -> dict:

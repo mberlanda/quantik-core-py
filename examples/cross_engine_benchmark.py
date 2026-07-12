@@ -114,6 +114,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--checkpoint-dir", default=None)
     run.add_argument("--resume", action="store_true")
     run.add_argument("--checkpoint-every", type=int, default=1)
+    run.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="parallel worker processes for agreement observations and h2h games",
+    )
     run.add_argument("--output", required=True)
 
     report = subcommands.add_parser("report", help="render a bundle to Markdown")
@@ -226,6 +232,10 @@ def cmd_dataset(args) -> int:
 
 def cmd_run(args) -> int:
     payload = ds.load(args.dataset)
+    if args.workers < 1:
+        print("RUN FAILED - workers must be at least 1")
+        return 1
+
     seeds = [args.seed_base + i for i in range(args.seeds)]
     run_config = dict(vars(args))
     run_config["engine_seeds"] = seeds
@@ -295,23 +305,28 @@ def cmd_run(args) -> int:
     if checkpoint_root is None:
         _print_progress(
             f"agreement: running {len(payload['positions'])} positions "
-            f"with {len(seeds)} seed(s)"
+            f"with {len(seeds)} seed(s), workers={args.workers}"
         )
         rows = run_agreement(
             adapters,
             payload,
             seeds,
             track_memory=args.track_memory,
+            workers=args.workers,
         )
         head_to_head = {"records": [], "aggregates": []}
         if not args.skip_h2h:
             _print_progress(
                 f"h2h: running {len(h2h_positions)} positions with "
-                f"{len(h2h_seeds)} seed(s)"
+                f"{len(h2h_seeds)} seed(s), workers={args.workers}"
             )
             for adapter_a, adapter_b in itertools.combinations(adapters, 2):
                 records = run_head_to_head(
-                    adapter_a, adapter_b, h2h_positions, h2h_seeds
+                    adapter_a,
+                    adapter_b,
+                    h2h_positions,
+                    h2h_seeds,
+                    workers=args.workers,
                 )
                 head_to_head["records"].extend(records)
                 head_to_head["aggregates"].append(
@@ -353,7 +368,8 @@ def cmd_run(args) -> int:
         ) * len(payload["positions"])
         _print_progress(
             f"agreement: {completed_observations}/{total_observations} "
-            f"observations complete; checkpoint {paths['observations']}"
+            f"observations complete; workers={args.workers}; "
+            f"checkpoint {paths['observations']}"
         )
         for row in iter_agreement(
             adapters,
@@ -361,6 +377,7 @@ def cmd_run(args) -> int:
             seeds,
             track_memory=args.track_memory,
             skip_keys=observation_skips,
+            workers=args.workers,
         ):
             append_jsonl(paths["observations"], row)
             rows.append(row)
@@ -385,7 +402,7 @@ def cmd_run(args) -> int:
             total_h2h = _expected_h2h_records(adapters, h2h_positions, h2h_seeds)
             _print_progress(
                 f"h2h: {completed_h2h}/{total_h2h} games complete; "
-                f"checkpoint {paths['h2h']}"
+                f"workers={args.workers}; checkpoint {paths['h2h']}"
             )
             for adapter_a, adapter_b in itertools.combinations(adapters, 2):
                 for record in iter_head_to_head(
@@ -394,6 +411,7 @@ def cmd_run(args) -> int:
                     h2h_positions,
                     h2h_seeds,
                     skip_keys=h2h_skips,
+                    workers=args.workers,
                 ):
                     append_jsonl(paths["h2h"], record)
                     completed_h2h += 1

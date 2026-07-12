@@ -13,6 +13,7 @@ from quantik_core.game_utils import (
 )
 from quantik_core.move import generate_legal_moves_list
 
+from benchmarks import head_to_head
 from benchmarks.adapters import MinimaxAdapter, RandomAdapter
 from benchmarks.head_to_head import (
     aggregate_head_to_head,
@@ -105,3 +106,39 @@ class TestRunHeadToHead:
 
         assert records == baseline[1:]
         assert baseline[0] not in records
+
+    def test_parallel_head_to_head_preserves_logical_order(self, monkeypatch):
+        seen_workers = []
+
+        class InlineExecutor:
+            def __init__(self, max_workers):
+                seen_workers.append(max_workers)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb):
+                return False
+
+            def map(self, func, tasks):
+                return map(func, tasks)
+
+        monkeypatch.setattr(head_to_head, "ProcessPoolExecutor", InlineExecutor)
+        positions = [_position(ANCHOR, "p0000")]
+        sequential = run_head_to_head(
+            MinimaxAdapter(max_depth=16),
+            RandomAdapter(),
+            positions,
+            seeds=[0, 1],
+            workers=1,
+        )
+        parallel = run_head_to_head(
+            MinimaxAdapter(max_depth=16),
+            RandomAdapter(),
+            positions,
+            seeds=[0, 1],
+            workers=2,
+        )
+
+        assert seen_workers == [2]
+        assert parallel == sequential

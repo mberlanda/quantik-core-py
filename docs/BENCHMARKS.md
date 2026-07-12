@@ -121,12 +121,14 @@ and head-to-head games are persisted as they finish:
 python examples/cross_engine_benchmark.py run \
   --dataset benchmarks/positions-v1.json \
   --time-limit 1.0 --seeds 30 \
+  --workers 4 \
   --checkpoint-dir benchmarks/results/$(git rev-parse --short HEAD) \
   --checkpoint-every 25 \
   --output benchmarks/results/$(git rev-parse --short HEAD).json
 python examples/cross_engine_benchmark.py run \
   --dataset benchmarks/positions-v1.json \
   --time-limit 1.0 --seeds 30 \
+  --workers 4 \
   --checkpoint-dir benchmarks/results/$(git rev-parse --short HEAD) \
   --resume \
   --output benchmarks/results/$(git rev-parse --short HEAD).json
@@ -138,6 +140,14 @@ python examples/cross_engine_benchmark.py report \
 checkpoint directory. `--resume` skips already completed observation and
 head-to-head keys, and the final monolithic bundle is still written to
 `--output`.
+
+`--workers N` parallelizes independent agreement observations and
+head-to-head games with process workers. The default is `1`, preserving
+sequential execution. Worker count is intentionally ignored for resume
+compatibility, so a checkpoint started with one worker count can be resumed
+with another. Memory use can scale roughly with active workers because each
+process owns its own engine search state; prefer a small value such as `2`
+or `4` on constrained machines.
 
 ## Interpretation Guardrails
 

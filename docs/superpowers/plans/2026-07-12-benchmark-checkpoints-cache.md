@@ -1023,7 +1023,7 @@ Run: `rtk ./auto-lint.sh`
 
 Expected: exit 0.
 
-- [ ] **Step 4: Commit checkpoint implementation**
+- [x] **Step 4: Commit checkpoint implementation**
 
 Run:
 
@@ -1033,6 +1033,30 @@ rtk git commit -m "feat(benchmarks): add resumable result checkpoints"
 ```
 
 Expected: one model-neutral commit.
+
+Actual: checkpoint support was committed across focused follow-up commits,
+including preflight-progress fixes after long native runs showed no early
+observable output.
+
+## Phase 1b: Parallel Benchmark Workers
+
+Added after checkpointing because the checkpointed agreement-only native run
+still projected to multiple hours on constrained hardware. This phase keeps
+engine internals unchanged and parallelizes only independent benchmark units.
+
+- [x] Add `workers` support to `benchmarks.agreement.run_agreement()` and
+  `iter_agreement()`. `workers=1` preserves the old sequential path;
+  `workers>1` uses process workers over independent
+  `(position, adapter, seed)` observations.
+- [x] Add `workers` support to `benchmarks.head_to_head.run_head_to_head()`
+  and `iter_head_to_head()`. Each side-balanced game is an independent task.
+- [x] Add CLI `run --workers`, defaulting to `1`.
+- [x] Keep checkpoint writes parent-owned. Parallel workers return normal row
+  dictionaries; the CLI appends JSONL and updates the manifest.
+- [x] Ignore `workers` during resume validation because it changes execution
+  scheduling, not benchmark semantics.
+- [x] Document worker usage and memory tradeoffs in `docs/BENCHMARKS.md`.
+- [x] Run focused tests, `auto-lint.sh`, and `dev-check.sh`; commit and push.
 
 ## Phase 2: Selection Cache
 

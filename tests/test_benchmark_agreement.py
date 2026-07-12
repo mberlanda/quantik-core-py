@@ -5,6 +5,7 @@ import pytest
 from quantik_core import State
 from quantik_core.move import generate_legal_moves_list
 
+from benchmarks import agreement
 from benchmarks import reference
 from benchmarks.adapters import MinimaxAdapter, RandomAdapter
 from benchmarks.agreement import (
@@ -90,6 +91,35 @@ class TestRunAgreement:
         ]
         assert observation_key(baseline[0]) not in [
             observation_key(row) for row in rows
+        ]
+
+    def test_parallel_agreement_preserves_logical_order(self, payload, monkeypatch):
+        seen_workers = []
+
+        class InlineExecutor:
+            def __init__(self, max_workers):
+                seen_workers.append(max_workers)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, _exc_type, _exc, _tb):
+                return False
+
+            def map(self, func, tasks):
+                return map(func, tasks)
+
+        monkeypatch.setattr(agreement, "ProcessPoolExecutor", InlineExecutor)
+        adapters = [MinimaxAdapter(max_depth=2), RandomAdapter()]
+        sequential = run_agreement(adapters, payload, seeds=[0, 1], workers=1)
+        parallel = run_agreement(adapters, payload, seeds=[0, 1], workers=2)
+
+        assert seen_workers == [2]
+        assert [observation_key(row) for row in parallel] == [
+            observation_key(row) for row in sequential
+        ]
+        assert [(row["phase"], row["hit"]) for row in parallel] == [
+            (row["phase"], row["hit"]) for row in sequential
         ]
 
 

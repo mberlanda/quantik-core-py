@@ -2,11 +2,44 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor
 from typing import Dict, List, Sequence, Tuple
 
 from quantik_core import State
 
 from benchmarks.metrics import median, percentile, wilson_ci
+
+
+def _agreement_tasks(adapters, payload: dict, seeds: Sequence[int], skip_keys):
+    skipped = set(skip_keys or ())
+    for position in payload["positions"]:
+        for adapter in adapters:
+            adapter_seeds = seeds if adapter.stochastic else [seeds[0]]
+            for seed in adapter_seeds:
+                key = (position["id"], adapter.name, adapter.config_label, seed)
+                if key not in skipped:
+                    yield adapter, position, seed
+
+
+def _select_agreement_row(task, track_memory: bool = False) -> dict:
+    adapter, position, seed = task
+    bb = State.from_qfen(position["qfen"]).bb
+    reference = position.get("reference")
+    optimal_moves = set(reference["optimal_moves"]) if reference else None
+    _, observation = adapter.select(
+        bb,
+        position["id"],
+        seed=seed,
+        track_memory=track_memory,
+    )
+    row = observation.to_dict()
+    row["phase"] = position["phase"]
+    row["hit"] = observation.move in optimal_moves if optimal_moves is not None else None
+    return row
+
+
+def _select_agreement_row_with_memory(task) -> dict:
+    return _select_agreement_row(task, track_memory=True)
 
 
 def iter_agreement(
@@ -15,37 +48,27 @@ def iter_agreement(
     seeds: Sequence[int],
     track_memory: bool = False,
     skip_keys=None,
+    workers: int = 1,
 ):
     """Yield one move-observation row per adapter, position, and seed run."""
     if not seeds:
         raise ValueError("seeds must be a non-empty ordered list")
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
 
-    skipped = set(skip_keys or ())
-    for position in payload["positions"]:
-        bb = State.from_qfen(position["qfen"]).bb
-        reference = position.get("reference")
-        optimal_moves = set(reference["optimal_moves"]) if reference else None
+    tasks = list(_agreement_tasks(adapters, payload, seeds, skip_keys))
+    if not tasks:
+        return
+    if workers == 1:
+        for task in tasks:
+            yield _select_agreement_row(task, track_memory=track_memory)
+        return
 
-        for adapter in adapters:
-            adapter_seeds = seeds if adapter.stochastic else [seeds[0]]
-            for seed in adapter_seeds:
-                key = (position["id"], adapter.name, adapter.config_label, seed)
-                if key in skipped:
-                    continue
-                _, observation = adapter.select(
-                    bb,
-                    position["id"],
-                    seed=seed,
-                    track_memory=track_memory,
-                )
-                row = observation.to_dict()
-                row["phase"] = position["phase"]
-                row["hit"] = (
-                    observation.move in optimal_moves
-                    if optimal_moves is not None
-                    else None
-                )
-                yield row
+    worker_func = (
+        _select_agreement_row_with_memory if track_memory else _select_agreement_row
+    )
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        yield from executor.map(worker_func, tasks)
 
 
 def run_agreement(
@@ -53,9 +76,18 @@ def run_agreement(
     payload: dict,
     seeds: Sequence[int],
     track_memory: bool = False,
+    workers: int = 1,
 ) -> List[dict]:
     """Return one move-observation row per adapter, position, and seed run."""
-    return list(iter_agreement(adapters, payload, seeds, track_memory=track_memory))
+    return list(
+        iter_agreement(
+            adapters,
+            payload,
+            seeds,
+            track_memory=track_memory,
+            workers=workers,
+        )
+    )
 
 
 def aggregate_agreement(rows: List[dict]) -> List[dict]:
