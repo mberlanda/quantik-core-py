@@ -1,0 +1,2267 @@
+{
+  "checksum": "ecc06bbe214c164ad6651868367fdbe5ea5c1d78641fd16a23e54b1af0c714b9",
+  "generator": "benchmarks.dataset.depth4-canonical-sample/v1",
+  "positions": [
+    {
+      "id": "d4c00750",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/..../.DD./.c..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00751",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../.C../.d.c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00752",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..Db/C.../..b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00753",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../dd../C.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00754",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../C.D./b.b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00755",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../CD.b/...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00756",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..a./...b/C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00757",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..d./C.../..d.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00758",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b.../CD../...d",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00759",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../D.b./D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00760",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../d.../C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00761",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../.D../C.../d...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00762",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./.C.d/d...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00763",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d.../..D./C.../.d..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00764",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.c./..../..../D..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00765",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...c/C.../.D.b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00766",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".d../.d../C.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00767",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../..D./cD..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00768",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d..b/..../C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00769",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...c/.b../C..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00770",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./Cb../d...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00771",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..../...D/.cc.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00772",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../.c../C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00773",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D.b/C.../..d.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00774",
+      "legal_moves": 31,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..../D.../cD..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00775",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..b./..../CD../...a",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00776",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../dd../C..D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00777",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...a/.b../.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00778",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./d.../C.../.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00779",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..b./C..a/..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00780",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..../c.../.c.D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00781",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".d../..../C.../b..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00782",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./.d../..D./D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00783",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../c.../...D/..b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00784",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "bc../.D../C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00785",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b..D/C.a./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00786",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../.C../.dd.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00787",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..Db/C..b/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00788",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/..../C.../b.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00789",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...b/..c./DD../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00790",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..../...c/D.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00791",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...c/.DD./.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00792",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.c./..../C.b./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00793",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../C.D./.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00794",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..../b.../.cD.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00795",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../DcD./...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00796",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...b/...c/DD../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00797",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../..Db/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00798",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.bc./D.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00799",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../c.../D..D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00800",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../..../DD../b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00801",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../.C../..cD",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00802",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../...b/C.b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00803",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../db../C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00804",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b..D/.d../C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00805",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../c.D./.c..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00806",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../.d../.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00807",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..b./C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00808",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./.d../C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00809",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.D./..../C.a./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00810",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D..b/..../C.../a...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00811",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../bD../C.../...b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00812",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..bc/D.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00813",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../db../..../C..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00814",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../.C../b.b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00815",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..c./...D/...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00816",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../.b.D/cD..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00817",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./C.../..cc",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00818",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../Ca.D/b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00819",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..../c.../..Dc",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00820",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../.d../..../C..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00821",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/D.../C.../.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00822",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..b./.C.d/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00823",
+      "legal_moves": 31,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d.../..../.c.D/.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00824",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...b/.D../C.a./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00825",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..b./C.D./b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00826",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/...c/C.../..d.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00827",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../C..d/..b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00828",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..../CaD./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00829",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b.c/..D./C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00830",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b..c/...D/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00831",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..D./..../Cd../.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00832",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../c.../..../D.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00833",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../CD../...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00834",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../.cDc/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00835",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..bD/..../.C../..a.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00836",
+      "legal_moves": 29,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "cc../..../.DD./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00837",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "Dc.b/..../C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00838",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "dc../..../C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00839",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/.d../C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00840",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/...c/C.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00841",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b..d/..../C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00842",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..c./b.../D..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00843",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../D.Dc/c...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00844",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D..b/...c/C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00845",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..cc/C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00846",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..cc/..../.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00847",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..../.D../D..c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00848",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b.../CD../..b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00849",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/.b../.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00850",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".bc./..../C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00851",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./...d/D.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00852",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..c./c.D./.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00853",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../.bcD/.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00854",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.a./b.../C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00855",
+      "legal_moves": 31,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../...d/c.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00856",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../bDb./C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00857",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../..b./Cb..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00858",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..../..b./.cD.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00859",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../D..c/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00860",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "bb../..../C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00861",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../C.../db..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00862",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d..c/..../C..D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00863",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/.c../DD../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00864",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d.../.b../C..D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00865",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../...b/C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00866",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".ab./..../C.../..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00867",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../D..D/..c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00868",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..c./C.D./d...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00869",
+      "legal_moves": 41,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../C.dd/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00870",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..b./Ca../.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00871",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.D../C..d/..c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00872",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../ab../C...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00873",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "a.../...b/.CD./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00874",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../..D./bDc.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00875",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..b./...b/C.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00876",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../D.../C..d/...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00877",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../D..b/C.a./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00878",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./C..d/.d..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00879",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../Ca../b.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00880",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/d.../C.b./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00881",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/.d../.C../...b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00882",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d.../.b../CD../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00883",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./bC../.d..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00884",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...b/C.../..cD",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00885",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..b./C..a/...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00886",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../..../DbDc",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00887",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.d../C..D/...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00888",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.d../D.D./...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00889",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../c.../...D/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00890",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/...d/C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00891",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.cd./C.../.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00892",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D..c/..../C.../.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00893",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...b/..../C.../b..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00894",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../.CD./.bc.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00895",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..../D..D/c...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00896",
+      "legal_moves": 31,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../..d./D.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00897",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../..b./C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00898",
+      "legal_moves": 32,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.d../Dc.D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00899",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../D.../C.b./...b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00900",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..D./..../C.../d..c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00901",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../..../.C../..aD",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00902",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b.D/..../C.../b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00903",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.c./D.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00904",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..b./..c./CD../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00905",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b..b/.CD./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00906",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../CbbD/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00907",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../c.../...D/.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00908",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..../Db.D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00909",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../.d../C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00910",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../..../.b../D.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00911",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../..../Dc../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00912",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..../C.ab/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00913",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..../..../Cb.D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00914",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c.d/..../D.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00915",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../c.../D..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00916",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..c./D.../.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00917",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/.D../C..b/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00918",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../..../.c.D/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00919",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..../CbD./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00920",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b..b/.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00921",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.a.b/C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00922",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../..D./C.../b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00923",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..../...D/.D.c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00924",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./Cd.b/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00925",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../C.../.D.b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00926",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../c..D/D.c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00927",
+      "legal_moves": 29,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../...d/..D./.c..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00928",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..c./b.../D.D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00929",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..../C.a./..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00930",
+      "legal_moves": 22,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../...c/..D./.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00931",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../..../C..b/..D.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00932",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..c./.cD./.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00933",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./..../.DD./b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00934",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./..../C.../D.b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00935",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/..../.CD./..c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00936",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "cD../..../..../.cD.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00937",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".db./..../.C../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00938",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../.D../C.../b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00939",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..../C.../.bc.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00940",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..b./C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00941",
+      "legal_moves": 30,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/..../D.../D.c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00942",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D.b/..c./...D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00943",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/b.../C.../.a..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00944",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..../.C.d/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00945",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../C..b/...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00946",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../Cb../..Db",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00947",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b..D/..../.Cb./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00948",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..D./.C../b..d",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00949",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./..../D.Dc/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00950",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../C.b./.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00951",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../.DD./b.c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00952",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../Dc../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00953",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../.D../C.../...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00954",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..d./..b./.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00955",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..D./..../C..b/b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00956",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.c./..../...D/.b..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00957",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../.c../..D./.D..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00958",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/d.../.Cb./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00959",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..Db/C.../.d..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00960",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b.D/..../aC../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00961",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b.D/..../.C.b/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00962",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...b/bD../C.../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00963",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..d./C.../..c.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00964",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.D./..../C..a/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00965",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../C.../..Da",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00966",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D..c/..../..Db/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00967",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../db../C...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00968",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..c./..D./D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00969",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "b.../...c/D.D./....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00970",
+      "legal_moves": 29,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".D../..../c.D./c...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00971",
+      "legal_moves": 26,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".Dc./..../c..D/....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00972",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../..../.C.b/...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00973",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../D.../Dc.c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00974",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "c.../..../D..D/c...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00975",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...c/..b./C.../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00976",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../..../..c./D..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00977",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...d/D.../C.../..b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00978",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../D.../C.../.d.b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00979",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".c../...D/Cd../....",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00980",
+      "legal_moves": 34,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "d.../..c./.C../...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00981",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...b/CD../...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00982",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/...c/C.../...b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00983",
+      "legal_moves": 28,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..../Db../Dc..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00984",
+      "legal_moves": 23,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..c./..../.b../D..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00985",
+      "legal_moves": 40,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../Cb../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00986",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..b./..../CD../.a..",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00987",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../..d./.C../D..b",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00988",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": ".b../..../.CD./...c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00989",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b.c./...D/D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00990",
+      "legal_moves": 25,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.c../D.../D..c",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00991",
+      "legal_moves": 24,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.c./..../...D/b...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00992",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../c.../.C.b/...D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00993",
+      "legal_moves": 39,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..b./.b../.C../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00994",
+      "legal_moves": 35,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.b../C.D./d...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00995",
+      "legal_moves": 27,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "D.../..../b..D/c...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00996",
+      "legal_moves": 37,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "...D/..../C.../a.b.",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00997",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../.cd./..../C..D",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00998",
+      "legal_moves": 38,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../b.d./C.../D...",
+      "reference": null,
+      "side_to_move": 0
+    },
+    {
+      "id": "d4c00999",
+      "legal_moves": 36,
+      "phase": "opening",
+      "pieces": 4,
+      "qfen": "..../...d/Cb../D...",
+      "reference": null,
+      "side_to_move": 0
+    }
+  ],
+  "requested": {
+    "depth4_canonical_sample": 250
+  },
+  "schema_version": 1,
+  "seed": 20260712,
+  "source": {
+    "full_depth4_canonical_nonterminal": 10946,
+    "sample_offset": 750,
+    "sample_size": 1000,
+    "shuffle_seed": 20260712
+  }
+}
