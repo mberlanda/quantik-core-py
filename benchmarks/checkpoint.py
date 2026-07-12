@@ -16,6 +16,7 @@ from benchmarks.stability import aggregate_stability
 MANIFEST = "manifest.json"
 OBSERVATIONS = "observations.jsonl"
 H2H_RECORDS = "h2h.jsonl"
+_RESUME_CONFIG_EXCLUDES = {"checkpoint_dir", "output", "resume"}
 
 
 def append_jsonl(path, row: dict) -> None:
@@ -116,6 +117,18 @@ def update_manifest_counts(
     return manifest
 
 
+def normalize_run_config(config: dict) -> dict:
+    """Drop volatile fields that must not participate in resume validation."""
+    return {key: value for key, value in config.items() if key not in _RESUME_CONFIG_EXCLUDES}
+
+
+def _config_signature(config: dict, *, ignore_skip_h2h: bool = False) -> dict:
+    signature = normalize_run_config(config)
+    if ignore_skip_h2h:
+        signature.pop("skip_h2h", None)
+    return signature
+
+
 def _dataset_summary(manifest: dict) -> dict:
     dataset = manifest.get("dataset")
     if dataset is None:
@@ -163,6 +176,39 @@ def _build_manifest(
     if h2h_pairs is not None:
         manifest["h2h_pairs"] = h2h_pairs
     return manifest
+
+
+def validate_resume_manifest(
+    manifest: dict, *, dataset_checksum, config: dict
+) -> None:
+    """Raise ValueError when a resume checkpoint does not match the run."""
+    manifest_dataset = manifest.get("dataset", {})
+    expected_dataset_checksum = dataset_checksum
+    actual_dataset_checksum = manifest_dataset.get("checksum")
+    if actual_dataset_checksum != expected_dataset_checksum:
+        raise ValueError(
+            "checkpoint dataset checksum mismatch: "
+            f"expected {expected_dataset_checksum!r}, found {actual_dataset_checksum!r}"
+        )
+
+    ignore_skip_h2h = bool(
+        config.get("skip_h2h")
+        and manifest.get("counts", {}).get("h2h_records", 0)
+    )
+    expected_config = _config_signature(config, ignore_skip_h2h=ignore_skip_h2h)
+    actual_config = _config_signature(
+        manifest.get("config", {}), ignore_skip_h2h=ignore_skip_h2h
+    )
+    if actual_config != expected_config:
+        diffs = []
+        for key in sorted(set(actual_config) | set(expected_config)):
+            if actual_config.get(key) != expected_config.get(key):
+                diffs.append(
+                    f"{key}: expected {expected_config.get(key)!r}, "
+                    f"found {actual_config.get(key)!r}"
+                )
+        detail = "; ".join(diffs) if diffs else "unknown difference"
+        raise ValueError(f"checkpoint config mismatch: {detail}")
 
 
 def _head_to_head_aggregates(records: list[dict]) -> list[dict]:

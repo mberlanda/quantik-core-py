@@ -49,7 +49,9 @@ from benchmarks.checkpoint import (  # noqa: E402
     h2h_key,
     key_set,
     load_jsonl,
+    load_manifest,
     observation_key,
+    validate_resume_manifest,
     update_manifest_counts,
     write_manifest,
 )
@@ -215,6 +217,34 @@ def cmd_dataset(args) -> int:
 
 def cmd_run(args) -> int:
     payload = ds.load(args.dataset)
+    seeds = [args.seed_base + i for i in range(args.seeds)]
+    run_config = dict(vars(args))
+    run_config["engine_seeds"] = seeds
+    h2h_positions = _h2h_positions(payload, args.h2h_positions)
+    h2h_seeds = [args.seed_base + i for i in range(args.h2h_seeds)]
+
+    checkpoint_root = Path(args.checkpoint_dir) if args.checkpoint_dir else None
+    rows: list[dict]
+    head_to_head: dict
+
+    if checkpoint_root is not None and args.resume:
+        manifest = load_manifest(checkpoint_root / MANIFEST)
+        if not manifest:
+            print(
+                "RESUME FAILED - checkpoint manifest not found: "
+                f"{checkpoint_root / MANIFEST}"
+            )
+            return 1
+        try:
+            validate_resume_manifest(
+                manifest,
+                dataset_checksum=payload.get("checksum"),
+                config=run_config,
+            )
+        except ValueError as exc:
+            print(f"RESUME FAILED - {exc}")
+            return 1
+
     adapters = _build_adapters(args)
     failures = run_preflight(adapters, payload["positions"])
     if failures:
@@ -222,14 +252,6 @@ def cmd_run(args) -> int:
         for failure in failures:
             print(f"  - {failure}")
         return 1
-
-    seeds = [args.seed_base + i for i in range(args.seeds)]
-    h2h_positions = _h2h_positions(payload, args.h2h_positions)
-    h2h_seeds = [args.seed_base + i for i in range(args.h2h_seeds)]
-
-    checkpoint_root = Path(args.checkpoint_dir) if args.checkpoint_dir else None
-    rows: list[dict]
-    head_to_head: dict
 
     if checkpoint_root is None:
         rows = run_agreement(
@@ -249,7 +271,7 @@ def cmd_run(args) -> int:
                     aggregate_head_to_head(records, adapter_a.name, adapter_b.name)
                 )
         result = make_bundle(
-            config={**dict(vars(args)), "engine_seeds": seeds},
+            config=run_config,
             dataset_payload=payload,
             observations=rows,
             head_to_head=head_to_head,
@@ -268,13 +290,9 @@ def cmd_run(args) -> int:
             write_manifest(
                 paths["manifest"], _checkpoint_manifest(args, payload, seeds)
             )
-        elif not paths["manifest"].exists():
-            write_manifest(
-                paths["manifest"], _checkpoint_manifest(args, payload, seeds)
-            )
 
         existing_rows = load_jsonl(paths["observations"])
-        if args.skip_h2h:
+        if args.skip_h2h and not args.resume:
             paths["h2h"].write_text("", encoding="utf-8")
             existing_records = []
         else:

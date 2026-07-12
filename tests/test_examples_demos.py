@@ -341,6 +341,183 @@ class TestCrossEngineBenchmarkCLI:
         assert first_obs_lines == second_obs_lines
         assert first_h2h_lines == second_h2h_lines
 
+    def test_resume_skip_h2h_preserves_existing_records(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        first_bundle_path = tmp_path / "results" / "first.json"
+        second_bundle_path = tmp_path / "results" / "second.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+        ]
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args, "--output", str(first_bundle_path)]
+            )
+            == 0
+        )
+        first_bundle = json.loads(first_bundle_path.read_text())
+        first_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    *base_args,
+                    "--resume",
+                    "--skip-h2h",
+                    "--output",
+                    str(second_bundle_path),
+                ]
+            )
+            == 0
+        )
+        second_bundle = json.loads(second_bundle_path.read_text())
+        second_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert (
+            second_bundle["head_to_head"]["records"]
+            == first_bundle["head_to_head"]["records"]
+        )
+        assert second_h2h_lines == first_h2h_lines
+
+    def test_resume_rejects_config_mismatch_without_appending(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main(base_args) == 0
+        obs_before = (checkpoint_dir / "observations.jsonl").read_text().splitlines()
+        h2h_before = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+        manifest_before = json.loads((checkpoint_dir / "manifest.json").read_text())
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    *base_args[:-2],
+                    "--seed-base",
+                    "9",
+                    "--resume",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            != 0
+        )
+
+        assert (
+            checkpoint_dir / "observations.jsonl"
+        ).read_text().splitlines() == obs_before
+        assert (checkpoint_dir / "h2h.jsonl").read_text().splitlines() == h2h_before
+        assert (
+            json.loads((checkpoint_dir / "manifest.json").read_text())
+            == manifest_before
+        )
+
     def test_parser_rejects_unknown_family(self, cross_engine_benchmark):
         with pytest.raises(SystemExit):
             cross_engine_benchmark.build_parser().parse_args(
