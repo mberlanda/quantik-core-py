@@ -55,9 +55,7 @@ def estimate_volume(
             "engine_count": len(engine_names),
             "deterministic_engines": sorted(deterministic_engines),
             "stochastic_engines": [
-                engine
-                for engine in engine_names
-                if engine not in deterministic_engines
+                engine for engine in engine_names if engine not in deterministic_engines
             ],
         },
         "observations": {
