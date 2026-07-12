@@ -119,7 +119,11 @@ def update_manifest_counts(
 
 def normalize_run_config(config: dict) -> dict:
     """Drop volatile fields that must not participate in resume validation."""
-    return {key: value for key, value in config.items() if key not in _RESUME_CONFIG_EXCLUDES}
+    return {
+        key: value
+        for key, value in config.items()
+        if key not in _RESUME_CONFIG_EXCLUDES
+    }
 
 
 def _config_signature(config: dict, *, ignore_skip_h2h: bool = False) -> dict:
@@ -195,9 +199,7 @@ def validate_resume_manifest(
             f"expected {expected_dataset_checksum!r}, found {actual_dataset_checksum!r}"
         )
 
-    expected_config = _config_signature(
-        config, ignore_skip_h2h=allow_skip_h2h_mismatch
-    )
+    expected_config = _config_signature(config, ignore_skip_h2h=allow_skip_h2h_mismatch)
     actual_config = _config_signature(
         manifest.get("config", {}), ignore_skip_h2h=allow_skip_h2h_mismatch
     )
