@@ -141,6 +141,24 @@ checkpoint directory. `--resume` skips already completed observation and
 head-to-head keys, and the final monolithic bundle is still written to
 `--output`.
 
+If a long agreement-only run was completed with `--skip-h2h`, reuse the
+same checkpoint for a later H2H pass without recomputing agreement rows:
+
+```bash
+python examples/cross_engine_benchmark.py run \
+  --dataset benchmarks/positions-v1.json \
+  --time-limit 1.0 --seeds 30 \
+  --h2h-positions 12 --h2h-seeds 5 \
+  --workers 4 \
+  --checkpoint-dir benchmarks/results/$(git rev-parse --short HEAD) \
+  --resume --skip-agreement \
+  --output benchmarks/results/$(git rev-parse --short HEAD).json
+```
+
+`--skip-agreement` requires `--checkpoint-dir` and `--resume`, and the
+checkpoint must already contain the complete agreement observation set for
+the requested dataset, engine settings, and seeds.
+
 `--workers N` parallelizes independent agreement observations and
 head-to-head games with process workers. The default is `1`, preserving
 sequential execution. Worker count is intentionally ignored for resume

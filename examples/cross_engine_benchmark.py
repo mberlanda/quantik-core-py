@@ -109,6 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--beam-depth", type=int, default=16)
     run.add_argument("--h2h-positions", type=int, default=8)
     run.add_argument("--h2h-seeds", type=int, default=1)
+    run.add_argument("--skip-agreement", action="store_true")
     run.add_argument("--skip-h2h", action="store_true")
     run.add_argument("--track-memory", action="store_true")
     run.add_argument("--checkpoint-dir", default=None)
@@ -202,6 +203,12 @@ def _expected_h2h_records(adapters, positions: list[dict], seeds: list[int]) -> 
     return pair_count * len(positions) * len(seeds) * 2
 
 
+def _expected_observations(adapters, positions: list[dict], seeds: list[int]) -> int:
+    return sum(len(seeds) if adapter.stochastic else 1 for adapter in adapters) * len(
+        positions
+    )
+
+
 def _print_progress(message: str) -> None:
     print(message, flush=True)
 
@@ -247,6 +254,12 @@ def cmd_run(args) -> int:
     rows: list[dict]
     head_to_head: dict
     paths = _checkpoint_paths(checkpoint_root) if checkpoint_root is not None else None
+    if args.skip_agreement and (checkpoint_root is None or not args.resume):
+        print("RUN FAILED - --skip-agreement requires --checkpoint-dir and --resume")
+        return 1
+    if args.skip_agreement and args.skip_h2h:
+        print("RUN FAILED - --skip-agreement cannot be combined with --skip-h2h")
+        return 1
 
     if checkpoint_root is not None and args.resume:
         manifest = load_manifest(paths["manifest"])
@@ -257,20 +270,32 @@ def cmd_run(args) -> int:
             return 1
         existing_rows = load_jsonl(paths["observations"])
         existing_records = load_jsonl(paths["h2h"])
+        expected_observations = _expected_observations(
+            adapters, payload["positions"], seeds
+        )
         expected_h2h_records = _expected_h2h_records(adapters, h2h_positions, h2h_seeds)
+        agreement_complete = len(existing_rows) == expected_observations
+        if args.skip_agreement and not agreement_complete:
+            print(
+                "RESUME FAILED - checkpoint agreement observations incomplete: "
+                f"expected {expected_observations}, found {len(existing_rows)}"
+            )
+            return 1
         if args.skip_h2h and len(existing_records) != expected_h2h_records:
             print(
                 "RESUME FAILED - checkpoint h2h records incomplete: "
                 f"expected {expected_h2h_records}, found {len(existing_records)}"
             )
             return 1
+        allow_skip_h2h_mismatch = (
+            args.skip_h2h and len(existing_records) == expected_h2h_records
+        ) or (args.skip_agreement and agreement_complete)
         try:
             validate_resume_manifest(
                 manifest,
                 dataset_checksum=payload.get("checksum"),
                 config=run_config,
-                allow_skip_h2h_mismatch=args.skip_h2h
-                and len(existing_records) == expected_h2h_records,
+                allow_skip_h2h_mismatch=allow_skip_h2h_mismatch,
             )
         except ValueError as exc:
             print(f"RESUME FAILED - {exc}")
@@ -363,39 +388,45 @@ def cmd_run(args) -> int:
         )
 
         completed_observations = len(existing_rows)
-        total_observations = sum(
-            len(seeds) if adapter.stochastic else 1 for adapter in adapters
-        ) * len(payload["positions"])
+        total_observations = _expected_observations(
+            adapters, payload["positions"], seeds
+        )
         _print_progress(
             f"agreement: {completed_observations}/{total_observations} "
             f"observations complete; workers={args.workers}; "
             f"checkpoint {paths['observations']}"
         )
-        for row in iter_agreement(
-            adapters,
-            payload,
-            seeds,
-            track_memory=args.track_memory,
-            skip_keys=observation_skips,
-            workers=args.workers,
-        ):
-            append_jsonl(paths["observations"], row)
-            rows.append(row)
-            completed_observations += 1
-            if (
-                args.checkpoint_every > 0
-                and completed_observations % args.checkpoint_every == 0
+        if args.skip_agreement:
+            _print_progress(
+                f"agreement: {completed_observations}/{total_observations} "
+                "observations reused"
+            )
+        else:
+            for row in iter_agreement(
+                adapters,
+                payload,
+                seeds,
+                track_memory=args.track_memory,
+                skip_keys=observation_skips,
+                workers=args.workers,
             ):
-                update_manifest_counts(
-                    paths["manifest"],
-                    observations=completed_observations,
-                    h2h_records=len(existing_records),
-                    status="running",
-                )
-                _print_progress(
-                    f"agreement: {completed_observations}/{total_observations} "
-                    "observations checkpointed"
-                )
+                append_jsonl(paths["observations"], row)
+                rows.append(row)
+                completed_observations += 1
+                if (
+                    args.checkpoint_every > 0
+                    and completed_observations % args.checkpoint_every == 0
+                ):
+                    update_manifest_counts(
+                        paths["manifest"],
+                        observations=completed_observations,
+                        h2h_records=len(existing_records),
+                        status="running",
+                    )
+                    _print_progress(
+                        f"agreement: {completed_observations}/{total_observations} "
+                        "observations checkpointed"
+                    )
 
         completed_h2h = len(existing_records)
         if not args.skip_h2h:

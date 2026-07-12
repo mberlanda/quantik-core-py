@@ -745,6 +745,132 @@ class TestCrossEngineBenchmarkCLI:
 
         assert second_bundle["observations"] == first_bundle["observations"]
 
+    def test_resume_can_run_h2h_only_after_agreement_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main([*base_args, "--skip-h2h"]) == 0
+        agreement_only_bundle = json.loads(bundle_path.read_text())
+        assert agreement_only_bundle["observations"]
+        assert agreement_only_bundle["head_to_head"]["records"] == []
+
+        assert (
+            cross_engine_benchmark.main([*base_args, "--resume", "--skip-agreement"])
+            == 0
+        )
+        h2h_bundle = json.loads(bundle_path.read_text())
+
+        assert h2h_bundle["observations"] == agreement_only_bundle["observations"]
+        assert h2h_bundle["head_to_head"]["records"]
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        assert manifest["counts"] == {
+            "observations": len(h2h_bundle["observations"]),
+            "h2h_records": len(h2h_bundle["head_to_head"]["records"]),
+        }
+
+    def test_skip_agreement_requires_complete_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--resume",
+                    "--skip-agreement",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
     def test_run_rejects_zero_workers(self, cross_engine_benchmark, tmp_path):
         dataset_path = tmp_path / "positions.json"
         bundle_path = tmp_path / "results" / "run.json"

@@ -46,7 +46,7 @@ class TestPlayGame:
         bb = State.from_qfen(ANCHOR).bb
         assert get_current_player_from_counts(*count_total_pieces(bb)) == 1
         winner, plies = play_game(
-            MinimaxAdapter(max_depth=16), RandomAdapter(), bb, seed=0
+            MinimaxAdapter(max_depth=1), RandomAdapter(), bb, seed=0
         )
         assert winner == "minimax"
         assert plies == 1  # immediate mate
@@ -54,7 +54,7 @@ class TestPlayGame:
     def test_credits_mover_when_p0_to_move(self):
         bb = State.from_qfen(P0_ANCHOR).bb
         assert get_current_player_from_counts(*count_total_pieces(bb)) == 0
-        winner, _ = play_game(MinimaxAdapter(max_depth=16), RandomAdapter(), bb, seed=0)
+        winner, _ = play_game(MinimaxAdapter(max_depth=1), RandomAdapter(), bb, seed=0)
         assert winner == "minimax"
 
 

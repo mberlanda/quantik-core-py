@@ -1057,6 +1057,9 @@ engine internals unchanged and parallelizes only independent benchmark units.
   scheduling, not benchmark semantics.
 - [x] Document worker usage and memory tradeoffs in `docs/BENCHMARKS.md`.
 - [x] Run focused tests, `auto-lint.sh`, and `dev-check.sh`; commit and push.
+- [x] Add checkpointed `run --resume --skip-agreement` so a completed
+  agreement-only checkpoint can run H2H later without recomputing agreement
+  observations.
 
 ## Phase 2: Selection Cache
 
