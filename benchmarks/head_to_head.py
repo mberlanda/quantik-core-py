@@ -96,7 +96,9 @@ def run_head_to_head(
     workers: int = 1,
 ) -> List[dict]:
     """Play both engine orientations per position and seed."""
-    return list(iter_head_to_head(adapter_a, adapter_b, positions, seeds, workers=workers))
+    return list(
+        iter_head_to_head(adapter_a, adapter_b, positions, seeds, workers=workers)
+    )
 
 
 def aggregate_head_to_head(records: List[dict], name_a: str, name_b: str) -> dict:

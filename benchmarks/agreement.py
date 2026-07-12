@@ -34,7 +34,9 @@ def _select_agreement_row(task, track_memory: bool = False) -> dict:
     )
     row = observation.to_dict()
     row["phase"] = position["phase"]
-    row["hit"] = observation.move in optimal_moves if optimal_moves is not None else None
+    row["hit"] = (
+        observation.move in optimal_moves if optimal_moves is not None else None
+    )
     return row
 
 
