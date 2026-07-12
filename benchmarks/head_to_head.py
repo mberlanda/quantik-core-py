@@ -38,28 +38,39 @@ def play_game(mover, responder, bb, seed: int) -> Tuple[str, int]:
         plies += 1
 
 
-def run_head_to_head(
-    adapter_a, adapter_b, positions: Sequence[dict], seeds: Sequence[int]
-) -> List[dict]:
+def iter_head_to_head(
+    adapter_a,
+    adapter_b,
+    positions: Sequence[dict],
+    seeds: Sequence[int],
+    skip_keys=None,
+):
     """Play both engine orientations per position and seed."""
-    records: List[dict] = []
+    skipped = set(skip_keys or ())
     for position in positions:
         bb = State.from_qfen(position["qfen"]).bb
         for seed in seeds:
             for mover, responder in ((adapter_a, adapter_b), (adapter_b, adapter_a)):
+                key = (position["id"], mover.name, responder.name, seed)
+                if key in skipped:
+                    continue
                 winner, plies = play_game(mover, responder, bb, seed)
-                records.append(
-                    {
-                        "position_id": position["id"],
-                        "phase": position["phase"],
-                        "mover": mover.name,
-                        "responder": responder.name,
-                        "winner": winner,
-                        "plies": plies,
-                        "seed": seed,
-                    }
-                )
-    return records
+                yield {
+                    "position_id": position["id"],
+                    "phase": position["phase"],
+                    "mover": mover.name,
+                    "responder": responder.name,
+                    "winner": winner,
+                    "plies": plies,
+                    "seed": seed,
+                }
+
+
+def run_head_to_head(
+    adapter_a, adapter_b, positions: Sequence[dict], seeds: Sequence[int]
+) -> List[dict]:
+    """Play both engine orientations per position and seed."""
+    return list(iter_head_to_head(adapter_a, adapter_b, positions, seeds))
 
 
 def aggregate_head_to_head(records: List[dict], name_a: str, name_b: str) -> dict:

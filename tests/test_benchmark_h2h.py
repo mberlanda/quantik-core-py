@@ -17,8 +17,10 @@ from benchmarks.adapters import MinimaxAdapter, RandomAdapter
 from benchmarks.head_to_head import (
     aggregate_head_to_head,
     play_game,
+    iter_head_to_head,
     run_head_to_head,
 )
+from benchmarks.checkpoint import h2h_key
 
 ANCHOR = ".ba./..CC/DcbD/cA.A"  # P1 to move, immediate win available
 P0_ANCHOR = "AbC./d.../..../...."  # P0 to move, immediate win (D at pos 3)
@@ -83,3 +85,23 @@ class TestRunHeadToHead:
         assert "late_mid" in agg["by_phase"]
         # The exact engine wins at least the game it moves first in.
         assert agg["a_wins_as_mover"] == 1
+
+    def test_iter_head_to_head_skips_completed_keys(self):
+        positions = [_position(ANCHOR, "p0000")]
+        baseline = run_head_to_head(
+            MinimaxAdapter(max_depth=16), RandomAdapter(), positions, seeds=[0]
+        )
+        skip = {h2h_key(baseline[0])}
+
+        records = list(
+            iter_head_to_head(
+                MinimaxAdapter(max_depth=16),
+                RandomAdapter(),
+                positions,
+                seeds=[0],
+                skip_keys=skip,
+            )
+        )
+
+        assert records == baseline[1:]
+        assert baseline[0] not in records

@@ -7,7 +7,13 @@ from quantik_core.move import generate_legal_moves_list
 
 from benchmarks import reference
 from benchmarks.adapters import MinimaxAdapter, RandomAdapter
-from benchmarks.agreement import aggregate_agreement, aggregate_cost, run_agreement
+from benchmarks.agreement import (
+    aggregate_agreement,
+    aggregate_cost,
+    run_agreement,
+    iter_agreement,
+)
+from benchmarks.checkpoint import observation_key
 
 ANCHOR = ".ba./..CC/DcbD/cA.A"
 
@@ -71,6 +77,20 @@ class TestRunAgreement:
         # No exact reference => hit is None, not False.
         assert by_position["p0001"]["hit"] is None
         assert by_position["p0000"]["phase"] == "late_mid"
+
+    def test_iter_agreement_skips_completed_keys(self, payload):
+        adapters = [MinimaxAdapter(max_depth=16, time_limit_s=2.0), RandomAdapter()]
+        baseline = run_agreement(adapters, payload, seeds=[0, 1])
+        skip = {observation_key(baseline[0])}
+
+        rows = list(iter_agreement(adapters, payload, seeds=[0, 1], skip_keys=skip))
+
+        assert [observation_key(row) for row in rows] == [
+            observation_key(row) for row in baseline if observation_key(row) not in skip
+        ]
+        assert observation_key(baseline[0]) not in [
+            observation_key(row) for row in rows
+        ]
 
 
 class TestAggregations:

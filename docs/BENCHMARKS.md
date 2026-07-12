@@ -114,6 +114,31 @@ python examples/cross_engine_benchmark.py report \
 `benchmarks/results/` is gitignored. Attach reports to PRs or issues
 instead of committing them.
 
+For longer runs, add a checkpoint directory so completed agreement rows
+and head-to-head games are persisted as they finish:
+
+```bash
+python examples/cross_engine_benchmark.py run \
+  --dataset benchmarks/positions-v1.json \
+  --time-limit 1.0 --seeds 30 \
+  --checkpoint-dir benchmarks/results/$(git rev-parse --short HEAD) \
+  --checkpoint-every 25 \
+  --output benchmarks/results/$(git rev-parse --short HEAD).json
+python examples/cross_engine_benchmark.py run \
+  --dataset benchmarks/positions-v1.json \
+  --time-limit 1.0 --seeds 30 \
+  --checkpoint-dir benchmarks/results/$(git rev-parse --short HEAD) \
+  --resume \
+  --output benchmarks/results/$(git rev-parse --short HEAD).json
+python examples/cross_engine_benchmark.py report \
+  --input benchmarks/results/$(git rev-parse --short HEAD)
+```
+
+`manifest.json`, `observations.jsonl`, and `h2h.jsonl` live under the
+checkpoint directory. `--resume` skips already completed observation and
+head-to-head keys, and the final monolithic bundle is still written to
+`--output`.
+
 ## Interpretation Guardrails
 
 Minimax buys adversarial certainty when the remaining tree is small enough.

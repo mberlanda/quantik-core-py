@@ -9,17 +9,18 @@ from quantik_core import State
 from benchmarks.metrics import median, percentile, wilson_ci
 
 
-def run_agreement(
+def iter_agreement(
     adapters,
     payload: dict,
     seeds: Sequence[int],
     track_memory: bool = False,
-) -> List[dict]:
-    """Return one move-observation row per adapter, position, and seed run."""
+    skip_keys=None,
+):
+    """Yield one move-observation row per adapter, position, and seed run."""
     if not seeds:
         raise ValueError("seeds must be a non-empty ordered list")
 
-    rows: List[dict] = []
+    skipped = set(skip_keys or ())
     for position in payload["positions"]:
         bb = State.from_qfen(position["qfen"]).bb
         reference = position.get("reference")
@@ -28,6 +29,9 @@ def run_agreement(
         for adapter in adapters:
             adapter_seeds = seeds if adapter.stochastic else [seeds[0]]
             for seed in adapter_seeds:
+                key = (position["id"], adapter.name, adapter.config_label, seed)
+                if key in skipped:
+                    continue
                 _, observation = adapter.select(
                     bb,
                     position["id"],
@@ -41,9 +45,17 @@ def run_agreement(
                     if optimal_moves is not None
                     else None
                 )
-                rows.append(row)
+                yield row
 
-    return rows
+
+def run_agreement(
+    adapters,
+    payload: dict,
+    seeds: Sequence[int],
+    track_memory: bool = False,
+) -> List[dict]:
+    """Return one move-observation row per adapter, position, and seed run."""
+    return list(iter_agreement(adapters, payload, seeds, track_memory=track_memory))
 
 
 def aggregate_agreement(rows: List[dict]) -> List[dict]:

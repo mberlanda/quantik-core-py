@@ -147,6 +147,7 @@ class TestCrossEngineBenchmarkCLI:
         dataset_path = tmp_path / "positions.json"
         bundle_path = tmp_path / "results" / "run.json"
         report_path = tmp_path / "results" / "run.md"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
 
         assert (
             cross_engine_benchmark.main(
@@ -193,6 +194,10 @@ class TestCrossEngineBenchmarkCLI:
                     "1",
                     "--h2h-seeds",
                     "1",
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--checkpoint-every",
+                    "1",
                     "--output",
                     str(bundle_path),
                 ]
@@ -202,7 +207,13 @@ class TestCrossEngineBenchmarkCLI:
 
         assert (
             cross_engine_benchmark.main(
-                ["report", "--input", str(bundle_path), "--output", str(report_path)]
+                [
+                    "report",
+                    "--input",
+                    str(checkpoint_dir),
+                    "--output",
+                    str(report_path),
+                ]
             )
             == 0
         )
@@ -210,10 +221,18 @@ class TestCrossEngineBenchmarkCLI:
         import json
 
         bundle = json.loads(bundle_path.read_text())
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
         assert bundle["schema_version"] == 1
         assert bundle["observations"]
         assert bundle["dataset"]["checksum"]
         assert bundle["head_to_head"]["records"]
+        assert manifest["status"] == "complete"
+        assert manifest["counts"]["observations"] == len(bundle["observations"])
+        assert manifest["counts"]["h2h_records"] == len(
+            bundle["head_to_head"]["records"]
+        )
+        assert (checkpoint_dir / "observations.jsonl").read_text().strip()
+        assert (checkpoint_dir / "h2h.jsonl").read_text().strip()
 
         markdown = report_path.read_text()
         for heading in (

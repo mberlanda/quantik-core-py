@@ -52,7 +52,7 @@ The current benchmark writes `benchmarks/results/<run>.json` only after all agre
 - Create: `benchmarks/checkpoint.py`
 - Test: `tests/test_benchmark_checkpoint.py`
 
-- [ ] **Step 1: Write failing tests for JSONL append/read and stable keys**
+- [x] **Step 1: Write failing tests for JSONL append/read and stable keys**
 
 Add `tests/test_benchmark_checkpoint.py`:
 
@@ -105,13 +105,13 @@ def test_h2h_key_is_stable_and_specific():
     assert checkpoint.h2h_key(row) == ("p0008", "beam", "mcts", 11)
 ```
 
-- [ ] **Step 2: Run tests and verify they fail**
+- [x] **Step 2: Run tests and verify they fail**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_checkpoint.py -v --no-cov`
 
 Expected: import failure because `benchmarks.checkpoint` does not exist.
 
-- [ ] **Step 3: Implement JSONL helpers and key functions**
+- [x] **Step 3: Implement JSONL helpers and key functions**
 
 Create `benchmarks/checkpoint.py`:
 
@@ -182,7 +182,7 @@ def key_set(rows: Iterable[dict], key_func) -> set[tuple]:
     return {key_func(row) for row in rows}
 ```
 
-- [ ] **Step 4: Run tests and verify they pass**
+- [x] **Step 4: Run tests and verify they pass**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_checkpoint.py -v --no-cov`
 
@@ -194,7 +194,7 @@ Expected: all tests pass.
 - Modify: `benchmarks/checkpoint.py`
 - Modify: `tests/test_benchmark_checkpoint.py`
 
-- [ ] **Step 1: Write failing tests for manifest lifecycle and bundle rehydration**
+- [x] **Step 1: Write failing tests for manifest lifecycle and bundle rehydration**
 
 Append to `tests/test_benchmark_checkpoint.py`:
 
@@ -313,13 +313,13 @@ def test_bundle_from_checkpoint_matches_report_shape(tmp_path):
     assert result["aggregates"]["stability"][0]["move_consistency"] == 1.0
 ```
 
-- [ ] **Step 2: Run tests and verify they fail**
+- [x] **Step 2: Run tests and verify they fail**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_checkpoint.py -v --no-cov`
 
 Expected: missing `write_manifest`, `load_manifest`, `update_manifest_counts`, and `bundle_from_checkpoint`.
 
-- [ ] **Step 3: Implement manifest and rehydration**
+- [x] **Step 3: Implement manifest and rehydration**
 
 Extend `benchmarks/checkpoint.py`:
 
@@ -431,7 +431,7 @@ def bundle_from_checkpoint(root) -> dict:
     }
 ```
 
-- [ ] **Step 4: Run tests and verify they pass**
+- [x] **Step 4: Run tests and verify they pass**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_checkpoint.py -v --no-cov`
 
@@ -443,7 +443,7 @@ Expected: all checkpoint tests pass.
 - Modify: `benchmarks/agreement.py`
 - Modify: `tests/test_benchmark_agreement.py`
 
-- [ ] **Step 1: Write failing tests for skip behavior**
+- [x] **Step 1: Write failing tests for skip behavior**
 
 Append to `tests/test_benchmark_agreement.py`:
 
@@ -476,13 +476,13 @@ from benchmarks.agreement import (
 )
 ```
 
-- [ ] **Step 2: Run test and verify it fails**
+- [x] **Step 2: Run test and verify it fails**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_agreement.py::TestIterAgreement -v --no-cov`
 
 Expected: import failure for `iter_agreement`.
 
-- [ ] **Step 3: Implement iterator and keep wrapper**
+- [x] **Step 3: Implement iterator and keep wrapper**
 
 In `benchmarks/agreement.py`, add:
 
@@ -550,7 +550,7 @@ def run_agreement(
     return list(iter_agreement(adapters, payload, seeds, track_memory=track_memory))
 ```
 
-- [ ] **Step 4: Run tests and verify they pass**
+- [x] **Step 4: Run tests and verify they pass**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_agreement.py -v --no-cov`
 
@@ -562,7 +562,7 @@ Expected: all agreement tests pass.
 - Modify: `benchmarks/head_to_head.py`
 - Modify: `tests/test_benchmark_h2h.py`
 
-- [ ] **Step 1: Write failing tests for skip behavior**
+- [x] **Step 1: Write failing tests for skip behavior**
 
 Append to `tests/test_benchmark_h2h.py`:
 
@@ -601,13 +601,13 @@ from benchmarks.head_to_head import (
 )
 ```
 
-- [ ] **Step 2: Run test and verify it fails**
+- [x] **Step 2: Run test and verify it fails**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_h2h.py::TestIterHeadToHead -v --no-cov`
 
 Expected: import failure for `iter_head_to_head`.
 
-- [ ] **Step 3: Implement iterator and keep wrapper**
+- [x] **Step 3: Implement iterator and keep wrapper**
 
 In `benchmarks/head_to_head.py`, add:
 
@@ -656,7 +656,7 @@ def run_head_to_head(
     return list(iter_head_to_head(adapter_a, adapter_b, positions, seeds))
 ```
 
-- [ ] **Step 4: Run tests and verify they pass**
+- [x] **Step 4: Run tests and verify they pass**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_benchmark_h2h.py -v --no-cov`
 
@@ -668,7 +668,7 @@ Expected: all h2h tests pass.
 - Modify: `examples/cross_engine_benchmark.py`
 - Modify: `tests/test_examples_demos.py`
 
-- [ ] **Step 1: Write failing CLI tests**
+- [x] **Step 1: Write failing CLI tests**
 
 Extend `TestCrossEngineBenchmarkCLI.test_pipeline_end_to_end()` in `tests/test_examples_demos.py`:
 
@@ -782,13 +782,13 @@ Add a new test:
         assert second["head_to_head"]["records"] == first["head_to_head"]["records"]
 ```
 
-- [ ] **Step 2: Run tests and verify they fail**
+- [x] **Step 2: Run tests and verify they fail**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_examples_demos.py::TestCrossEngineBenchmarkCLI -v --no-cov`
 
 Expected: parser rejects unknown `--checkpoint-dir` and `--resume`.
 
-- [ ] **Step 3: Wire CLI parser**
+- [x] **Step 3: Wire CLI parser**
 
 In `examples/cross_engine_benchmark.py`, add imports:
 
@@ -804,7 +804,7 @@ run.add_argument("--resume", action="store_true")
 run.add_argument("--checkpoint-every", type=int, default=1)
 ```
 
-- [ ] **Step 4: Implement checkpointed run path**
+- [x] **Step 4: Implement checkpointed run path**
 
 In `cmd_run(args)`, after `config = dict(vars(args))` logic is available, create config before work:
 
@@ -929,7 +929,7 @@ from benchmarks.head_to_head import (
 )
 ```
 
-- [ ] **Step 5: Implement `report --input <checkpoint-dir>`**
+- [x] **Step 5: Implement `report --input <checkpoint-dir>`**
 
 In `cmd_report(args)`, replace:
 
@@ -948,7 +948,7 @@ with:
     )
 ```
 
-- [ ] **Step 6: Run CLI tests and verify they pass**
+- [x] **Step 6: Run CLI tests and verify they pass**
 
 Run: `rtk .venv/bin/python -m pytest tests/test_examples_demos.py::TestCrossEngineBenchmarkCLI -v --no-cov`
 
@@ -960,7 +960,7 @@ Expected: all CLI checkpoint tests pass.
 - Modify: `docs/BENCHMARKS.md`
 - Modify: `docs/superpowers/plans/2026-07-12-benchmark-checkpoints-cache.md`
 
-- [ ] **Step 1: Document checkpoint usage**
+- [x] **Step 1: Document checkpoint usage**
 
 Add to `docs/BENCHMARKS.md` after "Reproducing A Run":
 
@@ -1001,7 +1001,7 @@ agreement rows; head-to-head keys include position id, mover, responder, and
 seed.
 ```
 
-- [ ] **Step 2: Run focused benchmark tests**
+- [x] **Step 2: Run focused benchmark tests**
 
 Run:
 
@@ -1017,7 +1017,7 @@ rtk .venv/bin/python -m pytest \
 
 Expected: all selected tests pass.
 
-- [ ] **Step 3: Run `auto-lint.sh` before commit**
+- [x] **Step 3: Run `auto-lint.sh` before commit**
 
 Run: `rtk ./auto-lint.sh`
 

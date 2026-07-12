@@ -12,6 +12,8 @@ import itertools
 import json
 import os
 import sys
+import time
+from collections import Counter
 from pathlib import Path
 
 # `benchmarks/` lives at the repo root. Running this file directly puts only
@@ -30,12 +32,31 @@ from benchmarks.adapters import (  # noqa: E402
 from benchmarks.agreement import (  # noqa: E402
     aggregate_agreement,
     aggregate_cost,
+    iter_agreement,
     run_agreement,
 )
-from benchmarks.bundle import make_bundle, save_bundle  # noqa: E402
+from benchmarks.bundle import (  # noqa: E402
+    collect_environment,
+    make_bundle,
+    save_bundle,
+)
+from benchmarks.checkpoint import (  # noqa: E402
+    H2H_RECORDS,
+    MANIFEST,
+    OBSERVATIONS,
+    append_jsonl,
+    bundle_from_checkpoint,
+    h2h_key,
+    key_set,
+    load_jsonl,
+    observation_key,
+    update_manifest_counts,
+    write_manifest,
+)
 from benchmarks.correctness import run_preflight  # noqa: E402
 from benchmarks.head_to_head import (  # noqa: E402
     aggregate_head_to_head,
+    iter_head_to_head,
     run_head_to_head,
 )
 from benchmarks.report import render_markdown  # noqa: E402
@@ -88,6 +109,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--h2h-seeds", type=int, default=1)
     run.add_argument("--skip-h2h", action="store_true")
     run.add_argument("--track-memory", action="store_true")
+    run.add_argument("--checkpoint-dir", default=None)
+    run.add_argument("--resume", action="store_true")
+    run.add_argument("--checkpoint-every", type=int, default=1)
     run.add_argument("--output", required=True)
 
     report = subcommands.add_parser("report", help="render a bundle to Markdown")
@@ -130,6 +154,41 @@ def _h2h_positions(payload: dict, count: int) -> list:
     return picked
 
 
+def _dataset_summary(payload: dict) -> dict:
+    positions = payload["positions"]
+    phases = Counter(position["phase"] for position in positions)
+    return {
+        "checksum": payload.get("checksum"),
+        "generator": payload["generator"],
+        "seed": payload["seed"],
+        "schema_version": payload["schema_version"],
+        "positions": len(positions),
+        "phases": dict(phases),
+    }
+
+
+def _checkpoint_manifest(args, payload: dict, seeds: list[int]) -> dict:
+    config = dict(vars(args))
+    config["engine_seeds"] = seeds
+    return {
+        "status": "running",
+        "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "environment": collect_environment(),
+        "config": config,
+        "dataset": _dataset_summary(payload),
+        "counts": {"observations": 0, "h2h_records": 0},
+    }
+
+
+def _checkpoint_paths(root: Path) -> dict[str, Path]:
+    return {
+        "root": root,
+        "manifest": root / MANIFEST,
+        "observations": root / OBSERVATIONS,
+        "h2h": root / H2H_RECORDS,
+    }
+
+
 def cmd_dataset(args) -> int:
     requested = {
         "opening": args.opening,
@@ -165,47 +224,141 @@ def cmd_run(args) -> int:
         return 1
 
     seeds = [args.seed_base + i for i in range(args.seeds)]
-    rows = run_agreement(
-        adapters,
-        payload,
-        seeds,
-        track_memory=args.track_memory,
-    )
+    h2h_positions = _h2h_positions(payload, args.h2h_positions)
+    h2h_seeds = [args.seed_base + i for i in range(args.h2h_seeds)]
 
-    head_to_head = {"records": [], "aggregates": []}
-    if not args.skip_h2h:
-        positions = _h2h_positions(payload, args.h2h_positions)
-        h2h_seeds = [args.seed_base + i for i in range(args.h2h_seeds)]
-        for adapter_a, adapter_b in itertools.combinations(adapters, 2):
-            records = run_head_to_head(adapter_a, adapter_b, positions, h2h_seeds)
-            head_to_head["records"].extend(records)
-            head_to_head["aggregates"].append(
-                aggregate_head_to_head(records, adapter_a.name, adapter_b.name)
+    checkpoint_root = Path(args.checkpoint_dir) if args.checkpoint_dir else None
+    rows: list[dict]
+    head_to_head: dict
+
+    if checkpoint_root is None:
+        rows = run_agreement(
+            adapters,
+            payload,
+            seeds,
+            track_memory=args.track_memory,
+        )
+        head_to_head = {"records": [], "aggregates": []}
+        if not args.skip_h2h:
+            for adapter_a, adapter_b in itertools.combinations(adapters, 2):
+                records = run_head_to_head(
+                    adapter_a, adapter_b, h2h_positions, h2h_seeds
+                )
+                head_to_head["records"].extend(records)
+                head_to_head["aggregates"].append(
+                    aggregate_head_to_head(records, adapter_a.name, adapter_b.name)
+                )
+        result = make_bundle(
+            config={**dict(vars(args)), "engine_seeds": seeds},
+            dataset_payload=payload,
+            observations=rows,
+            head_to_head=head_to_head,
+            aggregates={
+                "agreement": aggregate_agreement(rows),
+                "cost": aggregate_cost(rows),
+                "stability": aggregate_stability(rows),
+            },
+        )
+    else:
+        checkpoint_root.mkdir(parents=True, exist_ok=True)
+        paths = _checkpoint_paths(checkpoint_root)
+        if not args.resume:
+            for path in (paths["observations"], paths["h2h"]):
+                path.write_text("", encoding="utf-8")
+            write_manifest(
+                paths["manifest"], _checkpoint_manifest(args, payload, seeds)
+            )
+        elif not paths["manifest"].exists():
+            write_manifest(
+                paths["manifest"], _checkpoint_manifest(args, payload, seeds)
             )
 
-    config = dict(vars(args))
-    config["engine_seeds"] = seeds
-    result = make_bundle(
-        config=config,
-        dataset_payload=payload,
-        observations=rows,
-        head_to_head=head_to_head,
-        aggregates={
-            "agreement": aggregate_agreement(rows),
-            "cost": aggregate_cost(rows),
-            "stability": aggregate_stability(rows),
-        },
-    )
+        existing_rows = load_jsonl(paths["observations"])
+        if args.skip_h2h:
+            paths["h2h"].write_text("", encoding="utf-8")
+            existing_records = []
+        else:
+            existing_records = load_jsonl(paths["h2h"])
+        rows = list(existing_rows)
+
+        observation_skips = key_set(existing_rows, observation_key)
+        h2h_skips = key_set(existing_records, h2h_key)
+
+        update_manifest_counts(
+            paths["manifest"],
+            observations=len(existing_rows),
+            h2h_records=len(existing_records),
+            status="running",
+        )
+
+        completed_observations = len(existing_rows)
+        for row in iter_agreement(
+            adapters,
+            payload,
+            seeds,
+            track_memory=args.track_memory,
+            skip_keys=observation_skips,
+        ):
+            append_jsonl(paths["observations"], row)
+            rows.append(row)
+            completed_observations += 1
+            if (
+                args.checkpoint_every > 0
+                and completed_observations % args.checkpoint_every == 0
+            ):
+                update_manifest_counts(
+                    paths["manifest"],
+                    observations=completed_observations,
+                    h2h_records=len(existing_records),
+                    status="running",
+                )
+
+        completed_h2h = len(existing_records)
+        if not args.skip_h2h:
+            for adapter_a, adapter_b in itertools.combinations(adapters, 2):
+                for record in iter_head_to_head(
+                    adapter_a,
+                    adapter_b,
+                    h2h_positions,
+                    h2h_seeds,
+                    skip_keys=h2h_skips,
+                ):
+                    append_jsonl(paths["h2h"], record)
+                    completed_h2h += 1
+                    if (
+                        args.checkpoint_every > 0
+                        and completed_h2h % args.checkpoint_every == 0
+                    ):
+                        update_manifest_counts(
+                            paths["manifest"],
+                            observations=completed_observations,
+                            h2h_records=completed_h2h,
+                            status="running",
+                        )
+
+        update_manifest_counts(
+            paths["manifest"],
+            observations=completed_observations,
+            h2h_records=completed_h2h,
+            status="complete",
+        )
+        result = bundle_from_checkpoint(paths["root"])
+
     save_bundle(result, args.output)
     print(
-        f"bundle: {len(rows)} observations, "
-        f"{len(head_to_head['records'])} games -> {args.output}"
+        f"bundle: {len(result['observations'])} observations, "
+        f"{len(result['head_to_head']['records'])} games -> {args.output}"
     )
     return 0
 
 
 def cmd_report(args) -> int:
-    result = json.loads(Path(args.input).read_text())
+    input_path = Path(args.input)
+    result = (
+        bundle_from_checkpoint(input_path)
+        if input_path.is_dir()
+        else json.loads(input_path.read_text())
+    )
     output = args.output or str(Path(args.input).with_suffix(".md"))
     Path(output).write_text(render_markdown(result))
     print(f"report -> {output}")
