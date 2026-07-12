@@ -243,6 +243,85 @@ class TestCrossEngineBenchmarkCLI:
         ):
             assert heading in markdown
 
+    def test_checkpoint_manifest_exists_during_preflight(
+        self, cross_engine_benchmark, tmp_path, monkeypatch, capsys
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        def fail_after_manifest(_adapters, _positions):
+            manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+            assert manifest["status"] == "preflight"
+            assert manifest["counts"] == {"observations": 0, "h2h_records": 0}
+            return ["synthetic preflight stop"]
+
+        monkeypatch.setattr(
+            cross_engine_benchmark, "run_preflight", fail_after_manifest
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--family",
+                    "native",
+                    "--minimax-depth",
+                    "2",
+                    "--mcts-iterations",
+                    "1",
+                    "--beam-width",
+                    "2",
+                    "--beam-depth",
+                    "2",
+                    "--seeds",
+                    "1",
+                    "--h2h-positions",
+                    "1",
+                    "--h2h-seeds",
+                    "1",
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--checkpoint-every",
+                    "1",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        assert manifest["status"] == "preflight_failed"
+        assert "preflight: checking" in capsys.readouterr().out
+
     def test_checkpoint_resume_skips_existing_rows(
         self, cross_engine_benchmark, tmp_path
     ):

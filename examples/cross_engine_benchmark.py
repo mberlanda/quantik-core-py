@@ -173,7 +173,7 @@ def _checkpoint_manifest(args, payload: dict, seeds: list[int]) -> dict:
     config = dict(vars(args))
     config["engine_seeds"] = seeds
     return {
-        "status": "running",
+        "status": "preflight",
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "environment": collect_environment(),
         "config": config,
@@ -194,6 +194,10 @@ def _checkpoint_paths(root: Path) -> dict[str, Path]:
 def _expected_h2h_records(adapters, positions: list[dict], seeds: list[int]) -> int:
     pair_count = len(list(itertools.combinations(adapters, 2)))
     return pair_count * len(positions) * len(seeds) * 2
+
+
+def _print_progress(message: str) -> None:
+    print(message, flush=True)
 
 
 def cmd_dataset(args) -> int:
@@ -232,17 +236,17 @@ def cmd_run(args) -> int:
     checkpoint_root = Path(args.checkpoint_dir) if args.checkpoint_dir else None
     rows: list[dict]
     head_to_head: dict
+    paths = _checkpoint_paths(checkpoint_root) if checkpoint_root is not None else None
 
     if checkpoint_root is not None and args.resume:
-        manifest = load_manifest(checkpoint_root / MANIFEST)
+        manifest = load_manifest(paths["manifest"])
         if not manifest:
             print(
-                "RESUME FAILED - checkpoint manifest not found: "
-                f"{checkpoint_root / MANIFEST}"
+                "RESUME FAILED - checkpoint manifest not found: " f"{paths['manifest']}"
             )
             return 1
-        existing_rows = load_jsonl(checkpoint_root / OBSERVATIONS)
-        existing_records = load_jsonl(checkpoint_root / H2H_RECORDS)
+        existing_rows = load_jsonl(paths["observations"])
+        existing_records = load_jsonl(paths["h2h"])
         expected_h2h_records = _expected_h2h_records(adapters, h2h_positions, h2h_seeds)
         if args.skip_h2h and len(existing_records) != expected_h2h_records:
             print(
@@ -262,14 +266,37 @@ def cmd_run(args) -> int:
             print(f"RESUME FAILED - {exc}")
             return 1
 
+    if checkpoint_root is not None and not args.resume:
+        checkpoint_root.mkdir(parents=True, exist_ok=True)
+        for path in (paths["observations"], paths["h2h"]):
+            path.write_text("", encoding="utf-8")
+        write_manifest(paths["manifest"], _checkpoint_manifest(args, payload, seeds))
+
+    _print_progress(
+        "preflight: checking "
+        f"{len(adapters)} adapters across {min(3, len(payload['positions']))} "
+        "sample positions"
+    )
     failures = run_preflight(adapters, payload["positions"])
     if failures:
+        if paths is not None and (paths["manifest"]).exists():
+            update_manifest_counts(
+                paths["manifest"],
+                observations=len(load_jsonl(paths["observations"])),
+                h2h_records=len(load_jsonl(paths["h2h"])),
+                status="preflight_failed",
+            )
         print("PREFLIGHT FAILED - benchmark aborted:")
         for failure in failures:
             print(f"  - {failure}")
         return 1
+    _print_progress("preflight: passed")
 
     if checkpoint_root is None:
+        _print_progress(
+            f"agreement: running {len(payload['positions'])} positions "
+            f"with {len(seeds)} seed(s)"
+        )
         rows = run_agreement(
             adapters,
             payload,
@@ -278,6 +305,10 @@ def cmd_run(args) -> int:
         )
         head_to_head = {"records": [], "aggregates": []}
         if not args.skip_h2h:
+            _print_progress(
+                f"h2h: running {len(h2h_positions)} positions with "
+                f"{len(h2h_seeds)} seed(s)"
+            )
             for adapter_a, adapter_b in itertools.combinations(adapters, 2):
                 records = run_head_to_head(
                     adapter_a, adapter_b, h2h_positions, h2h_seeds
@@ -298,15 +329,6 @@ def cmd_run(args) -> int:
             },
         )
     else:
-        checkpoint_root.mkdir(parents=True, exist_ok=True)
-        paths = _checkpoint_paths(checkpoint_root)
-        if not args.resume:
-            for path in (paths["observations"], paths["h2h"]):
-                path.write_text("", encoding="utf-8")
-            write_manifest(
-                paths["manifest"], _checkpoint_manifest(args, payload, seeds)
-            )
-
         existing_rows = load_jsonl(paths["observations"])
         if args.skip_h2h and not args.resume:
             paths["h2h"].write_text("", encoding="utf-8")
@@ -326,6 +348,13 @@ def cmd_run(args) -> int:
         )
 
         completed_observations = len(existing_rows)
+        total_observations = sum(
+            len(seeds) if adapter.stochastic else 1 for adapter in adapters
+        ) * len(payload["positions"])
+        _print_progress(
+            f"agreement: {completed_observations}/{total_observations} "
+            f"observations complete; checkpoint {paths['observations']}"
+        )
         for row in iter_agreement(
             adapters,
             payload,
@@ -346,9 +375,18 @@ def cmd_run(args) -> int:
                     h2h_records=len(existing_records),
                     status="running",
                 )
+                _print_progress(
+                    f"agreement: {completed_observations}/{total_observations} "
+                    "observations checkpointed"
+                )
 
         completed_h2h = len(existing_records)
         if not args.skip_h2h:
+            total_h2h = _expected_h2h_records(adapters, h2h_positions, h2h_seeds)
+            _print_progress(
+                f"h2h: {completed_h2h}/{total_h2h} games complete; "
+                f"checkpoint {paths['h2h']}"
+            )
             for adapter_a, adapter_b in itertools.combinations(adapters, 2):
                 for record in iter_head_to_head(
                     adapter_a,
@@ -368,6 +406,9 @@ def cmd_run(args) -> int:
                             observations=completed_observations,
                             h2h_records=completed_h2h,
                             status="running",
+                        )
+                        _print_progress(
+                            f"h2h: {completed_h2h}/{total_h2h} games checkpointed"
                         )
 
         update_manifest_counts(
