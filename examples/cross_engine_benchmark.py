@@ -61,6 +61,7 @@ from benchmarks.head_to_head import (  # noqa: E402
     iter_head_to_head,
     run_head_to_head,
 )
+from benchmarks.planner import estimate_volume, render_json, render_text  # noqa: E402
 from benchmarks.report import render_markdown  # noqa: E402
 from benchmarks.stability import aggregate_stability  # noqa: E402
 
@@ -88,6 +89,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="max wall-clock seconds to exactly solve each position",
     )
     dataset.add_argument("--output", default="benchmarks/positions-v1.json")
+
+    estimate = subcommands.add_parser(
+        "estimate", help="estimate observations and h2h game volume"
+    )
+    estimate.add_argument("--dataset", default=None)
+    estimate.add_argument(
+        "--positions",
+        type=int,
+        default=None,
+        help="position count to model when --dataset is not supplied",
+    )
+    estimate.add_argument("--family", choices=("fixed", "native"), default="fixed")
+    estimate.add_argument("--seeds", type=int, default=10)
+    estimate.add_argument("--time-limit", type=float, default=1.0)
+    estimate.add_argument("--minimax-depth", type=int, default=6)
+    estimate.add_argument("--minimax-time", type=float, default=0.2)
+    estimate.add_argument("--mcts-iterations", type=int, default=1500)
+    estimate.add_argument("--mcts-depth", type=int, default=16)
+    estimate.add_argument("--mcts-exploration", type=float, default=1.414)
+    estimate.add_argument("--beam-width", type=int, default=64)
+    estimate.add_argument("--beam-depth", type=int, default=16)
+    estimate.add_argument("--h2h-positions", type=int, default=8)
+    estimate.add_argument("--h2h-seeds", type=int, default=1)
+    estimate.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON instead of text",
+    )
 
     run = subcommands.add_parser("run", help="run a benchmark family")
     run.add_argument("--dataset", required=True)
@@ -234,6 +263,36 @@ def cmd_dataset(args) -> int:
         positions = [p for p in payload["positions"] if p["phase"] == phase]
         phase_solved = sum(1 for p in positions if p["reference"])
         print(f"  {phase:9s}: {len(positions)} positions, {phase_solved} solved")
+    return 0
+
+
+def cmd_estimate(args) -> int:
+    if args.dataset is not None:
+        payload = ds.load(args.dataset)
+        position_count = len(payload["positions"])
+    elif args.positions is not None:
+        position_count = args.positions
+    else:
+        print("ESTIMATE FAILED - provide --dataset or --positions")
+        return 1
+
+    try:
+        adapters = _build_adapters(args)
+        estimate = estimate_volume(
+            positions=position_count,
+            seeds=args.seeds,
+            h2h_positions=args.h2h_positions,
+            h2h_seeds=args.h2h_seeds,
+            engines=[adapter.name for adapter in adapters],
+            deterministic_engines={
+                adapter.name for adapter in adapters if not adapter.stochastic
+            },
+        )
+    except ValueError as exc:
+        print(f"ESTIMATE FAILED - {exc}")
+        return 1
+
+    print(render_json(estimate) if args.json else render_text(estimate))
     return 0
 
 
@@ -491,7 +550,12 @@ def cmd_report(args) -> int:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    handlers = {"dataset": cmd_dataset, "run": cmd_run, "report": cmd_report}
+    handlers = {
+        "dataset": cmd_dataset,
+        "estimate": cmd_estimate,
+        "run": cmd_run,
+        "report": cmd_report,
+    }
     return handlers[args.command](args)
 
 

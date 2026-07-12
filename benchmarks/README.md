@@ -78,6 +78,59 @@ The stable agreement key is:
 (position_id, engine, config_label, seed)
 ```
 
+## Estimating A Run Before Starting
+
+Use the `estimate` subcommand to model output volume before launching a long
+run. It uses the same engine family definitions as `run`, but does not execute
+preflight, observations, or games.
+
+Estimate from a dataset file:
+
+```bash
+python examples/cross_engine_benchmark.py estimate \
+  --dataset benchmarks/positions-v1.json \
+  --family native \
+  --seeds 30 \
+  --h2h-positions 16 \
+  --h2h-seeds 5
+```
+
+Estimate from an input size before a dataset exists:
+
+```bash
+python examples/cross_engine_benchmark.py estimate \
+  --positions 1000 \
+  --family native \
+  --seeds 30 \
+  --h2h-positions 64 \
+  --h2h-seeds 10
+```
+
+The text output reports:
+
+- total observation rows
+- observation rows per engine
+- total H2H games
+- H2H games per engine
+- H2H games per engine pair
+- requested vs effective H2H positions
+
+The effective H2H position count is capped by available positions. For example,
+`--h2h-positions 64` with a 36-position dataset estimates only 36 H2H
+positions because the runner cannot sample more positions than the dataset
+contains.
+
+For machine-readable planning:
+
+```bash
+python examples/cross_engine_benchmark.py estimate \
+  --positions 1000 \
+  --seeds 30 \
+  --h2h-positions 64 \
+  --h2h-seeds 10 \
+  --json
+```
+
 ## Observation-Only Runs
 
 Use `--skip-h2h` when you want move-selection observations, cost, agreement,

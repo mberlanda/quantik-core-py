@@ -143,6 +143,59 @@ def cross_engine_benchmark():
 class TestCrossEngineBenchmarkCLI:
     """Tiny end-to-end smoke of the dataset -> run -> report pipeline."""
 
+    def test_estimate_reports_observations_and_h2h_volume(
+        self, cross_engine_benchmark, tmp_path, capsys
+    ):
+        dataset_path = tmp_path / "positions.json"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "2",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "11",
+                    "--solve-budget",
+                    "10.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "estimate",
+                    "--dataset",
+                    str(dataset_path),
+                    "--family",
+                    "native",
+                    "--seeds",
+                    "30",
+                    "--h2h-positions",
+                    "16",
+                    "--h2h-seeds",
+                    "5",
+                ]
+            )
+            == 0
+        )
+
+        output = capsys.readouterr().out
+        assert "observations: 182" in output
+        assert "h2h games: 120" in output
+        assert "minimax: 2 observations, 60 h2h games" in output
+        assert "requested h2h positions: 16; effective: 2" in output
+
     def test_pipeline_end_to_end(self, cross_engine_benchmark, tmp_path):
         dataset_path = tmp_path / "positions.json"
         bundle_path = tmp_path / "results" / "run.json"
