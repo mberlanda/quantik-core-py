@@ -179,7 +179,11 @@ def _build_manifest(
 
 
 def validate_resume_manifest(
-    manifest: dict, *, dataset_checksum, config: dict
+    manifest: dict,
+    *,
+    dataset_checksum,
+    config: dict,
+    allow_skip_h2h_mismatch: bool = False,
 ) -> None:
     """Raise ValueError when a resume checkpoint does not match the run."""
     manifest_dataset = manifest.get("dataset", {})
@@ -191,13 +195,11 @@ def validate_resume_manifest(
             f"expected {expected_dataset_checksum!r}, found {actual_dataset_checksum!r}"
         )
 
-    ignore_skip_h2h = bool(
-        config.get("skip_h2h")
-        and manifest.get("counts", {}).get("h2h_records", 0)
+    expected_config = _config_signature(
+        config, ignore_skip_h2h=allow_skip_h2h_mismatch
     )
-    expected_config = _config_signature(config, ignore_skip_h2h=ignore_skip_h2h)
     actual_config = _config_signature(
-        manifest.get("config", {}), ignore_skip_h2h=ignore_skip_h2h
+        manifest.get("config", {}), ignore_skip_h2h=allow_skip_h2h_mismatch
     )
     if actual_config != expected_config:
         diffs = []
@@ -235,12 +237,20 @@ def bundle_from_checkpoint(root) -> dict:
     records = load_jsonl(root_path / H2H_RECORDS)
     dataset = _dataset_summary(manifest)
 
+    checkpoint_info = {
+        "status": manifest.get("status", "unknown"),
+        "counts": manifest.get("counts", {"observations": 0, "h2h_records": 0}),
+    }
+    if "h2h_pairs" in manifest:
+        checkpoint_info["h2h_pairs"] = manifest["h2h_pairs"]
+
     return {
         "schema_version": bundle.SCHEMA_VERSION,
         "started_at": manifest.get("started_at", time.strftime("%Y-%m-%dT%H:%M:%S%z")),
         "environment": manifest.get("environment", bundle.collect_environment()),
         "config": manifest.get("config", {}),
         "dataset": dataset,
+        "checkpoint": checkpoint_info,
         "observations": observations,
         "head_to_head": {
             "records": records,

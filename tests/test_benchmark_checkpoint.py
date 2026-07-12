@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarks import bundle, checkpoint
+from benchmarks import bundle, checkpoint, report
 
 
 def test_jsonl_append_and_load_roundtrip(tmp_path):
@@ -68,7 +68,7 @@ def test_manifest_lifecycle_and_bundle_rehydration(tmp_path):
     manifest = {
         "status": "running",
         "started_at": "2026-07-12T00:00:00+0000",
-        "environment": {"git_sha": "deadbeef"},
+        "environment": bundle.collect_environment(),
         "config": config,
         "dataset": dataset,
         "counts": {"observations": 0, "h2h_records": 0},
@@ -129,3 +129,48 @@ def test_manifest_lifecycle_and_bundle_rehydration(tmp_path):
     assert bundle_dict["aggregates"]["agreement"][0]["n"] == 1
     assert bundle_dict["aggregates"]["cost"][0]["median_nodes"] == 42
     assert bundle_dict["head_to_head"]["aggregates"][0]["games"] == 1
+    assert bundle_dict["checkpoint"]["status"] == "complete"
+    assert bundle_dict["checkpoint"]["counts"] == {
+        "observations": 1,
+        "h2h_records": 1,
+    }
+    assert "checkpoint status: complete" in report.render_markdown(bundle_dict)
+
+
+def test_running_checkpoint_report_shows_status(tmp_path):
+    root = tmp_path / "checkpoint"
+    payload = {
+        "schema_version": 1,
+        "generator": "benchmarks.dataset.generate/v1",
+        "seed": 20260711,
+        "requested": {"late_mid": 1},
+        "checksum": "abc123",
+        "positions": [
+            {
+                "id": "p0000",
+                "qfen": ".ba./..CC/DcbD/cA.A",
+                "phase": "late_mid",
+                "pieces": 8,
+                "side_to_move": 1,
+                "legal_moves": 10,
+                "reference": None,
+            }
+        ],
+    }
+    checkpoint.write_manifest(
+        root,
+        config={"family": "native", "engine_seeds": [0]},
+        dataset_payload=payload,
+        status="running",
+        observations=0,
+        h2h_records=0,
+    )
+
+    bundle_dict = checkpoint.bundle_from_checkpoint(root)
+
+    assert bundle_dict["checkpoint"]["status"] == "running"
+    assert bundle_dict["checkpoint"]["counts"] == {
+        "observations": 0,
+        "h2h_records": 0,
+    }
+    assert "checkpoint status: running" in report.render_markdown(bundle_dict)

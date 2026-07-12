@@ -430,6 +430,84 @@ class TestCrossEngineBenchmarkCLI:
         )
         assert second_h2h_lines == first_h2h_lines
 
+    def test_resume_skip_h2h_rejects_partial_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--skip-h2h",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main(base_args) == 0
+        h2h_before = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+        manifest_before = json.loads((checkpoint_dir / "manifest.json").read_text())
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args[:-2], "--resume", "--output", str(bundle_path)]
+            )
+            != 0
+        )
+
+        assert (checkpoint_dir / "h2h.jsonl").read_text().splitlines() == h2h_before
+        assert (
+            json.loads((checkpoint_dir / "manifest.json").read_text())
+            == manifest_before
+        )
+
     def test_resume_rejects_config_mismatch_without_appending(
         self, cross_engine_benchmark, tmp_path
     ):

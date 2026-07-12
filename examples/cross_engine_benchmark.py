@@ -191,6 +191,11 @@ def _checkpoint_paths(root: Path) -> dict[str, Path]:
     }
 
 
+def _expected_h2h_records(adapters, positions: list[dict], seeds: list[int]) -> int:
+    pair_count = len(list(itertools.combinations(adapters, 2)))
+    return pair_count * len(positions) * len(seeds) * 2
+
+
 def cmd_dataset(args) -> int:
     requested = {
         "opening": args.opening,
@@ -220,6 +225,7 @@ def cmd_run(args) -> int:
     seeds = [args.seed_base + i for i in range(args.seeds)]
     run_config = dict(vars(args))
     run_config["engine_seeds"] = seeds
+    adapters = _build_adapters(args)
     h2h_positions = _h2h_positions(payload, args.h2h_positions)
     h2h_seeds = [args.seed_base + i for i in range(args.h2h_seeds)]
 
@@ -235,17 +241,27 @@ def cmd_run(args) -> int:
                 f"{checkpoint_root / MANIFEST}"
             )
             return 1
+        existing_rows = load_jsonl(checkpoint_root / OBSERVATIONS)
+        existing_records = load_jsonl(checkpoint_root / H2H_RECORDS)
+        expected_h2h_records = _expected_h2h_records(adapters, h2h_positions, h2h_seeds)
+        if args.skip_h2h and len(existing_records) != expected_h2h_records:
+            print(
+                "RESUME FAILED - checkpoint h2h records incomplete: "
+                f"expected {expected_h2h_records}, found {len(existing_records)}"
+            )
+            return 1
         try:
             validate_resume_manifest(
                 manifest,
                 dataset_checksum=payload.get("checksum"),
                 config=run_config,
+                allow_skip_h2h_mismatch=args.skip_h2h
+                and len(existing_records) == expected_h2h_records,
             )
         except ValueError as exc:
             print(f"RESUME FAILED - {exc}")
             return 1
 
-    adapters = _build_adapters(args)
     failures = run_preflight(adapters, payload["positions"])
     if failures:
         print("PREFLIGHT FAILED - benchmark aborted:")
