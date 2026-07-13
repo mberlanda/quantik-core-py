@@ -243,6 +243,8 @@ data/
 *.csv
 *.json
 !tuning/weights.json
+!benchmarks/depth4-canonical/
+!benchmarks/depth4-canonical/*.json
 *.pkl
 *.pickle
 

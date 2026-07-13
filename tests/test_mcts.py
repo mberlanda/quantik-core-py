@@ -7,6 +7,7 @@ import pytest
 import numpy as np
 from quantik_core import State, Move
 from quantik_core.mcts import MCTSEngine, MCTSConfig
+from quantik_core.move import generate_legal_moves_list
 from quantik_core.memory.compact_tree import (
     NODE_FLAG_TERMINAL,
     NODE_FLAG_WINNING_P0,
@@ -41,6 +42,20 @@ class TestMCTSConfig:
         assert config.max_depth == 10
         assert config.random_seed == 42
         assert config.use_transposition_table is False
+        assert config.time_limit_s is None
+
+    def test_time_limit_preserves_existing_positional_fields(self):
+        """Adding time_limit_s must not shift older positional arguments."""
+        config = MCTSConfig(2.0, 5000, 10, 42, False, None, 0.3)
+
+        assert config.exploration_weight == 2.0
+        assert config.max_iterations == 5000
+        assert config.max_depth == 10
+        assert config.random_seed == 42
+        assert config.use_transposition_table is False
+        assert config.rollout_eval_config is None
+        assert config.rollout_epsilon == 0.3
+        assert config.time_limit_s is None
 
 
 class TestMCTSEngine:
@@ -593,6 +608,54 @@ class TestMCTSIntegration:
 
         # Should have reasonable confidence
         assert win_prob >= 0.3  # At least better than random
+
+
+class TestMCTSTimeLimit:
+    """Optional wall-clock budget on MCTSEngine.search."""
+
+    _QFEN = ".ba./..CC/DcbD/cA.A"  # fast near-endgame anchor, P1 to move
+
+    def test_time_limit_stops_before_max_iterations(self):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        engine = MCTSEngine(
+            MCTSConfig(max_iterations=10_000_000, time_limit_s=0.05, random_seed=0)
+        )
+        state = State.from_qfen(self._QFEN)
+        move, _ = engine.search(state)
+        assert engine.iterations_performed < 10_000_000
+        assert move in generate_legal_moves_list(state.bb)
+
+    def test_time_limit_always_runs_at_least_one_iteration(self):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        engine = MCTSEngine(
+            MCTSConfig(max_iterations=100, time_limit_s=1e-9, random_seed=0)
+        )
+        engine.search(State.from_qfen(self._QFEN))
+        assert engine.iterations_performed >= 1
+
+    def test_no_time_limit_runs_all_iterations(self):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        engine = MCTSEngine(MCTSConfig(max_iterations=50, random_seed=0))
+        engine.search(State.from_qfen(self._QFEN))
+        assert engine.iterations_performed == 50
+
+    def test_non_positive_time_limit_rejected(self):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        with pytest.raises(ValueError):
+            MCTSEngine(MCTSConfig(time_limit_s=0.0))
+        with pytest.raises(ValueError):
+            MCTSEngine(MCTSConfig(time_limit_s=-1.0))
+
+    @pytest.mark.parametrize("bad_limit", [float("nan"), float("inf")])
+    def test_non_finite_time_limit_rejected(self, bad_limit):
+        from quantik_core.mcts import MCTSConfig, MCTSEngine
+
+        with pytest.raises(ValueError):
+            MCTSEngine(MCTSConfig(time_limit_s=bad_limit))
 
 
 class TestEvalGuidedRollouts:

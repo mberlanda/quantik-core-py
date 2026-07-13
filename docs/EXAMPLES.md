@@ -92,17 +92,22 @@ score = evaluate(state.bb, player=0, cfg=EvalConfig.load())
 assert isinstance(score, float)
 ```
 
-## Cross-Engine Move-Agreement
+## Cross-Engine Benchmark
 
-All three engines (minimax, MCTS, beam search) key off the same
-`canonical_key()`, so they can be measured against each other from a
-shared set of positions. `examples/cross_engine_benchmark.py` samples
-random non-terminal mid-game positions, computes each one's exact best
-move(s) with the minimax solver, and reports how often each engine's
-choice matches:
+`examples/cross_engine_benchmark.py` is a CLI benchmark harness comparing
+minimax, MCTS, beam search, and a random baseline on a shared versioned
+dataset. It provides `dataset`, `run`, and `report` subcommands; fixed-resource
+and algorithm-native families; exact move-agreement; paired head-to-head; and
+seed-stability tables. See `docs/BENCHMARKS.md` for the methodology.
 
 ```bash
-python examples/cross_engine_benchmark.py
+python examples/cross_engine_benchmark.py dataset --output benchmarks/positions-v1.json
+python examples/cross_engine_benchmark.py run \
+  --dataset benchmarks/positions-v1.json \
+  --time-limit 1.0 --seeds 30 \
+  --output benchmarks/results/$(git rev-parse --short HEAD).json
+python examples/cross_engine_benchmark.py report \
+  --input benchmarks/results/$(git rev-parse --short HEAD).json
 ```
 
 ## Hybrid Player

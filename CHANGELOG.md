@@ -14,6 +14,8 @@ All notable changes to `quantik-core` are documented here.
 - Added `docs/BEAM_SEARCH.md` documenting the algorithm, configuration, result fields, ranked root moves, memory model, and the caveats of sharing a `CompactGameTree` with `MCTSEngine`.
 - Added `BeamSearchConfig.beam_schedule`, a depth-dependent beam width (last entry extends to deeper levels) so a search can keep an exhaustive shallow prefix and switch to guided sampling once the canonical state space grows too large, plus the `UNIQUE_CANONICAL_STATES_PER_DEPTH` constant for building such schedules.
 - Added symmetry-multiplicity accounting: `BeamLeaf.multiplicity` and `RankedRootMove.total_multiplicity` track how many raw (pre-canonicalization) move sequences a leaf represents via path-count accumulation, `RankedRootMove.mean_value` is now multiplicity-weighted, and survivor/terminal tree nodes are inserted with their accumulated multiplicity instead of the previous implicit default of 1.
+- Added the cross-engine benchmark harness for GH issue #24: shared checksummed position datasets with exact references in `benchmarks/`, a `dataset`/`run`/`report` CLI in `examples/cross_engine_benchmark.py`, fixed-resource and algorithm-native benchmark families, correctness preflight, seed-stability aggregation, paired head-to-head reporting, reproducible result bundles, and generated Markdown reports documented in `docs/BENCHMARKS.md`.
+- Added optional wall-clock `time_limit_s` budgets to `MCTSConfig` and `BeamSearchConfig` for fixed-resource benchmark runs.
 
 ### Fixed
 

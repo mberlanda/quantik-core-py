@@ -7,6 +7,7 @@ integration into the compact game tree structure.
 
 import math
 import random
+import time
 from typing import List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
@@ -41,6 +42,10 @@ class MCTSConfig:
     # meaningful. None => original pure-random rollouts (default).
     rollout_eval_config: Optional[EvalConfig] = None
     rollout_epsilon: float = 0.2
+    # Optional wall-clock budget for `search`, in seconds. Checked after
+    # each completed iteration; None (default) means iteration count is
+    # the only stop condition.
+    time_limit_s: Optional[float] = None
 
 
 class MCTSEngine:
@@ -59,6 +64,12 @@ class MCTSEngine:
             raise ValueError(
                 "rollout_epsilon must be in [0.0, 1.0], got "
                 f"{config.rollout_epsilon}"
+            )
+        if config.time_limit_s is not None and (
+            config.time_limit_s <= 0 or not math.isfinite(config.time_limit_s)
+        ):
+            raise ValueError(
+                f"time_limit_s must be positive and finite, got {config.time_limit_s}"
             )
         self.config = config
         if config.random_seed is not None:
@@ -82,6 +93,12 @@ class MCTSEngine:
         self.root_id = self.tree.create_root_node(initial_state)
         self.iterations_performed = 0
 
+        deadline = (
+            time.monotonic() + self.config.time_limit_s
+            if self.config.time_limit_s is not None
+            else None
+        )
+
         # Perform MCTS iterations
         for _ in range(self.config.max_iterations):
             # Selection: traverse tree using UCB
@@ -101,6 +118,9 @@ class MCTSEngine:
             self._backpropagate(node_id, value)
 
             self.iterations_performed += 1
+
+            if deadline is not None and time.monotonic() >= deadline:
+                break
 
         # Extract best move
         return self._get_best_move()

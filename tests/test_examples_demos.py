@@ -140,87 +140,845 @@ def cross_engine_benchmark():
     return _load_demo_module("cross_engine_benchmark.py")
 
 
-class TestCrossEngineBenchmark:
-    # A mid-game anchor (8 plies in, near-terminal) rather than the plan's
-    # original near-empty "AbC./..../..../...." position: optimal_moves
-    # exact-solves every non-immediately-terminal legal move, and from a
-    # near-empty board that took >170s for a SINGLE child (measured), vs.
-    # sub-millisecond here. P1 (side to move) has three moves that each
-    # immediately end the game (shape=3,pos=5 completes a line; the other
-    # two leave P0 with zero legal replies) -- all three legitimately tie
-    # as optimal.
-    _ANCHOR = ".ba./..CC/DcbD/cA.A"
+class TestCrossEngineBenchmarkCLI:
+    """Tiny end-to-end smoke of the dataset -> run -> report pipeline."""
 
-    def test_optimal_moves_finds_the_mate(self, cross_engine_benchmark):
-        from quantik_core import State
-
-        bb = State.from_qfen(self._ANCHOR).bb
-        opt = cross_engine_benchmark.optimal_moves(bb)
-        assert any(m.shape == 3 and m.position == 5 for m in opt)
-
-    def test_optimal_moves_handles_no_legal_reply_without_solving(
-        self, cross_engine_benchmark
+    def test_estimate_reports_observations_and_h2h_volume(
+        self, cross_engine_benchmark, tmp_path, capsys
     ):
-        # A move that leaves the opponent with zero legal moves is terminal
-        # (MinimaxEngine.solve/search reject states with no legal moves for
-        # the side to move) -- optimal_moves must score it directly rather
-        # than calling solve() on it.
-        from quantik_core import State, apply_move
-        from quantik_core.game_utils import has_winning_line
-        from quantik_core.move import generate_legal_moves_list
+        dataset_path = tmp_path / "positions.json"
 
-        bb = State.from_qfen(self._ANCHOR).bb
-        opt = cross_engine_benchmark.optimal_moves(bb)
-        for m in opt:
-            child = apply_move(bb, m)
-            assert has_winning_line(child) or not generate_legal_moves_list(child)
-
-    def test_engine_move_returns_legal(self, cross_engine_benchmark):
-        from quantik_core import State
-        from quantik_core.move import generate_legal_moves_list
-
-        bb = State.from_qfen(self._ANCHOR).bb
-        legal = generate_legal_moves_list(bb)
-        for name in ("minimax", "mcts", "beam"):
-            assert cross_engine_benchmark.engine_move(name, bb) in legal
-
-    def test_move_agreement_handles_empty_sample(self, cross_engine_benchmark):
-        # sample_states can return fewer than n (or zero) positions; the
-        # division by len(positions) must not raise ZeroDivisionError.
-        result = cross_engine_benchmark.move_agreement(n=0, seed=1)
-        assert result == {"minimax": 0.0, "mcts": 0.0, "beam": 0.0}
-
-    def test_play_from_credits_the_actual_side_to_move(self, cross_engine_benchmark):
-        # Regression: play_from must bind mover_name to whichever color is
-        # ACTUALLY to move at bb, not a hard-coded P0. This anchor (P1 to
-        # move, per the class-level note above) has an immediate win for
-        # the side to move; mover_name="minimax" must be credited with
-        # that win even though P1 -- not P0 -- moves first here.
-        from quantik_core import State
-        from quantik_core.game_utils import (
-            count_total_pieces,
-            get_current_player_from_counts,
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "2",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "11",
+                    "--solve-budget",
+                    "10.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
         )
 
-        bb = State.from_qfen(self._ANCHOR).bb
-        p0, p1 = count_total_pieces(bb)
-        assert get_current_player_from_counts(p0, p1) == 1  # P1 to move
-        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
-
-    def test_play_from_p0_to_move_case(self, cross_engine_benchmark):
-        # Same guarantee for the other parity: P0 to move (row 0 = A b C .
-        # plus a P1 piece elsewhere to balance the piece count) with an
-        # immediate win, D at pos 3 completing row 0.
-        from quantik_core import State
-        from quantik_core.game_utils import (
-            count_total_pieces,
-            get_current_player_from_counts,
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "estimate",
+                    "--dataset",
+                    str(dataset_path),
+                    "--family",
+                    "native",
+                    "--seeds",
+                    "30",
+                    "--h2h-positions",
+                    "16",
+                    "--h2h-seeds",
+                    "5",
+                ]
+            )
+            == 0
         )
 
-        bb = State.from_qfen("AbC./d.../..../....").bb
-        p0, p1 = count_total_pieces(bb)
-        assert get_current_player_from_counts(p0, p1) == 0  # P0 to move
-        assert cross_engine_benchmark.play_from(bb, "minimax", "mcts") is True
+        output = capsys.readouterr().out
+        assert "observations: 182" in output
+        assert "h2h games: 120" in output
+        assert "minimax: 2 observations, 60 h2h games" in output
+        assert "requested h2h positions: 16; effective: 2" in output
+
+    def test_pipeline_end_to_end(self, cross_engine_benchmark, tmp_path):
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        report_path = tmp_path / "results" / "run.md"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--family",
+                    "native",
+                    "--minimax-depth",
+                    "2",
+                    "--mcts-iterations",
+                    "30",
+                    "--beam-width",
+                    "4",
+                    "--beam-depth",
+                    "4",
+                    "--seeds",
+                    "2",
+                    "--h2h-positions",
+                    "1",
+                    "--h2h-seeds",
+                    "1",
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--checkpoint-every",
+                    "1",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "report",
+                    "--input",
+                    str(checkpoint_dir),
+                    "--output",
+                    str(report_path),
+                ]
+            )
+            == 0
+        )
+
+        import json
+
+        bundle = json.loads(bundle_path.read_text())
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        assert bundle["schema_version"] == 1
+        assert bundle["observations"]
+        assert bundle["dataset"]["checksum"]
+        assert bundle["head_to_head"]["records"]
+        assert manifest["status"] == "complete"
+        assert manifest["counts"]["observations"] == len(bundle["observations"])
+        assert manifest["counts"]["h2h_records"] == len(
+            bundle["head_to_head"]["records"]
+        )
+        assert (checkpoint_dir / "observations.jsonl").read_text().strip()
+        assert (checkpoint_dir / "h2h.jsonl").read_text().strip()
+
+        markdown = report_path.read_text()
+        for heading in (
+            "Exact move agreement",
+            "Computational cost",
+            "Head-to-head",
+            "Stability",
+        ):
+            assert heading in markdown
+
+    def test_checkpoint_manifest_exists_during_preflight(
+        self, cross_engine_benchmark, tmp_path, monkeypatch, capsys
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        def fail_after_manifest(_adapters, _positions):
+            manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+            assert manifest["status"] == "preflight"
+            assert manifest["counts"] == {"observations": 0, "h2h_records": 0}
+            return ["synthetic preflight stop"]
+
+        monkeypatch.setattr(
+            cross_engine_benchmark, "run_preflight", fail_after_manifest
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--family",
+                    "native",
+                    "--minimax-depth",
+                    "2",
+                    "--mcts-iterations",
+                    "1",
+                    "--beam-width",
+                    "2",
+                    "--beam-depth",
+                    "2",
+                    "--seeds",
+                    "1",
+                    "--h2h-positions",
+                    "1",
+                    "--h2h-seeds",
+                    "1",
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--checkpoint-every",
+                    "1",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        assert manifest["status"] == "preflight_failed"
+        assert "preflight: checking" in capsys.readouterr().out
+
+    def test_checkpoint_resume_skips_existing_rows(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        first_bundle_path = tmp_path / "results" / "first.json"
+        second_bundle_path = tmp_path / "results" / "second.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+        ]
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args, "--output", str(first_bundle_path)]
+            )
+            == 0
+        )
+        first_bundle = json.loads(first_bundle_path.read_text())
+        first_manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        first_obs_lines = (
+            (checkpoint_dir / "observations.jsonl").read_text().splitlines()
+        )
+        first_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args, "--resume", "--output", str(second_bundle_path)]
+            )
+            == 0
+        )
+        second_bundle = json.loads(second_bundle_path.read_text())
+        second_manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        second_obs_lines = (
+            (checkpoint_dir / "observations.jsonl").read_text().splitlines()
+        )
+        second_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert first_bundle["observations"] == second_bundle["observations"]
+        assert (
+            first_bundle["head_to_head"]["records"]
+            == second_bundle["head_to_head"]["records"]
+        )
+        assert (
+            first_bundle["head_to_head"]["aggregates"]
+            == second_bundle["head_to_head"]["aggregates"]
+        )
+        assert first_manifest["counts"] == second_manifest["counts"]
+        assert first_obs_lines == second_obs_lines
+        assert first_h2h_lines == second_h2h_lines
+
+    def test_resume_skip_h2h_preserves_existing_records(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        first_bundle_path = tmp_path / "results" / "first.json"
+        second_bundle_path = tmp_path / "results" / "second.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+        ]
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args, "--output", str(first_bundle_path)]
+            )
+            == 0
+        )
+        first_bundle = json.loads(first_bundle_path.read_text())
+        first_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    *base_args,
+                    "--resume",
+                    "--skip-h2h",
+                    "--output",
+                    str(second_bundle_path),
+                ]
+            )
+            == 0
+        )
+        second_bundle = json.loads(second_bundle_path.read_text())
+        second_h2h_lines = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+
+        assert (
+            second_bundle["head_to_head"]["records"]
+            == first_bundle["head_to_head"]["records"]
+        )
+        assert second_h2h_lines == first_h2h_lines
+
+    def test_resume_skip_h2h_rejects_partial_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--skip-h2h",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main(base_args) == 0
+        h2h_before = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+        manifest_before = json.loads((checkpoint_dir / "manifest.json").read_text())
+
+        assert (
+            cross_engine_benchmark.main(
+                [*base_args[:-2], "--resume", "--output", str(bundle_path)]
+            )
+            != 0
+        )
+
+        assert (checkpoint_dir / "h2h.jsonl").read_text().splitlines() == h2h_before
+        assert (
+            json.loads((checkpoint_dir / "manifest.json").read_text())
+            == manifest_before
+        )
+
+    def test_resume_rejects_config_mismatch_without_appending(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main(base_args) == 0
+        obs_before = (checkpoint_dir / "observations.jsonl").read_text().splitlines()
+        h2h_before = (checkpoint_dir / "h2h.jsonl").read_text().splitlines()
+        manifest_before = json.loads((checkpoint_dir / "manifest.json").read_text())
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    *base_args[:-2],
+                    "--seed-base",
+                    "9",
+                    "--resume",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            != 0
+        )
+
+        assert (
+            checkpoint_dir / "observations.jsonl"
+        ).read_text().splitlines() == obs_before
+        assert (checkpoint_dir / "h2h.jsonl").read_text().splitlines() == h2h_before
+        assert (
+            json.loads((checkpoint_dir / "manifest.json").read_text())
+            == manifest_before
+        )
+
+    def test_resume_allows_different_worker_count(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main([*base_args, "--workers", "1"]) == 0
+        first_bundle = json.loads(bundle_path.read_text())
+
+        assert (
+            cross_engine_benchmark.main([*base_args, "--resume", "--workers", "2"]) == 0
+        )
+        second_bundle = json.loads(bundle_path.read_text())
+
+        assert second_bundle["observations"] == first_bundle["observations"]
+
+    def test_resume_can_run_h2h_only_after_agreement_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        import json
+
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        base_args = [
+            "run",
+            "--dataset",
+            str(dataset_path),
+            "--family",
+            "native",
+            "--minimax-depth",
+            "2",
+            "--mcts-iterations",
+            "30",
+            "--beam-width",
+            "4",
+            "--beam-depth",
+            "4",
+            "--seeds",
+            "1",
+            "--h2h-positions",
+            "1",
+            "--h2h-seeds",
+            "1",
+            "--checkpoint-dir",
+            str(checkpoint_dir),
+            "--checkpoint-every",
+            "1",
+            "--output",
+            str(bundle_path),
+        ]
+
+        assert cross_engine_benchmark.main([*base_args, "--skip-h2h"]) == 0
+        agreement_only_bundle = json.loads(bundle_path.read_text())
+        assert agreement_only_bundle["observations"]
+        assert agreement_only_bundle["head_to_head"]["records"] == []
+
+        assert (
+            cross_engine_benchmark.main([*base_args, "--resume", "--skip-agreement"])
+            == 0
+        )
+        h2h_bundle = json.loads(bundle_path.read_text())
+
+        assert h2h_bundle["observations"] == agreement_only_bundle["observations"]
+        assert h2h_bundle["head_to_head"]["records"]
+        manifest = json.loads((checkpoint_dir / "manifest.json").read_text())
+        assert manifest["counts"] == {
+            "observations": len(h2h_bundle["observations"]),
+            "h2h_records": len(h2h_bundle["head_to_head"]["records"]),
+        }
+
+    def test_skip_agreement_requires_complete_checkpoint(
+        self, cross_engine_benchmark, tmp_path
+    ):
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+        checkpoint_dir = tmp_path / "results" / "checkpoint"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--checkpoint-dir",
+                    str(checkpoint_dir),
+                    "--resume",
+                    "--skip-agreement",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
+    def test_run_rejects_zero_workers(self, cross_engine_benchmark, tmp_path):
+        dataset_path = tmp_path / "positions.json"
+        bundle_path = tmp_path / "results" / "run.json"
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "dataset",
+                    "--opening",
+                    "0",
+                    "--early-mid",
+                    "0",
+                    "--late-mid",
+                    "1",
+                    "--endgame",
+                    "0",
+                    "--seed",
+                    "7",
+                    "--solve-budget",
+                    "15.0",
+                    "--output",
+                    str(dataset_path),
+                ]
+            )
+            == 0
+        )
+
+        assert (
+            cross_engine_benchmark.main(
+                [
+                    "run",
+                    "--dataset",
+                    str(dataset_path),
+                    "--workers",
+                    "0",
+                    "--output",
+                    str(bundle_path),
+                ]
+            )
+            == 1
+        )
+
+    def test_parser_rejects_unknown_family(self, cross_engine_benchmark):
+        with pytest.raises(SystemExit):
+            cross_engine_benchmark.build_parser().parse_args(
+                [
+                    "run",
+                    "--dataset",
+                    "x.json",
+                    "--family",
+                    "bogus",
+                    "--output",
+                    "y.json",
+                ]
+            )
 
 
 @pytest.fixture(scope="module")
