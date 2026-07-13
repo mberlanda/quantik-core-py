@@ -3,6 +3,7 @@
 from importlib.metadata import PackageNotFoundError, version
 
 from .commons import Bitboard, PlayerId, VERSION, FLAG_CANON
+from .contracts import SUPPORTED_CONTRACTS, SUPPORTED_CONTRACTS_RELEASE
 from .core import State
 from .symmetry import SymmetryHandler, SymmetryTransform
 from .qfen import bb_to_qfen, bb_from_qfen
@@ -33,6 +34,8 @@ __author__ = "Mauro Berlanda"
 __all__ = [
     "VERSION",
     "FLAG_CANON",
+    "SUPPORTED_CONTRACTS",
+    "SUPPORTED_CONTRACTS_RELEASE",
     "State",
     "Bitboard",
     "Move",

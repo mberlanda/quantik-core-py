@@ -1,0 +1,19 @@
+name: Contracts
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate-contract-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: mberlanda/quantik-core-contracts/actions/validate-contracts@v1.0.0
+        with:
+          fixture-glob: "tests/fixtures/selfplay_v1.jsonl"
+          expected-release: "1.0.0"
+
