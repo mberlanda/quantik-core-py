@@ -15,9 +15,10 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
+from .commons import Bitboard
 from .move import generate_legal_moves_list
 from .qfen import bb_from_qfen
-from .state_validator import ValidationResult, _validate_game_state_single_pass
+from .state_validator import ValidationResult, validate_game_state
 
 ACTION_COUNT = 64
 BOARD_SIZE = 4
@@ -87,8 +88,9 @@ def _parse_policy(policy: Any) -> tuple[PolicyVisit, ...]:
     return tuple(visits)
 
 
-def _validate_policy_is_legal(qfen: str, policy: Sequence[PolicyVisit]) -> None:
-    bitboard = bb_from_qfen(qfen, validate=True)
+def _validate_policy_is_legal(
+    bitboard: Bitboard, policy: Sequence[PolicyVisit]
+) -> None:
     legal_actions = {
         (move.shape, move.position) for move in generate_legal_moves_list(bitboard)
     }
@@ -104,18 +106,23 @@ def parse_selfplay_row(record: Mapping[str, Any]) -> SelfPlayRow:
     """Validate and parse one Rust self-play JSON object."""
     game_id = _expect_int(record, "game_id")
     ply = _expect_int(record, "ply")
+    if game_id < 0:
+        raise ValueError("game_id must be non-negative")
+    if ply < 0:
+        raise ValueError("ply must be non-negative")
+
     qfen = _expect_qfen(record)
     side_to_move = _expect_int(record, "side_to_move")
     if side_to_move not in (0, 1):
         raise ValueError("side_to_move must be 0 or 1")
 
     bitboard = bb_from_qfen(qfen, validate=True)
-    current_player, result = _validate_game_state_single_pass(bitboard)
+    current_player, result = validate_game_state(bitboard)
     if result != ValidationResult.OK or current_player != side_to_move:
         raise ValueError("side_to_move does not match qfen")
 
     policy = _parse_policy(record.get("policy"))
-    _validate_policy_is_legal(qfen, policy)
+    _validate_policy_is_legal(bitboard, policy)
 
     raw_value = record.get("value")
     if not isinstance(raw_value, (int, float)) or isinstance(raw_value, bool):
@@ -123,11 +130,6 @@ def parse_selfplay_row(record: Mapping[str, Any]) -> SelfPlayRow:
     value = float(raw_value)
     if value not in (-1.0, 1.0):
         raise ValueError("value must be exactly -1.0 or 1.0")
-
-    if game_id < 0:
-        raise ValueError("game_id must be non-negative")
-    if ply < 0:
-        raise ValueError("ply must be non-negative")
 
     return SelfPlayRow(
         game_id=game_id,
