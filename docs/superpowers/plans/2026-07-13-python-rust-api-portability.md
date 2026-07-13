@@ -4,7 +4,7 @@
 
 **Goal:** Make the Python package enforce the shared Quantik API and self-play data contracts used by the companion Rust crate.
 
-**Architecture:** Keep core game primitives stable and language-neutral: QFEN, bitboard order, action indexing, and decisive value semantics. Add Python ML-data helpers in a dedicated `quantik_core.ml_data` module so Rust self-play output can be validated and consumed without widening the top-level public API.
+**Architecture:** Keep core game primitives stable and language-neutral: QFEN, bitboard order, action indexing, and decisive value semantics. The canonical contract source is `mberlanda/quantik-core-contracts` release `1.0.0`; Python declares this through `SUPPORTED_CONTRACTS_RELEASE` and validates fixtures with the tagged contracts action. Add Python ML-data helpers in a dedicated `quantik_core.ml_data` module so Rust self-play output can be validated and consumed.
 
 **Tech Stack:** Python 3.12+, NumPy, pytest, existing `quantik_core` QFEN/move/state-validator APIs, Rust JSONL self-play output from `quantik-core-rust`.
 
@@ -17,7 +17,9 @@ The Rust plan `2026-07-13-crates-io-packaging-and-ml-data-pipeline.md` makes Rus
 ## File Structure
 
 - Create: `docs/API_PORTABILITY.md` - human-readable Python/Rust shared contracts.
+- Create: `src/quantik_core/contracts.py` - supported contracts release and wire-format identifiers.
 - Create: `src/quantik_core/ml_data.py` - schema validation, JSONL loading, QFEN tensor encoding, policy normalization.
+- Create: `.github/workflows/contracts.yml` - validate self-play fixtures against `quantik-core-contracts@v1.0.0`.
 - Create: `tests/fixtures/selfplay_v1.jsonl` - golden JSONL rows matching the Rust exporter schema.
 - Create: `tests/test_ml_data.py` - CI enforcement for the schema, tensor encoding, legality checks, and decisive values.
 - Modify later: `examples/cross_engine_benchmark.py` - add a trained-model adapter after a real model exists.
@@ -51,13 +53,13 @@ Document the `(9, 4, 4)` tensor layout: eight player/shape planes plus one side-
 Create `tests/fixtures/selfplay_v1.jsonl` with valid rows:
 
 ```jsonl
-{"game_id":0,"ply":0,"qfen":"..../..../..../....","side_to_move":0,"policy":[{"shape":0,"position":0,"visits":3},{"shape":1,"position":5,"visits":1}],"value":1.0}
-{"game_id":0,"ply":1,"qfen":"A.../..../..../....","side_to_move":1,"policy":[{"shape":0,"position":10,"visits":2},{"shape":1,"position":1,"visits":6}],"value":-1.0}
+{"schema":"selfplay.v1","contract_version":"1.0.0","game_id":0,"ply":0,"qfen":"..../..../..../....","side_to_move":0,"policy":[{"shape":0,"position":0,"visits":3},{"shape":1,"position":5,"visits":1}],"value":1.0}
+{"schema":"selfplay.v1","contract_version":"1.0.0","game_id":0,"ply":1,"qfen":"A.../..../..../....","side_to_move":1,"policy":[{"shape":0,"position":10,"visits":2},{"shape":1,"position":1,"visits":6}],"value":-1.0}
 ```
 
 - [x] **Step 2: Implement schema dataclasses and parser**
 
-Create `PolicyVisit` and `SelfPlayRow`, plus `parse_selfplay_row(record)` that validates qfen, side-to-move, legal policy moves, positive visits, and decisive values.
+Create `PolicyVisit` and `SelfPlayRow`, plus `parse_selfplay_row(record)` that validates schema, contract version, qfen, side-to-move, legal policy moves, positive visits, and decisive values.
 
 - [x] **Step 3: Implement tensor and policy encoders**
 

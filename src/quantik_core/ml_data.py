@@ -16,6 +16,7 @@ import numpy as np
 import numpy.typing as npt
 
 from .commons import Bitboard
+from .contracts import SUPPORTED_CONTRACTS, SUPPORTED_CONTRACTS_RELEASE
 from .move import generate_legal_moves_list
 from .qfen import bb_from_qfen
 from .state_validator import ValidationResult, validate_game_state
@@ -25,6 +26,7 @@ BOARD_SIZE = 4
 PLAYER_SHAPE_CHANNELS = 8
 SIDE_TO_MOVE_CHANNEL = 8
 TENSOR_CHANNELS = 9
+SELFPLAY_SCHEMA = SUPPORTED_CONTRACTS["selfplay"]
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,19 @@ def _expect_qfen(record: Mapping[str, Any]) -> str:
     return value
 
 
+def _validate_contract_fields(record: Mapping[str, Any]) -> None:
+    schema = record.get("schema")
+    if schema != SELFPLAY_SCHEMA:
+        raise ValueError(f"schema must be {SELFPLAY_SCHEMA}")
+
+    contract_version = record.get("contract_version")
+    if contract_version is not None and contract_version != SUPPORTED_CONTRACTS_RELEASE:
+        raise ValueError(
+            "contract_version must match supported contracts release "
+            f"{SUPPORTED_CONTRACTS_RELEASE}"
+        )
+
+
 def _parse_policy(policy: Any) -> tuple[PolicyVisit, ...]:
     if not isinstance(policy, list) or not policy:
         raise ValueError("policy must be a non-empty list")
@@ -104,6 +119,7 @@ def _validate_policy_is_legal(
 
 def parse_selfplay_row(record: Mapping[str, Any]) -> SelfPlayRow:
     """Validate and parse one Rust self-play JSON object."""
+    _validate_contract_fields(record)
     game_id = _expect_int(record, "game_id")
     ply = _expect_int(record, "ply")
     if game_id < 0:
