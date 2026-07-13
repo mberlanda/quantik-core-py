@@ -70,6 +70,12 @@ def _expect_qfen(record: Mapping[str, Any]) -> str:
 
 
 def _validate_contract_fields(record: Mapping[str, Any]) -> None:
+    """Validate required schema and optional release pin.
+
+    `schema` is required so readers can reject unsupported row layouts early.
+    `contract_version` is optional for early Rust emitters, but must match this
+    package's supported contracts release when present.
+    """
     schema = record.get("schema")
     if schema != SELFPLAY_SCHEMA:
         raise ValueError(f"schema must be {SELFPLAY_SCHEMA}")
