@@ -225,6 +225,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # Project-specific ignores
+.rtk/
 benchmarks/results/
 *.prof
 *.lprof
