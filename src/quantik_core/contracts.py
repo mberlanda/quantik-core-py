@@ -9,4 +9,8 @@ SUPPORTED_CONTRACTS = {
     "action_index": "action-index.v1",
     "selfplay": "selfplay.v1",
     "tensor_board": "tensor-board.v1",
+    "opening_book": "opening-book.v1",
+    "observation": "observation.v1",
+    "game_result": "game-result.v1",
+    "model_checkpoint": "model-checkpoint.v1",
 }

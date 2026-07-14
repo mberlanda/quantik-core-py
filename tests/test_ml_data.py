@@ -40,6 +40,10 @@ def test_supported_contracts_are_declared():
     assert SUPPORTED_CONTRACTS["contracts_release"] == "1.0.0"
     assert SUPPORTED_CONTRACTS["selfplay"] == "selfplay.v1"
     assert SUPPORTED_CONTRACTS["action_index"] == "action-index.v1"
+    assert SUPPORTED_CONTRACTS["opening_book"] == "opening-book.v1"
+    assert SUPPORTED_CONTRACTS["observation"] == "observation.v1"
+    assert SUPPORTED_CONTRACTS["game_result"] == "game-result.v1"
+    assert SUPPORTED_CONTRACTS["model_checkpoint"] == "model-checkpoint.v1"
 
 
 def test_qfen_to_tensor_channel_layout():
