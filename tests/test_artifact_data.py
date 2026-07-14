@@ -13,6 +13,7 @@ from quantik_core.artifact_data import (
     parse_model_checkpoint_manifest,
     parse_observation_row,
 )
+from quantik_core.move import generate_legal_moves_list
 
 
 def observation_record():
@@ -93,6 +94,99 @@ def test_parse_observation_row_rejects_bad_legal_action_mask():
         parse_observation_row(record)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("row_id", True, "row_id must be an integer"),
+        ("row_id", -1, "row_id must be non-negative"),
+        ("ply", -1, "ply must be non-negative"),
+        ("side_to_move", 2, "side_to_move must be 0 or 1"),
+        ("source_confidence", True, "source_confidence must be numeric"),
+        ("source_confidence", 1.5, "source_confidence must be in 0.0..1.0"),
+        ("run_id", "", "run_id must be a non-empty string"),
+        ("legal_action_mask", -1, "legal_action_mask must be a uint64"),
+    ],
+)
+def test_parse_observation_row_rejects_invalid_scalar_fields(field, value, message):
+    record = observation_record()
+    record[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        parse_observation_row(record)
+
+
+@pytest.mark.parametrize(
+    ("bitboards", "message"),
+    [
+        ([0] * 7, "bitboards must contain exactly 8 uint16 planes"),
+        ([False] + [0] * 7, r"bitboards\[0\] must be an integer"),
+        ([0x10000] + [0] * 7, r"bitboards\[0\] must be in 0..65535"),
+    ],
+)
+def test_parse_observation_row_rejects_invalid_bitboards(bitboards, message):
+    record = observation_record()
+    record["bitboards"] = bitboards
+
+    with pytest.raises(ValueError, match=message):
+        parse_observation_row(record)
+
+
+@pytest.mark.parametrize(
+    ("policy_visits", "message"),
+    [
+        ([1] * 63, "policy_visits must contain exactly 64 integers"),
+        ([False] + [0] * 63, r"policy_visits\[0\] must be an integer"),
+        ([-1] + [0] * 63, r"policy_visits\[0\] must be non-negative"),
+        ([0] * 64, "policy_visits must contain at least one visit"),
+    ],
+)
+def test_parse_observation_row_rejects_invalid_policy_visits(policy_visits, message):
+    record = observation_record()
+    record["policy_visits"] = policy_visits
+
+    with pytest.raises(ValueError, match=message):
+        parse_observation_row(record)
+
+
+def test_parse_observation_row_rejects_schema_and_version_mismatch():
+    record = observation_record()
+    record["schema"] = "other.v1"
+    with pytest.raises(ValueError, match="schema must be observation.v1"):
+        parse_observation_row(record)
+
+    record = observation_record()
+    record["contract_version"] = "0.0.0"
+    with pytest.raises(ValueError, match="contract_version must match"):
+        parse_observation_row(record)
+
+
+def test_parse_observation_row_rejects_side_to_move_mismatch():
+    record = observation_record()
+    record["bitboards"] = [1, 0, 0, 0, 0, 0, 0, 0]
+    record["qfen"] = None
+
+    with pytest.raises(ValueError, match="side_to_move does not match bitboards"):
+        parse_observation_row(record)
+
+
+def test_parse_observation_row_rejects_policy_on_illegal_action():
+    bitboards = (1, 0, 0, 0, 0, 0, 0, 0)
+    legal_action_mask = 0
+    for move in generate_legal_moves_list(bitboards):
+        legal_action_mask |= 1 << (move.shape * 16 + move.position)
+
+    record = observation_record()
+    record["bitboards"] = list(bitboards)
+    record["qfen"] = None
+    record["side_to_move"] = 1
+    record["legal_action_mask"] = legal_action_mask
+    record["policy_visits"] = [0] * 64
+    record["policy_visits"][0] = 1
+
+    with pytest.raises(ValueError, match=r"policy_visits\[0\] is not legal"):
+        parse_observation_row(record)
+
+
 def test_parse_observation_row_rejects_bad_qfen_match():
     record = observation_record()
     record["qfen"] = "A.../..../..../...."
@@ -119,6 +213,39 @@ def test_parse_game_result_row_rejects_ply_mismatch():
         parse_game_result_row(record)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("schema", "other.v1", "schema must be game-result.v1"),
+        ("winner", 2, "winner must be 0 or 1"),
+        ("plies", -1, "plies must be non-negative"),
+        ("game_id", "", "game_id must be a non-empty string"),
+    ],
+)
+def test_parse_game_result_row_rejects_invalid_scalar_fields(field, value, message):
+    record = game_result_record()
+    record[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        parse_game_result_row(record)
+
+
+@pytest.mark.parametrize(
+    ("moves", "message"),
+    [
+        ("0,1,2", "move_action_indices must be a list"),
+        ([True, 1, 2], r"move_action_indices\[0\] must be an integer"),
+        ([64, 1, 2], r"move_action_indices\[0\] must be in 0..63"),
+    ],
+)
+def test_parse_game_result_row_rejects_invalid_moves(moves, message):
+    record = game_result_record()
+    record["move_action_indices"] = moves
+
+    with pytest.raises(ValueError, match=message):
+        parse_game_result_row(record)
+
+
 def test_parse_model_checkpoint_manifest_accepts_valid_manifest():
     manifest = parse_model_checkpoint_manifest(model_manifest_record())
 
@@ -135,6 +262,24 @@ def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
         parse_model_checkpoint_manifest(record)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("schema", "other.v1", "schema must be model-checkpoint.v1"),
+        ("input_contracts", "bitboard.v1", "input_contracts must be a non-empty list"),
+        ("input_contracts", ["bitboard.v1", ""], "input_contracts must contain"),
+        ("size_bytes", 0, "size_bytes must be positive"),
+        ("weights_format", "", "weights_format must be a non-empty string"),
+    ],
+)
+def test_parse_model_checkpoint_manifest_rejects_invalid_fields(field, value, message):
+    record = model_manifest_record()
+    record[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        parse_model_checkpoint_manifest(record)
+
+
 def test_jsonl_loaders_report_line_numbers(tmp_path):
     observations = tmp_path / "observations.jsonl"
     observations.write_text(json.dumps(observation_record()) + "\n", encoding="utf-8")
@@ -148,8 +293,35 @@ def test_jsonl_loaders_report_line_numbers(tmp_path):
         load_game_results_jsonl(games)
 
 
+def test_jsonl_loader_rejects_bad_json_and_non_object_rows(tmp_path):
+    observations = tmp_path / "observations.jsonl"
+    observations.write_text("{bad json\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid JSON on line 1"):
+        load_observations_jsonl(observations)
+
+    observations.write_text("[1, 2, 3]\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="line 1 must contain a JSON object"):
+        load_observations_jsonl(observations)
+
+    bad_observation = observation_record()
+    bad_observation["row_id"] = -1
+    observations.write_text(json.dumps(bad_observation), encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid observation row on line 1"):
+        load_observations_jsonl(observations)
+
+
 def test_load_model_checkpoint_manifest(tmp_path):
     path = tmp_path / "model.json"
     path.write_text(json.dumps(model_manifest_record()), encoding="utf-8")
 
     assert load_model_checkpoint_manifest(path).weights_format == "safetensors"
+
+
+def test_load_model_checkpoint_manifest_rejects_non_object(tmp_path):
+    path = tmp_path / "model.json"
+    path.write_text("[1, 2, 3]", encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match="model checkpoint manifest must be a JSON object"
+    ):
+        load_model_checkpoint_manifest(path)
