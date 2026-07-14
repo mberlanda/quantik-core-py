@@ -32,6 +32,8 @@ All notable changes to `quantik-core` are documented here.
 
 ### Fixed
 
+- Relaxed the import-time smoke threshold slightly to account for hosted runner
+  variance while still guarding against heavyweight top-level imports.
 - Fixed `examples/beam_search_demo.py`'s move formatting to reflect the actual mover (QFEN convention: uppercase = player 0, lowercase = player 1) instead of always rendering shapes uppercase.
 - Fixed `examples/mcts_demo.py`'s move formatting with the same player-aware convention (it had the identical uppercase-only bug).
 - Fixed `CompactGameTree.create_root_node` to derive `player_turn` from the root state's own piece-count parity instead of hardcoding player 0, so a tree can be correctly rooted at any mid-game (player-1-to-move) state.

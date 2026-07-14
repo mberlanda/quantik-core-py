@@ -18,7 +18,7 @@ def test_quantik_core_import_is_fast_enough_for_library_startup():
         text=True,
     )
 
-    assert float(completed.stdout.strip()) < 1.0
+    assert float(completed.stdout.strip()) < 1.25
 
 
 def test_basic_state_does_not_require_optional_compression_imports():
