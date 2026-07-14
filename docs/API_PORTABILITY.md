@@ -62,6 +62,12 @@ contract while preserving `selfplay.v1` row semantics. Python exposes
 `logical_schema`, `contract_version`, `game_id`, `ply`, `side_to_move`,
 `bitboards`, dense `policy_visits[64]`, integer `value`, and optional `qfen`.
 
+Install `quantik-core[arrow]` to enable real Parquet I/O through
+`write_selfplay_parquet()` and `load_selfplay_parquet()`. Writers attach
+Parquet key/value metadata for `physical_schema`, `logical_schema`,
+`logical_contract`, `contracts_release`, and `contract_version`; readers reject
+files whose metadata or physical Arrow schema drift from the contract.
+
 ## Tensor Encoding
 
 `quantik_core.ml_data.qfen_to_tensor(qfen, side_to_move)` returns a NumPy array

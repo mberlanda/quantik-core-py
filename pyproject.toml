@@ -50,6 +50,9 @@ dev = [
 cbor = [
     "cbor2>=6,<7",
 ]
+arrow = [
+    "pyarrow>=16,<22",
+]
 docs = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
@@ -58,7 +61,7 @@ benchmark = [
     "pytest-benchmark>=4.0",
 ]
 all = [
-    "quantik-core[dev,cbor,docs,benchmark]",
+    "quantik-core[dev,cbor,arrow,docs,benchmark]",
 ]
 
 [project.urls]
