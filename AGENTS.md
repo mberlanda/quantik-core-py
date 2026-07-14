@@ -7,6 +7,13 @@ Be mindful about token consumption and which model needs to be used.
 
 ### Guardrails around code quality
 
+Every new feature, contract adapter, CLI entry point, parser, exporter, or bug
+fix must include focused unit tests for the new behavior. Do not rely only on an
+end-to-end smoke test or CI workflow. Add direct tests for success cases,
+validation/error cases, and any compatibility fallback introduced by the change.
+Before opening or updating a PR, explicitly check that the relevant unit tests
+exist and mention them in the PR validation notes.
+
 Local development using .venv
 ```
 # Check if .venv folder exists
