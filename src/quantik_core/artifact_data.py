@@ -9,9 +9,10 @@ dependencies; a Parquet reader can materialize the same dataclasses later.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 import json
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from .commons import Bitboard
 from .contracts import SUPPORTED_CONTRACTS, SUPPORTED_CONTRACTS_RELEASE
@@ -35,6 +36,8 @@ _SUPPORTED_INPUT_CONTRACTS = frozenset(
 class ObservationRow:
     """One `observation.v1` row from a search/evaluation run."""
 
+    schema: str
+    contract_version: str
     run_id: str
     row_id: int
     position_key: str
@@ -44,6 +47,7 @@ class ObservationRow:
     legal_action_mask: int
     engine_kind: str
     engine_version: str
+    elapsed_ms: int
     policy_visits: tuple[int, ...]
     value: float
     value_source: str
@@ -55,9 +59,14 @@ class ObservationRow:
 class GameResultRow:
     """One completed `game-result.v1` head-to-head game."""
 
+    schema: str
+    contract_version: str
     game_id: str
+    started_at: str
     p0_engine_kind: str
+    p0_engine_version: str
     p1_engine_kind: str
+    p1_engine_version: str
     initial_position_key: str
     winner: int
     plies: int
@@ -218,18 +227,30 @@ def _validate_bitboards_and_side(
         raise ValueError("qfen does not match bitboards")
 
 
-def parse_observation_row(record: Mapping[str, Any]) -> ObservationRow:
-    """Validate and parse one `observation.v1` JSON object."""
-    _validate_schema(record, OBSERVATION_SCHEMA)
+def _parse_observation_scalars(record: Mapping[str, Any]) -> tuple[int, int, int, int]:
     row_id = _expect_int(record, "row_id")
     ply = _expect_int(record, "ply")
     side_to_move = _expect_int(record, "side_to_move")
+    elapsed_ms = _expect_int(record, "elapsed_ms")
     if row_id < 0:
         raise ValueError("row_id must be non-negative")
+    if row_id > 0xFFFF_FFFF_FFFF_FFFF:
+        raise ValueError("row_id must be a uint64")
     if ply < 0:
         raise ValueError("ply must be non-negative")
+    if ply > 0xFFFF:
+        raise ValueError("ply must be a uint16")
     if side_to_move not in (0, 1):
         raise ValueError("side_to_move must be 0 or 1")
+    if elapsed_ms < 0 or elapsed_ms > 0xFFFF_FFFF:
+        raise ValueError("elapsed_ms must be a uint32")
+    return row_id, ply, side_to_move, elapsed_ms
+
+
+def parse_observation_row(record: Mapping[str, Any]) -> ObservationRow:
+    """Validate and parse one `observation.v1` JSON object."""
+    _validate_schema(record, OBSERVATION_SCHEMA)
+    row_id, ply, side_to_move, elapsed_ms = _parse_observation_scalars(record)
 
     bitboards = _parse_bitboards(record.get("bitboards"))
     qfen_value = record.get("qfen")
@@ -251,6 +272,8 @@ def parse_observation_row(record: Mapping[str, Any]) -> ObservationRow:
         raise ValueError("source_confidence must be in 0.0..1.0")
 
     return ObservationRow(
+        schema=_expect_str(record, "schema"),
+        contract_version=_expect_str(record, "contract_version"),
         run_id=_expect_str(record, "run_id"),
         row_id=row_id,
         position_key=_expect_str(record, "position_key"),
@@ -260,6 +283,7 @@ def parse_observation_row(record: Mapping[str, Any]) -> ObservationRow:
         legal_action_mask=legal_action_mask,
         engine_kind=_expect_str(record, "engine_kind"),
         engine_version=_expect_str(record, "engine_version"),
+        elapsed_ms=elapsed_ms,
         policy_visits=policy_visits,
         value=_expect_number(record, "value"),
         value_source=_expect_str(record, "value_source"),
@@ -277,6 +301,8 @@ def parse_game_result_row(record: Mapping[str, Any]) -> GameResultRow:
         raise ValueError("winner must be 0 or 1")
     if plies < 0:
         raise ValueError("plies must be non-negative")
+    if plies > 0xFFFF:
+        raise ValueError("plies must be a uint16")
 
     moves_value = record.get("move_action_indices")
     if not isinstance(moves_value, list):
@@ -293,9 +319,14 @@ def parse_game_result_row(record: Mapping[str, Any]) -> GameResultRow:
 
     run_id_value = record.get("run_id")
     return GameResultRow(
+        schema=_expect_str(record, "schema"),
+        contract_version=_expect_str(record, "contract_version"),
         game_id=_expect_str(record, "game_id"),
+        started_at=_expect_str(record, "started_at"),
         p0_engine_kind=_expect_str(record, "p0_engine_kind"),
+        p0_engine_version=_expect_str(record, "p0_engine_version"),
         p1_engine_kind=_expect_str(record, "p1_engine_kind"),
+        p1_engine_version=_expect_str(record, "p1_engine_version"),
         initial_position_key=_expect_str(record, "initial_position_key"),
         winner=winner,
         plies=plies,
@@ -393,3 +424,212 @@ def load_model_checkpoint_manifest(path: str | Path) -> ModelCheckpointManifest:
     if not isinstance(record, dict):
         raise ValueError("model checkpoint manifest must be a JSON object")
     return parse_model_checkpoint_manifest(record)
+
+
+def _require_pyarrow() -> tuple[Any, Any]:
+    try:
+        pa = importlib.import_module("pyarrow")
+        pq = importlib.import_module("pyarrow.parquet")
+    except ImportError as exc:  # pragma: no cover - exercised without pyarrow
+        raise ImportError(
+            "Arrow/Parquet artifact support requires pyarrow; "
+            'install with "quantik-core[arrow]".'
+        ) from exc
+    return pa, pq
+
+
+def _contract_metadata(contract_id: str) -> dict[bytes, bytes]:
+    release = SUPPORTED_CONTRACTS_RELEASE.encode("utf-8")
+    encoded_contract = contract_id.encode("utf-8")
+    return {
+        b"physical_schema": encoded_contract,
+        b"logical_schema": encoded_contract,
+        b"logical_contract": encoded_contract,
+        b"contracts_release": release,
+        b"contract_version": release,
+    }
+
+
+def _observation_arrow_schema(pa: Any) -> Any:
+    return pa.schema(
+        [
+            pa.field("schema", pa.string(), nullable=False),
+            pa.field("contract_version", pa.string(), nullable=False),
+            pa.field("run_id", pa.string(), nullable=False),
+            pa.field("row_id", pa.uint64(), nullable=False),
+            pa.field("position_key", pa.string(), nullable=False),
+            pa.field("ply", pa.uint16(), nullable=False),
+            pa.field("side_to_move", pa.uint8(), nullable=False),
+            pa.field("bitboards", pa.list_(pa.uint16(), 8), nullable=False),
+            pa.field("qfen", pa.string(), nullable=True),
+            pa.field("legal_action_mask", pa.uint64(), nullable=False),
+            pa.field("engine_kind", pa.string(), nullable=False),
+            pa.field("engine_version", pa.string(), nullable=False),
+            pa.field("elapsed_ms", pa.uint32(), nullable=False),
+            pa.field("policy_visits", pa.list_(pa.uint32(), 64), nullable=False),
+            pa.field("value", pa.float64(), nullable=False),
+            pa.field("value_source", pa.string(), nullable=False),
+            pa.field("source_confidence", pa.float64(), nullable=False),
+        ],
+        metadata=_contract_metadata(OBSERVATION_SCHEMA),
+    )
+
+
+def _game_result_arrow_schema(pa: Any) -> Any:
+    return pa.schema(
+        [
+            pa.field("schema", pa.string(), nullable=False),
+            pa.field("contract_version", pa.string(), nullable=False),
+            pa.field("game_id", pa.string(), nullable=False),
+            pa.field("started_at", pa.string(), nullable=False),
+            pa.field("p0_engine_kind", pa.string(), nullable=False),
+            pa.field("p0_engine_version", pa.string(), nullable=False),
+            pa.field("p1_engine_kind", pa.string(), nullable=False),
+            pa.field("p1_engine_version", pa.string(), nullable=False),
+            pa.field("initial_position_key", pa.string(), nullable=False),
+            pa.field("winner", pa.uint8(), nullable=False),
+            pa.field("plies", pa.uint16(), nullable=False),
+            pa.field("terminal_reason", pa.string(), nullable=False),
+            pa.field("move_action_indices", pa.list_(pa.uint8()), nullable=False),
+            pa.field("run_id", pa.string(), nullable=True),
+        ],
+        metadata=_contract_metadata(GAME_RESULT_SCHEMA),
+    )
+
+
+def _validate_parquet_metadata(
+    metadata: Mapping[bytes, bytes] | None, contract_id: str
+) -> None:
+    if metadata is None:
+        raise ValueError(f"missing parquet metadata for {contract_id}")
+    expected = _contract_metadata(contract_id)
+    for key in (b"physical_schema", b"logical_schema", b"logical_contract"):
+        actual = metadata.get(key)
+        if actual is None:
+            raise ValueError(f"missing parquet metadata: {key.decode('utf-8')}")
+        if actual.decode("utf-8") != contract_id:
+            raise ValueError(f"{key.decode('utf-8')} must be {contract_id}")
+    for key in (b"contracts_release", b"contract_version"):
+        actual = metadata.get(key)
+        if actual is None:
+            raise ValueError(f"missing parquet metadata: {key.decode('utf-8')}")
+        if actual != expected[key]:
+            raise ValueError(
+                f"{key.decode('utf-8')} must be {SUPPORTED_CONTRACTS_RELEASE}"
+            )
+
+
+def _validate_physical_schema(actual: Any, expected: Any, contract_id: str) -> None:
+    if actual.remove_metadata() != expected.remove_metadata():
+        raise ValueError(f"physical schema must match {contract_id}")
+
+
+def _observation_row_to_record(row: ObservationRow) -> dict[str, Any]:
+    return {
+        "schema": OBSERVATION_SCHEMA,
+        "contract_version": SUPPORTED_CONTRACTS_RELEASE,
+        "run_id": row.run_id,
+        "row_id": row.row_id,
+        "position_key": row.position_key,
+        "ply": row.ply,
+        "side_to_move": row.side_to_move,
+        "bitboards": list(row.bitboards),
+        "qfen": row.qfen,
+        "legal_action_mask": row.legal_action_mask,
+        "engine_kind": row.engine_kind,
+        "engine_version": row.engine_version,
+        "elapsed_ms": row.elapsed_ms,
+        "policy_visits": list(row.policy_visits),
+        "value": row.value,
+        "value_source": row.value_source,
+        "source_confidence": row.source_confidence,
+    }
+
+
+def _game_result_row_to_record(row: GameResultRow) -> dict[str, Any]:
+    return {
+        "schema": GAME_RESULT_SCHEMA,
+        "contract_version": SUPPORTED_CONTRACTS_RELEASE,
+        "game_id": row.game_id,
+        "started_at": row.started_at,
+        "p0_engine_kind": row.p0_engine_kind,
+        "p0_engine_version": row.p0_engine_version,
+        "p1_engine_kind": row.p1_engine_kind,
+        "p1_engine_version": row.p1_engine_version,
+        "initial_position_key": row.initial_position_key,
+        "winner": row.winner,
+        "plies": row.plies,
+        "terminal_reason": row.terminal_reason,
+        "move_action_indices": list(row.move_action_indices),
+        "run_id": row.run_id,
+    }
+
+
+def _coerce_observation_row(row: ObservationRow | Mapping[str, Any]) -> ObservationRow:
+    if isinstance(row, ObservationRow):
+        return row
+    return parse_observation_row(row)
+
+
+def _coerce_game_result_row(row: GameResultRow | Mapping[str, Any]) -> GameResultRow:
+    if isinstance(row, GameResultRow):
+        return row
+    return parse_game_result_row(row)
+
+
+def write_observations_parquet(
+    rows: Iterable[ObservationRow | Mapping[str, Any]], path: str | Path
+) -> None:
+    """Write validated `observation.v1` rows as Parquet."""
+    pa, pq = _require_pyarrow()
+    records = [_observation_row_to_record(_coerce_observation_row(row)) for row in rows]
+    table = pa.Table.from_pylist(records, schema=_observation_arrow_schema(pa))
+    pq.write_table(table, Path(path))
+
+
+def load_observations_parquet(path: str | Path) -> list[ObservationRow]:
+    """Load and validate an `observation.v1` Parquet file."""
+    pa, pq = _require_pyarrow()
+    table = pq.read_table(Path(path))
+    expected_schema = _observation_arrow_schema(pa)
+    _validate_parquet_metadata(table.schema.metadata, OBSERVATION_SCHEMA)
+    _validate_physical_schema(table.schema, expected_schema, OBSERVATION_SCHEMA)
+
+    rows: list[ObservationRow] = []
+    for row_number, record in enumerate(table.to_pylist(), start=1):
+        try:
+            rows.append(parse_observation_row(record))
+        except ValueError as exc:
+            raise ValueError(
+                f"invalid observation parquet row {row_number}: {exc}"
+            ) from exc
+    return rows
+
+
+def write_game_results_parquet(
+    rows: Iterable[GameResultRow | Mapping[str, Any]], path: str | Path
+) -> None:
+    """Write validated `game-result.v1` rows as Parquet."""
+    pa, pq = _require_pyarrow()
+    records = [_game_result_row_to_record(_coerce_game_result_row(row)) for row in rows]
+    table = pa.Table.from_pylist(records, schema=_game_result_arrow_schema(pa))
+    pq.write_table(table, Path(path))
+
+
+def load_game_results_parquet(path: str | Path) -> list[GameResultRow]:
+    """Load and validate a `game-result.v1` Parquet file."""
+    pa, pq = _require_pyarrow()
+    table = pq.read_table(Path(path))
+    expected_schema = _game_result_arrow_schema(pa)
+    _validate_parquet_metadata(table.schema.metadata, GAME_RESULT_SCHEMA)
+    _validate_physical_schema(table.schema, expected_schema, GAME_RESULT_SCHEMA)
+
+    rows: list[GameResultRow] = []
+    for row_number, record in enumerate(table.to_pylist(), start=1):
+        try:
+            rows.append(parse_game_result_row(record))
+        except ValueError as exc:
+            raise ValueError(
+                f"invalid game-result parquet row {row_number}: {exc}"
+            ) from exc
+    return rows
