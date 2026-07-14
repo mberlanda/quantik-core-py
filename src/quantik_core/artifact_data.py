@@ -328,8 +328,8 @@ def parse_model_checkpoint_manifest(
         raise ValueError(f"unsupported weights_format: {weights_format}")
 
     return ModelCheckpointManifest(
-        schema=MODEL_CHECKPOINT_SCHEMA,
-        contract_version=SUPPORTED_CONTRACTS_RELEASE,
+        schema=_expect_str(record, "schema"),
+        contract_version=_expect_str(record, "contract_version"),
         model_id=_expect_str(record, "model_id"),
         model_family=_expect_str(record, "model_family"),
         created_at=_expect_str(record, "created_at"),

@@ -311,6 +311,8 @@ def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
             "contract_version must match supported contracts release 1.1.0",
         ),
         ("model_id", "   ", "model_id must be a non-empty string"),
+        ("model_family", "   ", "model_family must be a non-empty string"),
+        ("created_at", "   ", "created_at must be a non-empty string"),
         ("input_contracts", "bitboard.v1", "input_contracts must be a non-empty list"),
         (
             "input_contracts",
@@ -322,9 +324,17 @@ def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
             ["unknown.v1"],
             "unsupported input contract: unknown.v1",
         ),
-        ("size_bytes", 0, "size_bytes must be positive"),
+        ("output_contract", "   ", "output_contract must be a non-empty string"),
         ("weights_format", "", "weights_format must be a non-empty string"),
         ("weights_format", "pickle", "unsupported weights_format: pickle"),
+        ("weights_hash", "   ", "weights_hash must be a non-empty string"),
+        ("size_bytes", 0, "size_bytes must be positive"),
+        (
+            "training_data_manifest",
+            "   ",
+            "training_data_manifest must be a non-empty string",
+        ),
+        ("calibration_report", "   ", "calibration_report must be a non-empty string"),
         ("feature_hash", "   ", "feature_hash must be a non-empty string"),
         ("parameter_count", 0, "parameter_count must be positive"),
         (
