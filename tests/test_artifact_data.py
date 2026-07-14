@@ -21,7 +21,7 @@ def observation_record():
     visits[0] = 1
     return {
         "schema": OBSERVATION_SCHEMA,
-        "contract_version": "1.0.0",
+        "contract_version": "1.1.0",
         "run_id": "run-1",
         "row_id": 0,
         "position_key": "00",
@@ -43,7 +43,7 @@ def observation_record():
 def game_result_record():
     return {
         "schema": GAME_RESULT_SCHEMA,
-        "contract_version": "1.0.0",
+        "contract_version": "1.1.0",
         "game_id": "game-1",
         "started_at": "2026-07-14T00:00:00+0200",
         "p0_engine_kind": "mcts",
@@ -62,7 +62,7 @@ def game_result_record():
 def model_manifest_record():
     return {
         "schema": MODEL_CHECKPOINT_SCHEMA,
-        "contract_version": "1.0.0",
+        "contract_version": "1.1.0",
         "model_id": "quantik-qnue-small",
         "model_family": "qnue",
         "created_at": "2026-07-14T00:00:00+0200",
