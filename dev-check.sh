@@ -11,7 +11,7 @@ if [ ! -d ".venv" ]; then
     python -m venv .venv
 
     # Install development dependencies
-    .venv/bin/python -m pip install -e ".[dev,cbor]"
+    .venv/bin/python -m pip install -e ".[dev,cbor,arrow]"
 fi
 
 PYTHON=".venv/bin/python"
