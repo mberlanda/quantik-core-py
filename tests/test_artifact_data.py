@@ -275,6 +275,15 @@ def test_parse_model_checkpoint_manifest_accepts_opening_book_summary_input():
     assert manifest.input_contracts == ("opening-book-summary.v1",)
 
 
+def test_parse_model_checkpoint_manifest_accepts_opening_book_input():
+    record = model_manifest_record()
+    record["input_contracts"] = ["opening-book.v1"]
+
+    manifest = parse_model_checkpoint_manifest(record)
+
+    assert manifest.input_contracts == ("opening-book.v1",)
+
+
 def test_load_model_checkpoint_manifest_fixture():
     manifest = load_model_checkpoint_manifest(MODEL_CHECKPOINT_FIXTURE)
 
