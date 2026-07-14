@@ -23,6 +23,12 @@ ACTION_COUNT = 64
 OBSERVATION_SCHEMA = SUPPORTED_CONTRACTS["observation"]
 GAME_RESULT_SCHEMA = SUPPORTED_CONTRACTS["game_result"]
 MODEL_CHECKPOINT_SCHEMA = SUPPORTED_CONTRACTS["model_checkpoint"]
+_SUPPORTED_WEIGHTS_FORMATS = frozenset(("safetensors", "onnx", "npz", "custom-binary"))
+_SUPPORTED_INPUT_CONTRACTS = frozenset(
+    contract
+    for key, contract in SUPPORTED_CONTRACTS.items()
+    if key not in ("contracts_release", "model_checkpoint")
+)
 
 
 @dataclass(frozen=True)
@@ -64,8 +70,11 @@ class GameResultRow:
 class ModelCheckpointManifest:
     """Metadata for one `model-checkpoint.v1` artifact."""
 
+    schema: str
+    contract_version: str
     model_id: str
     model_family: str
+    created_at: str
     input_contracts: tuple[str, ...]
     output_contract: str
     weights_format: str
@@ -73,6 +82,13 @@ class ModelCheckpointManifest:
     size_bytes: int
     training_data_manifest: str
     calibration_report: str
+    feature_hash: str | None = None
+    quantization: str | None = None
+    parameter_count: int | None = None
+    architecture: str | None = None
+    legal_action_mask_required: bool | None = None
+    recommended_engine_order: tuple[str, ...] | None = None
+    notes: str | None = None
 
 
 def _expect_int(record: Mapping[str, Any], key: str) -> int:
@@ -84,9 +100,51 @@ def _expect_int(record: Mapping[str, Any], key: str) -> int:
 
 def _expect_str(record: Mapping[str, Any], key: str) -> str:
     value = record.get(key)
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{key} must be a non-empty string")
     return value
+
+
+def _expect_optional_str(record: Mapping[str, Any], key: str) -> str | None:
+    if key not in record or record.get(key) is None:
+        return None
+    return _expect_str(record, key)
+
+
+def _expect_optional_positive_int(record: Mapping[str, Any], key: str) -> int | None:
+    if key not in record or record.get(key) is None:
+        return None
+    value = _expect_int(record, key)
+    if value <= 0:
+        raise ValueError(f"{key} must be positive")
+    return value
+
+
+def _expect_optional_bool(record: Mapping[str, Any], key: str) -> bool | None:
+    if key not in record or record.get(key) is None:
+        return None
+    value = record.get(key)
+    if not isinstance(value, bool):
+        raise ValueError(f"{key} must be a boolean")
+    return value
+
+
+def _expect_optional_str_tuple(
+    record: Mapping[str, Any], key: str
+) -> tuple[str, ...] | None:
+    if key not in record or record.get(key) is None:
+        return None
+    value = record.get(key)
+    if not isinstance(value, list):
+        raise ValueError(f"{key} must be a list")
+    items: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{key}[{index}] must be a non-empty string")
+        items.append(item)
+    if not items:
+        raise ValueError(f"{key} must be non-empty when present")
+    return tuple(items)
 
 
 def _expect_number(record: Mapping[str, Any], key: str) -> float:
@@ -255,27 +313,44 @@ def parse_model_checkpoint_manifest(
     input_contracts_value = record.get("input_contracts")
     if not isinstance(input_contracts_value, list) or not input_contracts_value:
         raise ValueError("input_contracts must be a non-empty list")
-    input_contracts = tuple(
-        contract
-        for contract in input_contracts_value
-        if isinstance(contract, str) and contract
-    )
-    if len(input_contracts) != len(input_contracts_value):
-        raise ValueError("input_contracts must contain only non-empty strings")
+    input_contracts: list[str] = []
+    for index, contract in enumerate(input_contracts_value):
+        if not isinstance(contract, str) or not contract.strip():
+            raise ValueError(f"input_contracts[{index}] must be a non-empty string")
+        if contract not in _SUPPORTED_INPUT_CONTRACTS:
+            raise ValueError(f"unsupported input contract: {contract}")
+        input_contracts.append(contract)
     size_bytes = _expect_int(record, "size_bytes")
     if size_bytes <= 0:
         raise ValueError("size_bytes must be positive")
+    weights_format = _expect_str(record, "weights_format")
+    if weights_format not in _SUPPORTED_WEIGHTS_FORMATS:
+        raise ValueError(f"unsupported weights_format: {weights_format}")
 
     return ModelCheckpointManifest(
+        schema=MODEL_CHECKPOINT_SCHEMA,
+        contract_version=SUPPORTED_CONTRACTS_RELEASE,
         model_id=_expect_str(record, "model_id"),
         model_family=_expect_str(record, "model_family"),
-        input_contracts=input_contracts,
+        created_at=_expect_str(record, "created_at"),
+        input_contracts=tuple(input_contracts),
         output_contract=_expect_str(record, "output_contract"),
-        weights_format=_expect_str(record, "weights_format"),
+        weights_format=weights_format,
         weights_hash=_expect_str(record, "weights_hash"),
         size_bytes=size_bytes,
         training_data_manifest=_expect_str(record, "training_data_manifest"),
         calibration_report=_expect_str(record, "calibration_report"),
+        feature_hash=_expect_optional_str(record, "feature_hash"),
+        quantization=_expect_optional_str(record, "quantization"),
+        parameter_count=_expect_optional_positive_int(record, "parameter_count"),
+        architecture=_expect_optional_str(record, "architecture"),
+        legal_action_mask_required=_expect_optional_bool(
+            record, "legal_action_mask_required"
+        ),
+        recommended_engine_order=_expect_optional_str_tuple(
+            record, "recommended_engine_order"
+        ),
+        notes=_expect_optional_str(record, "notes"),
     )
 
 

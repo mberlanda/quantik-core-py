@@ -9,6 +9,7 @@ SUPPORTED_CONTRACTS = {
     "action_index": "action-index.v1",
     "selfplay": "selfplay.v1",
     "tensor_board": "tensor-board.v1",
+    "arrow_parquet_selfplay": "arrow-parquet-selfplay.v1",
     "opening_book": "opening-book.v1",
     "opening_book_summary": "opening-book-summary.v1",
     "observation": "observation.v1",

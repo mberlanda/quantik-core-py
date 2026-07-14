@@ -244,6 +244,7 @@ data/
 *.csv
 *.json
 !tuning/weights.json
+!tests/fixtures/model-checkpoint-v1.json
 !benchmarks/depth4-canonical/
 !benchmarks/depth4-canonical/*.json
 *.pkl
