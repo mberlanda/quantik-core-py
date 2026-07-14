@@ -113,6 +113,21 @@ def test_selfplay_row_to_arrow_parquet_record_rejects_ply_outside_uint16():
         selfplay_row_to_arrow_parquet_record(row)
 
 
+def test_selfplay_row_to_arrow_parquet_record_rejects_non_decisive_value():
+    row = parse_selfplay_row(_fixture_record())
+    row = type(row)(
+        game_id=row.game_id,
+        ply=row.ply,
+        qfen=row.qfen,
+        side_to_move=row.side_to_move,
+        policy=row.policy,
+        value=0.0,
+    )
+
+    with pytest.raises(ValueError, match="value must be exactly"):
+        selfplay_row_to_arrow_parquet_record(row)
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

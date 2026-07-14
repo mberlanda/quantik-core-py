@@ -218,8 +218,6 @@ def policy_visits_to_distribution(
     """Normalize policy visit counts into the shared 64-slot action vector."""
     dense = policy_visits_to_dense(policy)
     total_visits = sum(dense)
-    if total_visits <= 0:
-        raise ValueError("policy must contain at least one visit")
     distribution = np.asarray(dense, dtype=np.float32)
     distribution /= float(total_visits)
     return distribution
