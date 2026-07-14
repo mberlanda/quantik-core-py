@@ -9,8 +9,10 @@ from quantik_core.ml_data import (
     PolicyVisit,
     load_selfplay_jsonl,
     parse_selfplay_row,
+    policy_visits_to_dense,
     policy_visits_to_distribution,
     qfen_to_tensor,
+    selfplay_row_to_arrow_parquet_record,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "selfplay_v1.jsonl"
@@ -70,6 +72,47 @@ def test_policy_visits_to_distribution_uses_shape_major_action_index():
     assert distribution.sum() == pytest.approx(1.0)
 
 
+def test_policy_visits_to_dense_uses_arrow_parquet_physical_layout():
+    dense = policy_visits_to_dense(
+        [PolicyVisit(shape=0, position=0, visits=3), PolicyVisit(1, 5, 1)]
+    )
+
+    assert len(dense) == 64
+    assert dense[0] == 3
+    assert dense[21] == 1
+    assert sum(dense) == 4
+
+
+def test_selfplay_row_to_arrow_parquet_record_keeps_contract_metadata():
+    row = parse_selfplay_row(_fixture_record())
+
+    record = selfplay_row_to_arrow_parquet_record(row)
+
+    assert record["logical_schema"] == "selfplay.v1"
+    assert record["contract_version"] == SUPPORTED_CONTRACTS_RELEASE
+    assert record["game_id"] == row.game_id
+    assert record["bitboards"] == (0, 0, 0, 0, 0, 0, 0, 0)
+    assert record["policy_visits"][0] == 3
+    assert record["policy_visits"][21] == 1
+    assert record["value"] == 1
+    assert "policy" not in record
+
+
+def test_selfplay_row_to_arrow_parquet_record_rejects_ply_outside_uint16():
+    row = parse_selfplay_row(_fixture_record())
+    row = type(row)(
+        game_id=row.game_id,
+        ply=65536,
+        qfen=row.qfen,
+        side_to_move=row.side_to_move,
+        policy=row.policy,
+        value=row.value,
+    )
+
+    with pytest.raises(ValueError, match="ply must fit in uint16"):
+        selfplay_row_to_arrow_parquet_record(row)
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -105,6 +148,13 @@ def test_parse_selfplay_row_rejects_non_string_qfen():
         ([{"shape": 4, "position": 0, "visits": 1}], r"policy\[0\].shape"),
         ([{"shape": 0, "position": 16, "visits": 1}], r"policy\[0\].position"),
         ([{"shape": 0, "position": 0, "visits": 0}], r"policy\[0\].visits"),
+        (
+            [
+                {"shape": 0, "position": 0, "visits": 1},
+                {"shape": 0, "position": 0, "visits": 2},
+            ],
+            r"policy\[1\] duplicates shape=0, position=0",
+        ),
     ],
 )
 def test_parse_selfplay_row_rejects_invalid_policy_shapes(policy, message):
@@ -201,3 +251,8 @@ def test_policy_visits_to_distribution_rejects_non_positive_visits():
 def test_policy_visits_to_distribution_rejects_empty_policy():
     with pytest.raises(ValueError, match="policy must contain at least one visit"):
         policy_visits_to_distribution([])
+
+
+def test_policy_visits_to_dense_rejects_empty_policy():
+    with pytest.raises(ValueError, match="policy must contain at least one visit"):
+        policy_visits_to_dense([])

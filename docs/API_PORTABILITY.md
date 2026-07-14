@@ -6,7 +6,7 @@ owns high-throughput search, self-play generation, and other compute-heavy
 loops. Both packages must agree on the canonical contracts from
 `mberlanda/quantik-core-contracts`.
 
-Python currently declares support for contracts release `1.0.0` via
+Python currently declares support for contracts release `1.1.0` via
 `quantik_core.SUPPORTED_CONTRACTS_RELEASE`.
 
 ## Stable Shared Model
@@ -31,7 +31,7 @@ Rust self-play export rows are one JSON object per line:
 ```json
 {
   "schema": "selfplay.v1",
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "game_id": 0,
   "ply": 0,
   "qfen": "..../..../..../....",
@@ -47,12 +47,20 @@ Rust self-play export rows are one JSON object per line:
 Python validates that:
 
 - `schema` is `selfplay.v1`.
-- `contract_version`, when present, is `1.0.0`.
+- `contract_version`, when present, is `1.1.0`.
 - `qfen` parses and `side_to_move` matches the current player implied by the bitboards.
 - each policy entry is a legal move for the row state.
 - each policy entry has `shape` in `0..3`, `position` in `0..15`, and positive integer `visits`.
 - `policy` is non-empty and normalizes to a probability distribution over 64 action slots.
 - `value` is exactly `+1.0` or `-1.0`; `0.0` is rejected.
+
+## Arrow/Parquet Self-Play Shape
+
+Bulk self-play storage uses `arrow-parquet-selfplay.v1` as the physical
+contract while preserving `selfplay.v1` row semantics. Python exposes
+`selfplay_row_to_arrow_parquet_record()` to materialize the physical columns:
+`logical_schema`, `contract_version`, `game_id`, `ply`, `side_to_move`,
+`bitboards`, dense `policy_visits[64]`, integer `value`, and optional `qfen`.
 
 ## Tensor Encoding
 
@@ -72,13 +80,13 @@ Rows and columns match the QFEN position order: `row = position // 4`,
 exporter schema. Rust should be able to emit rows with the same field names and
 semantics; Python must keep parsing and validating this file in CI. The
 dedicated `Contracts` workflow also validates the fixture through
-`mberlanda/quantik-core-contracts/actions/validate-contracts@v1.0.0`.
+`mberlanda/quantik-core-contracts/actions/validate-contracts@v1.1.0`.
 
 ## Next Steps
 
-1. Rust: expose `MCTSEngine::root_move_visits()` and emit self-play JSONL rows using the schema above.
-2. Python: keep `quantik_core.ml_data` as the reference reader and tensor/policy encoder.
-3. Contracts: validate fixtures through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.0.0`.
+1. Rust: keep `MCTSEngine::root_move_visits()` exports routed through the `selfplay.v1` contract builder.
+2. Python: keep `quantik_core.ml_data` as the reference reader, tensor/policy encoder, and dense storage-record converter.
+3. Contracts: validate fixtures through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.1.0`.
 4. Cross-repo: add a Rust-generated smoke artifact to CI or release evidence, then point Python tests at the generated artifact in addition to the checked-in fixture.
 5. ML: build the PyTorch dataset and policy/value model on top of `SelfPlayRow`, `qfen_to_tensor`, and `policy_visits_to_distribution`.
 6. Evaluation: register the trained model in the existing cross-engine benchmark harness instead of creating a separate ladder.

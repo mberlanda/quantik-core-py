@@ -93,6 +93,7 @@ def _parse_policy(policy: Any) -> tuple[PolicyVisit, ...]:
         raise ValueError("policy must be a non-empty list")
 
     visits: list[PolicyVisit] = []
+    seen_actions: set[tuple[int, int]] = set()
     for index, item in enumerate(policy):
         if not isinstance(item, dict):
             raise ValueError(f"policy[{index}] must be an object")
@@ -105,6 +106,12 @@ def _parse_policy(policy: Any) -> tuple[PolicyVisit, ...]:
             raise ValueError(f"policy[{index}].position must be in 0..15")
         if visit_count <= 0:
             raise ValueError(f"policy[{index}].visits must be positive")
+        action = (shape, position)
+        if action in seen_actions:
+            raise ValueError(
+                f"policy[{index}] duplicates shape={shape}, position={position}"
+            )
+        seen_actions.add(action)
         visits.append(PolicyVisit(shape=shape, position=position, visits=visit_count))
     return tuple(visits)
 
@@ -209,14 +216,43 @@ def policy_visits_to_distribution(
     policy: Iterable[PolicyVisit],
 ) -> npt.NDArray[np.float32]:
     """Normalize policy visit counts into the shared 64-slot action vector."""
-    distribution = np.zeros(ACTION_COUNT, dtype=np.float32)
-    total_visits = 0
+    dense = policy_visits_to_dense(policy)
+    total_visits = sum(dense)
+    if total_visits <= 0:
+        raise ValueError("policy must contain at least one visit")
+    distribution = np.asarray(dense, dtype=np.float32)
+    distribution /= float(total_visits)
+    return distribution
+
+
+def policy_visits_to_dense(policy: Iterable[PolicyVisit]) -> tuple[int, ...]:
+    """Materialize policy visits as the Arrow/Parquet 64-slot action vector."""
+    dense = [0] * ACTION_COUNT
+    saw_visit = False
     for visit in policy:
         if visit.visits <= 0:
             raise ValueError("policy visits must be positive")
-        distribution[visit.action_index] += visit.visits
-        total_visits += visit.visits
-    if total_visits <= 0:
+        dense[visit.action_index] += visit.visits
+        saw_visit = True
+    if not saw_visit:
         raise ValueError("policy must contain at least one visit")
-    distribution /= float(total_visits)
-    return distribution
+    return tuple(dense)
+
+
+def selfplay_row_to_arrow_parquet_record(row: SelfPlayRow) -> dict[str, Any]:
+    """Convert a logical `selfplay.v1` row to the physical bulk-storage shape."""
+    if row.ply > 65535:
+        raise ValueError("ply must fit in uint16 for arrow-parquet-selfplay.v1")
+    if row.value not in (-1.0, 1.0):
+        raise ValueError("value must be exactly -1.0 or 1.0")
+    return {
+        "logical_schema": SELFPLAY_SCHEMA,
+        "contract_version": SUPPORTED_CONTRACTS_RELEASE,
+        "game_id": row.game_id,
+        "ply": row.ply,
+        "side_to_move": row.side_to_move,
+        "bitboards": bb_from_qfen(row.qfen, validate=True),
+        "policy_visits": policy_visits_to_dense(row.policy),
+        "value": int(row.value),
+        "qfen": row.qfen,
+    }
