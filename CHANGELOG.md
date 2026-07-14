@@ -4,8 +4,16 @@ All notable changes to `quantik-core` are documented here.
 
 ## Unreleased
 
+## 1.1.0 - 2026-07-14
+
 ### Added
 
+- Added `quantik_core.opening_book_summary`, a lightweight SQLite consumer that
+  exports `opening-book-summary.v1` JSON for Rust/Python depth-book consistency
+  checks.
+- Added a GitHub Actions opening-book consistency job that uses
+  `mberlanda/quantik-core-contracts/actions/opening-book-consistency@v1.1.0`
+  to compare the Python summary against a Rust-generated depth-4 opening book.
 - Added `BeamSearchEngine`, a parametrizable, memory-bounded beam search that guarantees reaching true terminal Quantik states (win/loss by blocked player) by deduplicating candidates per depth via `State.canonical_key()`, ranking them mover-relative, and pruning to a configurable `beam_width` while sharing the `CompactGameTree` structure used by MCTS.
 - Added `BeamSearchResult.root_player` and `BeamSearchResult.frontier_leaves` (the live, non-terminal leaves remaining at `max_depth_reached`).
 - Added `BeamSearchConfig.rollout_schedule` for a depth-dependent playout budget in the built-in evaluator (pairing with `beam_schedule` to be wide-and-cheap on exhaustive levels and precise on the pruned tail), plus a `stats["rollouts"]` counter exposing the exact playout spend.
@@ -16,6 +24,11 @@ All notable changes to `quantik-core` are documented here.
 - Added symmetry-multiplicity accounting: `BeamLeaf.multiplicity` and `RankedRootMove.total_multiplicity` track how many raw (pre-canonicalization) move sequences a leaf represents via path-count accumulation, `RankedRootMove.mean_value` is now multiplicity-weighted, and survivor/terminal tree nodes are inserted with their accumulated multiplicity instead of the previous implicit default of 1.
 - Added the cross-engine benchmark harness for GH issue #24: shared checksummed position datasets with exact references in `benchmarks/`, a `dataset`/`run`/`report` CLI in `examples/cross_engine_benchmark.py`, fixed-resource and algorithm-native benchmark families, correctness preflight, seed-stability aggregation, paired head-to-head reporting, reproducible result bundles, and generated Markdown reports documented in `docs/BENCHMARKS.md`.
 - Added optional wall-clock `time_limit_s` budgets to `MCTSConfig` and `BeamSearchConfig` for fixed-resource benchmark runs.
+
+### Changed
+
+- Bumped the package and supported contracts release to `1.1.0`, including
+  fixture contract versions and the contracts validation action.
 
 ### Fixed
 
