@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import sys
 
 import numpy as np
 import pytest
@@ -7,12 +8,14 @@ import pytest
 from quantik_core import SUPPORTED_CONTRACTS, SUPPORTED_CONTRACTS_RELEASE
 from quantik_core.ml_data import (
     PolicyVisit,
+    load_selfplay_parquet,
     load_selfplay_jsonl,
     parse_selfplay_row,
     policy_visits_to_dense,
     policy_visits_to_distribution,
     qfen_to_tensor,
     selfplay_row_to_arrow_parquet_record,
+    write_selfplay_parquet,
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "selfplay_v1.jsonl"
@@ -126,6 +129,80 @@ def test_selfplay_row_to_arrow_parquet_record_rejects_non_decisive_value():
 
     with pytest.raises(ValueError, match="value must be exactly"):
         selfplay_row_to_arrow_parquet_record(row)
+
+
+def test_selfplay_parquet_helpers_report_missing_pyarrow(monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "pyarrow", None)
+    row = parse_selfplay_row(_fixture_record())
+
+    with pytest.raises(ImportError, match=r"quantik-core\[arrow\]"):
+        write_selfplay_parquet([row], tmp_path / "rows.parquet")
+
+    with pytest.raises(ImportError, match=r"quantik-core\[arrow\]"):
+        load_selfplay_parquet(tmp_path / "rows.parquet")
+
+
+def test_selfplay_parquet_roundtrips_rows_and_metadata(tmp_path):
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
+    path = tmp_path / "rows.parquet"
+    rows = load_selfplay_jsonl(FIXTURE)
+
+    write_selfplay_parquet(rows, path)
+
+    loaded = load_selfplay_parquet(path)
+    table = pq.read_table(path)
+    metadata = table.schema.metadata or {}
+
+    assert loaded == rows
+    assert metadata[b"physical_schema"] == b"arrow-parquet-selfplay.v1"
+    assert metadata[b"logical_schema"] == b"selfplay.v1"
+    assert metadata[b"logical_contract"] == b"selfplay.v1"
+    assert metadata[b"contracts_release"] == SUPPORTED_CONTRACTS_RELEASE.encode("utf-8")
+    assert metadata[b"contract_version"] == SUPPORTED_CONTRACTS_RELEASE.encode("utf-8")
+    assert table.schema.field("bitboards").type == pa.list_(pa.uint16(), list_size=8)
+    assert table.schema.field("policy_visits").type == pa.list_(
+        pa.uint32(), list_size=64
+    )
+
+
+def test_load_selfplay_parquet_rejects_metadata_drift(tmp_path):
+    pq = pytest.importorskip("pyarrow.parquet")
+    path = tmp_path / "rows.parquet"
+    row = parse_selfplay_row(_fixture_record())
+    write_selfplay_parquet([row], path)
+
+    table = pq.read_table(path)
+    drifted = table.replace_schema_metadata(
+        {
+            **(table.schema.metadata or {}),
+            b"physical_schema": b"arrow-parquet-selfplay.v2",
+        }
+    )
+    pq.write_table(drifted, path)
+
+    with pytest.raises(ValueError, match="physical schema metadata"):
+        load_selfplay_parquet(path)
+
+
+def test_load_selfplay_parquet_rejects_dense_policy_drift(tmp_path):
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
+    path = tmp_path / "rows.parquet"
+    row = parse_selfplay_row(_fixture_record())
+    write_selfplay_parquet([row], path)
+
+    table = pq.read_table(path)
+    columns = []
+    for name in table.column_names:
+        if name == "policy_visits":
+            columns.append(pa.array([[0] * 64], type=pa.list_(pa.uint32(), 64)))
+        else:
+            columns.append(table[name])
+    pq.write_table(pa.Table.from_arrays(columns, schema=table.schema), path)
+
+    with pytest.raises(ValueError, match="policy must contain at least one visit"):
+        load_selfplay_parquet(path)
 
 
 @pytest.mark.parametrize(
