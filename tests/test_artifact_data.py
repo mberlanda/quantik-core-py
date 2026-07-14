@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +15,10 @@ from quantik_core.artifact_data import (
     parse_observation_row,
 )
 from quantik_core.move import generate_legal_moves_list
+
+MODEL_CHECKPOINT_FIXTURE = (
+    Path(__file__).parent / "fixtures" / "model-checkpoint-v1.json"
+)
 
 
 def observation_record():
@@ -74,6 +79,10 @@ def model_manifest_record():
         "training_data_manifest": "sha256:def",
         "calibration_report": "sha256:ghi",
     }
+
+
+def model_manifest_fixture_record():
+    return json.loads(MODEL_CHECKPOINT_FIXTURE.read_text(encoding="utf-8"))
 
 
 def test_parse_observation_row_accepts_valid_contract_row():
@@ -249,9 +258,41 @@ def test_parse_game_result_row_rejects_invalid_moves(moves, message):
 def test_parse_model_checkpoint_manifest_accepts_valid_manifest():
     manifest = parse_model_checkpoint_manifest(model_manifest_record())
 
+    assert manifest.schema == MODEL_CHECKPOINT_SCHEMA
+    assert manifest.contract_version == "1.1.0"
     assert manifest.model_id == "quantik-qnue-small"
+    assert manifest.created_at == "2026-07-14T00:00:00+0200"
     assert manifest.input_contracts == ("bitboard.v1", "action-index.v1")
     assert manifest.size_bytes == 42
+
+
+def test_parse_model_checkpoint_manifest_accepts_opening_book_summary_input():
+    record = model_manifest_record()
+    record["input_contracts"] = ["opening-book-summary.v1"]
+
+    manifest = parse_model_checkpoint_manifest(record)
+
+    assert manifest.input_contracts == ("opening-book-summary.v1",)
+
+
+def test_load_model_checkpoint_manifest_fixture():
+    manifest = load_model_checkpoint_manifest(MODEL_CHECKPOINT_FIXTURE)
+
+    assert manifest.schema == MODEL_CHECKPOINT_SCHEMA
+    assert manifest.contract_version == "1.1.0"
+    assert manifest.model_id == "quantik-policy-value-fixture"
+    assert manifest.input_contracts == ("observation.v1",)
+    assert manifest.weights_format == "safetensors"
+    assert manifest.feature_hash == "sha256:abcdef0123456789"
+    assert manifest.quantization == "float32"
+    assert manifest.parameter_count == 123456
+    assert manifest.architecture == "tiny-transformer"
+    assert manifest.legal_action_mask_required is True
+    assert manifest.recommended_engine_order == ("rust", "python")
+    assert (
+        manifest.notes
+        == "Small metadata-only fixture for model-checkpoint.v1 parser tests."
+    )
 
 
 def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
@@ -266,10 +307,48 @@ def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
     ("field", "value", "message"),
     [
         ("schema", "other.v1", "schema must be model-checkpoint.v1"),
+        (
+            "contract_version",
+            "1.0.0",
+            "contract_version must match supported contracts release 1.1.0",
+        ),
+        ("model_id", "   ", "model_id must be a non-empty string"),
+        ("model_family", "   ", "model_family must be a non-empty string"),
+        ("created_at", "   ", "created_at must be a non-empty string"),
         ("input_contracts", "bitboard.v1", "input_contracts must be a non-empty list"),
-        ("input_contracts", ["bitboard.v1", ""], "input_contracts must contain"),
-        ("size_bytes", 0, "size_bytes must be positive"),
+        (
+            "input_contracts",
+            ["bitboard.v1", "   "],
+            r"input_contracts\[1\] must be a non-empty string",
+        ),
+        (
+            "input_contracts",
+            ["unknown.v1"],
+            "unsupported input contract: unknown.v1",
+        ),
+        ("output_contract", "   ", "output_contract must be a non-empty string"),
         ("weights_format", "", "weights_format must be a non-empty string"),
+        ("weights_format", "pickle", "unsupported weights_format: pickle"),
+        ("weights_hash", "   ", "weights_hash must be a non-empty string"),
+        ("size_bytes", 0, "size_bytes must be positive"),
+        (
+            "training_data_manifest",
+            "   ",
+            "training_data_manifest must be a non-empty string",
+        ),
+        ("calibration_report", "   ", "calibration_report must be a non-empty string"),
+        ("feature_hash", "   ", "feature_hash must be a non-empty string"),
+        ("parameter_count", 0, "parameter_count must be positive"),
+        (
+            "legal_action_mask_required",
+            "yes",
+            "legal_action_mask_required must be a boolean",
+        ),
+        (
+            "recommended_engine_order",
+            ["rust", "   "],
+            r"recommended_engine_order\[1\] must be a non-empty string",
+        ),
     ],
 )
 def test_parse_model_checkpoint_manifest_rejects_invalid_fields(field, value, message):
