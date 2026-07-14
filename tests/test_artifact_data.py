@@ -278,6 +278,8 @@ def test_parse_model_checkpoint_manifest_accepts_opening_book_summary_input():
 def test_load_model_checkpoint_manifest_fixture():
     manifest = load_model_checkpoint_manifest(MODEL_CHECKPOINT_FIXTURE)
 
+    assert manifest.schema == MODEL_CHECKPOINT_SCHEMA
+    assert manifest.contract_version == "1.1.0"
     assert manifest.model_id == "quantik-policy-value-fixture"
     assert manifest.input_contracts == ("observation.v1",)
     assert manifest.weights_format == "safetensors"
