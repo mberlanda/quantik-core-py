@@ -296,3 +296,129 @@ class TestContextManager:
                 best_moves=[],
                 depth=1,
             )
+
+
+class TestSearchedBookMigration:
+    """Opening a bench_bfs "searched book" SQLite file should not crash."""
+
+    def _build_searched_book(self, db_path, canonical_key):
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            CREATE TABLE positions (
+                canonical_key BLOB PRIMARY KEY,
+                depth INTEGER NOT NULL,
+                is_terminal INTEGER NOT NULL DEFAULT 0,
+                winner INTEGER,
+                symmetry_count INTEGER NOT NULL,
+                searched_depth INTEGER NOT NULL DEFAULT 0,
+                score REAL,
+                status INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE edges (
+                parent_key BLOB,
+                child_key BLOB,
+                move TEXT,
+                PRIMARY KEY (parent_key, child_key)
+            )
+        """)
+        conn.execute("CREATE INDEX idx_edges_child ON edges(child_key)")
+        conn.execute("CREATE INDEX idx_pos_depth ON positions(depth)")
+        conn.execute("CREATE INDEX idx_pos_status ON positions(status)")
+        conn.execute("CREATE INDEX idx_pos_searched ON positions(searched_depth)")
+        conn.execute(
+            """
+            INSERT INTO positions
+            (canonical_key, depth, is_terminal, winner, symmetry_count,
+             searched_depth, score, status)
+            VALUES (?, 0, 0, NULL, 1, 0, NULL, 0)
+        """,
+            (canonical_key,),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_opens_searched_book_without_crashing(self, tmp_path):
+        db_path = str(tmp_path / "searched.db")
+        state = State.empty()
+        canonical_key = state.canonical_key()
+        self._build_searched_book(db_path, canonical_key)
+
+        config = OpeningBookConfig(database_path=db_path)
+        database = OpeningBookDatabase(config)
+
+        entry = database.get_position(state)
+        assert entry is not None
+        assert entry.visit_count == 0
+        assert entry.qfen == ""
+        assert entry.best_moves == []
+
+        cursor = database.conn.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='index' AND tbl_name='position_edges'
+        """)
+        position_edges_indexes = {row[0] for row in cursor.fetchall()}
+        assert "idx_position_edges_child" in position_edges_indexes
+
+        cursor = database.conn.execute("""
+            SELECT count(*) FROM sqlite_master
+            WHERE type='index' AND name='idx_edges_child' AND tbl_name='edges'
+        """)
+        assert cursor.fetchone()[0] == 1
+
+        database.close()
+
+        # Re-opening the same file must be idempotent.
+        database2 = OpeningBookDatabase(config)
+        entry2 = database2.get_position(state)
+        assert entry2 is not None
+        database2.close()
+
+    def test_legacy_benchmark_index_is_renamed(self, tmp_path):
+        """A legacy benchmark book with idx_edges_child on position_edges
+        should have that index renamed to idx_position_edges_child."""
+        db_path = str(tmp_path / "legacy_benchmark.db")
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            CREATE TABLE positions (
+                canonical_key BLOB PRIMARY KEY,
+                qfen TEXT NOT NULL,
+                depth INTEGER NOT NULL,
+                evaluation REAL NOT NULL,
+                visit_count INTEGER NOT NULL,
+                win_count_p0 INTEGER NOT NULL,
+                win_count_p1 INTEGER NOT NULL,
+                draw_count INTEGER NOT NULL,
+                is_terminal INTEGER NOT NULL DEFAULT 0,
+                symmetry_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE position_edges (
+                parent_key BLOB NOT NULL,
+                child_key  BLOB NOT NULL,
+                PRIMARY KEY (parent_key, child_key)
+            )
+        """)
+        conn.execute("CREATE INDEX idx_edges_child ON position_edges(child_key)")
+        conn.commit()
+        conn.close()
+
+        config = OpeningBookConfig(database_path=db_path)
+        database = OpeningBookDatabase(config)
+
+        cursor = database.conn.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='index' AND tbl_name='position_edges'
+              AND name NOT LIKE 'sqlite_autoindex%'
+        """)
+        indexes = {row[0] for row in cursor.fetchall()}
+        assert indexes == {"idx_position_edges_child"}
+
+        database.close()

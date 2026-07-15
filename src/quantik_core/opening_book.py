@@ -92,7 +92,28 @@ class OpeningBookDatabase:
             )
         """)
 
-        # Migrate existing databases: add new columns if missing
+        # Migrate existing databases: add new columns if missing.
+        #
+        # This also covers "searched book" SQLite files produced by the Rust
+        # IDDFS builder (bench_bfs), whose positions table only has
+        # canonical_key/depth/is_terminal/winner/symmetry_count/searched_depth/
+        # score/status. Without these migrations, opening such a file would
+        # crash later when idx_visit_count is created against a missing
+        # visit_count column.
+        self._migrate_add_column("positions", "qfen", "TEXT NOT NULL DEFAULT ''")
+        self._migrate_add_column("positions", "evaluation", "REAL NOT NULL DEFAULT 0")
+        self._migrate_add_column(
+            "positions", "visit_count", "INTEGER NOT NULL DEFAULT 0"
+        )
+        self._migrate_add_column(
+            "positions", "win_count_p0", "INTEGER NOT NULL DEFAULT 0"
+        )
+        self._migrate_add_column(
+            "positions", "win_count_p1", "INTEGER NOT NULL DEFAULT 0"
+        )
+        self._migrate_add_column(
+            "positions", "draw_count", "INTEGER NOT NULL DEFAULT 0"
+        )
         self._migrate_add_column(
             "positions", "is_terminal", "INTEGER NOT NULL DEFAULT 0"
         )
@@ -134,8 +155,24 @@ class OpeningBookDatabase:
             )
         """)
 
+        # SQLite index names are database-global. "Searched book" files
+        # produced by the Rust IDDFS builder (bench_bfs) already define their
+        # own edges(...) table with an idx_edges_child index, so reusing that
+        # name here would silently no-op and leave position_edges unindexed.
+        # Drop the legacy index only when it actually lives on
+        # position_edges (i.e. an older benchmark book created by this same
+        # class); never touch it when it belongs to a searched book's edges
+        # table.
+        cursor = self.conn.execute("""
+            SELECT count(*) FROM sqlite_master
+            WHERE type='index' AND name='idx_edges_child'
+              AND tbl_name='position_edges'
+        """)
+        if cursor.fetchone()[0] > 0:
+            self.conn.execute("DROP INDEX idx_edges_child")
+
         self.conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_edges_child
+            CREATE INDEX IF NOT EXISTS idx_position_edges_child
             ON position_edges(child_key)
         """)
 
