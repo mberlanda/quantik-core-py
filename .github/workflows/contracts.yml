@@ -14,7 +14,7 @@ jobs:
 
       - uses: mberlanda/quantik-core-contracts/actions/validate-contracts@v1.1.0
         with:
-          fixture-glob: "tests/fixtures/selfplay_v1.jsonl"
+          fixture-glob: "tests/fixtures/selfplay*.jsonl"
           expected-release: "1.1.0"
 
   opening-book-consistency:
