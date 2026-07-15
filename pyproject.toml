@@ -71,6 +71,9 @@ Documentation = "https://github.com/mberlanda/quantik-core-py#readme"
 "Bug Tracker" = "https://github.com/mberlanda/quantik-core-py/issues"
 Changelog = "https://github.com/mberlanda/quantik-core-py/blob/main/CHANGELOG.md"
 
+[project.scripts]
+quantik-api-portability-report = "quantik_core.api_portability_report:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
