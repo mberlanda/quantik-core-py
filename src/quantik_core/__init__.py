@@ -23,6 +23,14 @@ from .board import (
 )
 from .evaluation import EvalConfig, evaluate
 from .minimax import MinimaxConfig, MinimaxEngine, MinimaxResult
+from .training_dataset import (
+    TrainingDatasetView,
+    load_training_view_from_observations_jsonl,
+    load_training_view_from_observations_parquet,
+    load_training_view_npz,
+    training_view_from_observations,
+    write_training_view_npz,
+)
 
 try:
     __version__ = version("quantik-core")
@@ -58,4 +66,10 @@ __all__ = [
     "MinimaxConfig",
     "MinimaxEngine",
     "MinimaxResult",
+    "TrainingDatasetView",
+    "training_view_from_observations",
+    "load_training_view_from_observations_jsonl",
+    "load_training_view_from_observations_parquet",
+    "write_training_view_npz",
+    "load_training_view_npz",
 ]
