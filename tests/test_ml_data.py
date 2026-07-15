@@ -19,6 +19,7 @@ from quantik_core.ml_data import (
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "selfplay_v1.jsonl"
+RUST_SMOKE_FIXTURE = Path(__file__).parent / "fixtures" / "selfplay_v1_rust_smoke.jsonl"
 
 
 def _fixture_record(index: int = 0):
@@ -37,6 +38,18 @@ def test_load_selfplay_jsonl_fixture():
     assert rows[0].policy == (
         PolicyVisit(shape=0, position=0, visits=3),
         PolicyVisit(shape=1, position=5, visits=1),
+    )
+
+
+def test_load_rust_generated_selfplay_smoke_fixture():
+    rows = load_selfplay_jsonl(RUST_SMOKE_FIXTURE)
+
+    assert len(rows) == 2
+    assert [row.ply for row in rows] == [0, 1]
+    assert [row.value for row in rows] == [1.0, -1.0]
+    assert rows[1].policy == (
+        PolicyVisit(shape=0, position=10, visits=2),
+        PolicyVisit(shape=1, position=1, visits=6),
     )
 
 
