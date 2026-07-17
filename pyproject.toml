@@ -72,6 +72,7 @@ Documentation = "https://github.com/mberlanda/quantik-core-py#readme"
 Changelog = "https://github.com/mberlanda/quantik-core-py/blob/main/CHANGELOG.md"
 
 [project.scripts]
+quantik-training-dataset = "quantik_core.training_dataset:main"
 quantik-api-portability-report = "quantik_core.api_portability_report:main"
 
 [tool.setuptools.packages.find]
