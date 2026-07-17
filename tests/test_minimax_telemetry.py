@@ -78,9 +78,7 @@ def test_minimax_expanded_counted_at_move_generation() -> None:
     state = State.empty()
     k = len(generate_legal_moves_list(state.bb))
     engine = MinimaxEngine(
-        MinimaxConfig(
-            max_depth=1, dedup_children=False, use_transposition_table=False
-        )
+        MinimaxConfig(max_depth=1, dedup_children=False, use_transposition_table=False)
     )
     engine.search(state)
     t = engine.telemetry()
@@ -95,9 +93,7 @@ def test_minimax_no_legal_moves_node_is_expanded_and_terminal() -> None:
     # normative counter semantics). A full single-shape board has no winning
     # line and no legal moves; negamax on it must bump both counters.
     engine = MinimaxEngine(
-        MinimaxConfig(
-            max_depth=2, dedup_children=False, use_transposition_table=False
-        )
+        MinimaxConfig(max_depth=2, dedup_children=False, use_transposition_table=False)
     )
     engine._counters = SearchEventCounters()
     engine._nodes = 0
