@@ -322,6 +322,7 @@ binary = state.pack()  # Just 18 bytes
 - [Minimax Documentation](docs/MINIMAX.md) - Alpha-beta search with a fitted handcrafted evaluation
 - [MCTS Documentation](docs/MCTS.md) - Monte Carlo Tree Search implementation details
 - [Beam Search Documentation](docs/BEAM_SEARCH.md) - Memory-bounded terminal-state search
+- [Search Telemetry](docs/search-telemetry.md) - Event counters, value semantics, and root-identity rules shared by MCTS, beam, and minimax
 - [Opening Book Guide](docs/OPENING_BOOK.md) - Position database usage and API
 - [Examples](examples/) - Complete working examples for all features
 
