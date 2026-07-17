@@ -26,6 +26,14 @@ from quantik_core.memory.compact_tree import (
     NODE_FLAG_WINNING_P0,
     NODE_FLAG_WINNING_P1,
 )
+from quantik_core.search_telemetry import (
+    EngineKind,
+    PolicyMassKind,
+    RootMoveStat,
+    SearchEventCounters,
+    SearchTelemetry,
+    clamp_unproven,
+)
 
 
 @dataclass
@@ -273,6 +281,10 @@ class BeamSearchEngine:
             else CompactGameTree(initial_capacity=config.initial_tree_capacity)
         )
         self._rng = random.Random(config.random_seed)
+        self._counters = SearchEventCounters()
+        self._root_dedup_hits = 0
+        self._elapsed_ms = 0
+        self._seed = config.random_seed
 
     def search(self, initial_state: State) -> BeamSearchResult:
         """Run beam search from `initial_state`.
@@ -289,6 +301,10 @@ class BeamSearchEngine:
                 legal moves.
         """
         root_player = self._require_non_terminal_root(initial_state)
+
+        self._counters = SearchEventCounters()
+        self._root_dedup_hits = 0
+        _start = time.monotonic()
 
         root_id = self.tree.create_root_node(initial_state)
         stats: Dict[str, int] = {
@@ -321,6 +337,7 @@ class BeamSearchEngine:
             frontier = self._score_and_prune(candidates, stats, beam_width, rollouts)
             max_depth_reached = depth
 
+        self._elapsed_ms = int(round((time.monotonic() - _start) * 1000))
         stats["memory_usage"] = self.tree.memory_usage()
 
         def root_perspective(leaf: BeamLeaf) -> float:
@@ -402,6 +419,7 @@ class BeamSearchEngine:
         candidates: Dict[bytes, _Candidate] = {}
 
         for node_id, bb, moves, _, multiplicity in frontier:
+            self._counters.expanded_nodes += 1
             current_player, moves_by_shape = generate_legal_moves(bb)
             all_moves = [
                 m for shape_moves in moves_by_shape.values() for m in shape_moves
@@ -425,6 +443,7 @@ class BeamSearchEngine:
                         multiplicity=multiplicity,
                     )
                 )
+                self._counters.terminal_hits += 1
                 continue
 
             stats["candidates_generated"] += len(all_moves)
@@ -465,6 +484,7 @@ class BeamSearchEngine:
         unaffected by it.
         """
         for move in all_moves:
+            self._counters.generated_nodes += 1
             new_bb: Bitboard = apply_move(bb, move)  # type: ignore[assignment]
             new_state = State(new_bb)
             child_moves = moves + (move,)
@@ -500,11 +520,15 @@ class BeamSearchEngine:
                         multiplicity=multiplicity,
                     )
                 )
+                self._counters.terminal_hits += 1
                 continue
 
             key = new_state.canonical_key()
             if key in candidates:
                 stats["candidates_deduped"] += 1
+                self._counters.canonical_dedup_hits += 1
+                if depth == 1:
+                    self._root_dedup_hits += 1
                 (
                     existing_node_id,
                     existing_bb,
@@ -627,3 +651,37 @@ class BeamSearchEngine:
             "memory_usage": self.tree.memory_usage(),
             "tree_stats": self.tree.get_stats(),
         }
+
+    def telemetry(self, result: BeamSearchResult) -> SearchTelemetry:
+        """Derive telemetry from a completed `BeamSearchResult`."""
+        root_moves: List[RootMoveStat] = []
+        for r in result.ranked_root_moves(None):
+            if r.has_terminal_win and r.best_value >= 1.0:
+                q = 1.0  # proven root-player win
+            else:
+                # Includes proven losses (best_value == -1.0 with no loss flag):
+                # conservatively reported as -UNPROVEN_VALUE_BOUND.
+                q = clamp_unproven(r.best_value)
+            root_moves.append(RootMoveStat.from_move(r.move, r.total_multiplicity, q))
+
+        best = result.best_leaf
+        if best is None:
+            root_value = 0.0
+            pv: List[Move] = []
+        else:
+            v = best.value if result.root_player == 0 else -best.value
+            root_value = v if best.is_terminal else clamp_unproven(v)
+            pv = list(best.moves)
+
+        return SearchTelemetry(
+            engine_kind=EngineKind.BEAM,
+            root_value=root_value,
+            policy_mass_kind=PolicyMassKind.MULTIPLICITY,
+            root_moves=root_moves,
+            root_identity_preserved=self._root_dedup_hits == 0,
+            principal_variation=pv,
+            counters=self._counters,
+            elapsed_ms=self._elapsed_ms,
+            depth_reached=result.max_depth_reached,
+            seed=self._seed,
+        )
