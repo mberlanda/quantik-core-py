@@ -73,4 +73,4 @@ def test_minimax_transposition_hits_with_tt_on() -> None:
     engine.search(state)
     t = engine.telemetry()
     assert t is not None
-    assert t.counters.transposition_hits >= 0  # non-negative; >0 when TT reused
+    assert t.counters.transposition_hits > 0  # TT must be reused on this fixture
