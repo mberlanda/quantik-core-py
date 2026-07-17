@@ -85,6 +85,23 @@ def test_out_of_range_action_index_raises() -> None:
         search_summary_row(0, "r", "..../..../..../....", t, _run_config())
 
 
+def test_negative_action_index_raises() -> None:
+    # A negative action_index would otherwise silently index policy_visits /
+    # root_q_values from the end and corrupt the row; it must raise instead.
+    bad = RootMoveStat(mv=Move(0, 0, 0), action_index=-1, policy_mass=1, q_value=0.0)
+    t = SearchTelemetry(
+        engine_kind=EngineKind.MCTS,
+        root_value=0.0,
+        policy_mass_kind=PolicyMassKind.VISITS,
+        root_moves=[bad],
+        root_identity_preserved=True,
+        principal_variation=[],
+        counters=SearchEventCounters(),
+    )
+    with pytest.raises(ValueError):
+        search_summary_row(0, "r", "..../..../..../....", t, _run_config())
+
+
 def test_mcts_row_populates_policy_visits() -> None:
     # An asymmetric position preserves identity -> a row is emitted.
     qfen = "A.bC/..../d..B/...a"

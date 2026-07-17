@@ -50,8 +50,11 @@ def search_summary_row(
 
     Skips (returns None) rows whose telemetry has
     root_identity_preserved == False -- a legitimate skip, not an error.
-    Raises ValueError for an out-of-range action_index (>= 64), matching the
-    Rust exporter's Err.
+    Raises ValueError for an action_index outside [0, 64), matching the Rust
+    exporter's Err. Unlike Rust (whose action_index is an unsigned u8, so a
+    ``>= 64`` check suffices), Python's action_index is a signed int: a
+    negative value would silently index policy_visits/root_q_values from the
+    end and corrupt the row, so the lower bound must be checked too.
     """
     if not telemetry.root_identity_preserved:
         return None
@@ -65,9 +68,9 @@ def search_summary_row(
     root_q_values: List[Optional[float]] = [None] * 64
     for stat in telemetry.root_moves:
         idx = stat.action_index
-        if idx >= 64:
+        if idx < 0 or idx >= 64:
             raise ValueError(
-                f"root move action_index {idx} out of range (must be < 64)"
+                f"root move action_index {idx} out of range (must be in [0, 64))"
             )
         policy_visits[idx] = stat.policy_mass
         if stat.q_value is not None:

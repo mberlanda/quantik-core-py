@@ -133,8 +133,11 @@ transposition table off**:
 
 The exporter **skips** (returns `None`, a legitimate skip — not an error) any
 row whose telemetry has `root_identity_preserved == false`. It **raises**
-`ValueError` for an out-of-range `action_index (>= 64)` (matching Rust's
-`Err`).
+`ValueError` for an `action_index` outside `[0, 64)` (matching Rust's `Err`).
+Rust checks only `>= 64` because its `action_index` is an unsigned `u8`;
+Python's is a signed `int`, so the exporter also rejects negative indices,
+which would otherwise silently index the dense policy/value arrays from the
+end.
 
 For telemetry-quality export runs: MCTS `use_transposition_table=False`,
 minimax `dedup_children=False`, and treat beam skips as expected.
