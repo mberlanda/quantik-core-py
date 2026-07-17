@@ -45,7 +45,7 @@ def test_minimax_telemetry_shape_and_counters() -> None:
         assert stat.q_value is not None
         assert -1.0 <= stat.q_value <= 1.0
     assert t.principal_variation
-    assert t.principal_variation[0] == t.root_moves[0].mv or True  # PV is legal
+    assert t.principal_variation[0] in {s.mv for s in t.root_moves}
 
 
 def test_minimax_dedup_on_flags_identity_false() -> None:
