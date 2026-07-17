@@ -8,7 +8,7 @@ integration into the compact game tree structure.
 import math
 import random
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 
@@ -19,10 +19,19 @@ from quantik_core.game_utils import check_game_winner, has_winning_line, WinStat
 from quantik_core.move import generate_legal_moves_list
 from quantik_core.memory.compact_tree import (
     CompactGameTree,
+    CompactGameTreeNode,
     NODE_FLAG_TERMINAL,
     NODE_FLAG_WINNING_P0,
     NODE_FLAG_WINNING_P1,
     NODE_FLAG_EXPANDED,
+)
+from quantik_core.search_telemetry import (
+    EngineKind,
+    PolicyMassKind,
+    RootMoveStat,
+    SearchEventCounters,
+    SearchTelemetry,
+    clamp_unproven,
 )
 
 
@@ -78,6 +87,10 @@ class MCTSEngine:
         self.tree = CompactGameTree(initial_capacity=100_000)
         self.root_id: Optional[int] = None
         self.iterations_performed = 0
+        self._counters = SearchEventCounters()
+        self._elapsed_ms = 0
+        self._max_depth_reached = 0
+        self._searched = False
 
     def search(self, initial_state: State) -> Tuple[Move, float]:
         """
@@ -92,6 +105,11 @@ class MCTSEngine:
         # Create or find root node
         self.root_id = self.tree.create_root_node(initial_state)
         self.iterations_performed = 0
+        self._counters = SearchEventCounters()
+        self._max_depth_reached = 0
+        self._searched = True
+        self._counters.expanded_nodes += 1  # root node created
+        _start = time.monotonic()
 
         deadline = (
             time.monotonic() + self.config.time_limit_s
@@ -121,6 +139,8 @@ class MCTSEngine:
 
             if deadline is not None and time.monotonic() >= deadline:
                 break
+
+        self._elapsed_ms = int(round((time.monotonic() - _start) * 1000))
 
         # Extract best move
         return self._get_best_move()
@@ -239,6 +259,7 @@ class MCTSEngine:
 
             node.flags = np.uint8(flags)
             self.tree.storage.store_node(node_id, node)
+            self._counters.terminal_hits += 1
             return None
 
         # Generate legal moves
@@ -257,6 +278,7 @@ class MCTSEngine:
                 node.flags = np.uint8(node.flags | NODE_FLAG_WINNING_P0)
                 node.terminal_value = np.float32(1.0)
             self.tree.storage.store_node(node_id, node)
+            self._counters.terminal_hits += 1
             return None
 
         # Get existing children to find unvisited move
@@ -272,12 +294,13 @@ class MCTSEngine:
             new_state = State(new_bb)
 
             if new_state.canonical_key() not in existing_states:
-                # Add this child
+                nodes_before = self.tree.storage.node_count
                 child_id = self.tree.add_child_node(
                     node_id,
                     new_state,
                     use_transposition_table=self.config.use_transposition_table,
                 )
+                self._count_child_addition(child_id, nodes_before)
 
                 # Mark parent as expanded if all moves tried
                 if len(existing_children) + 1 == len(all_moves):
@@ -290,6 +313,19 @@ class MCTSEngine:
         node.flags = np.uint8(node.flags | NODE_FLAG_EXPANDED)
         self.tree.storage.store_node(node_id, node)
         return None
+
+    def _count_child_addition(self, child_id: int, nodes_before: int) -> None:
+        """Update event counters after `add_child_node` (instrumentation only)."""
+        if self.tree.storage.node_count > nodes_before:
+            # A fresh successor state was constructed and retained.
+            self._counters.expanded_nodes += 1
+            self._counters.generated_nodes += 1
+            child_depth = int(self.tree.get_node(child_id).depth)
+            self._max_depth_reached = max(self._max_depth_reached, child_depth)
+        elif self.config.use_transposition_table:
+            # add_child_node reused an existing node: a cached subtree
+            # was reused via state-keyed lookup.
+            self._counters.transposition_hits += 1
 
     def _select_rollout_move(
         self, bb: Bitboard, current_player: int, all_moves: List[Move]
@@ -480,6 +516,132 @@ class MCTSEngine:
 
         # Fallback (should not happen)
         return all_moves[0], 0.5
+
+    def telemetry(self) -> Optional[SearchTelemetry]:
+        """Derive a `SearchTelemetry` from the completed root search.
+
+        Returns None before any search, or when the root has no children.
+        """
+        if not self._searched or self.root_id is None:
+            return None
+        root = self.tree.get_node(self.root_id)
+        root_state = self.tree.get_state(self.root_id)
+        children = self.tree.get_children(self.root_id)
+        if not children:
+            return None
+        mover = int(root.player_turn)
+
+        legal = generate_legal_moves_list(root_state.bb)
+        # First legal move that reaches each canonical child (root_identity
+        # preserved => this mapping is injective).
+        key_to_move: Dict[bytes, Move] = {}
+        child_keys = []
+        for mv in legal:
+            key = State(apply_move(root_state.bb, mv)).canonical_key()
+            child_keys.append(key)
+            key_to_move.setdefault(key, mv)
+
+        root_identity_preserved = not self.config.use_transposition_table and len(
+            set(child_keys)
+        ) == len(legal)
+
+        root_moves = []
+        for child_id in children:
+            child = self.tree.get_node(child_id)
+            ckey = self.tree.get_state(child_id).canonical_key()
+            matched_mv = key_to_move.get(ckey)
+            if matched_mv is None:
+                continue
+            root_moves.append(
+                RootMoveStat.from_move(
+                    matched_mv, int(child.visit_count), self._child_q(child, mover)
+                )
+            )
+
+        return SearchTelemetry(
+            engine_kind=EngineKind.MCTS,
+            root_value=self._root_value(children, mover),
+            policy_mass_kind=PolicyMassKind.VISITS,
+            root_moves=root_moves,
+            root_identity_preserved=root_identity_preserved,
+            principal_variation=self._principal_variation(),
+            counters=self._counters,
+            elapsed_ms=self._elapsed_ms,
+            depth_reached=self._max_depth_reached,
+            seed=self.config.random_seed,
+        )
+
+    def _child_q(self, child: CompactGameTreeNode, mover: int) -> Optional[float]:
+        """Root-player q_value for a root child; exact +/-1.0 iff terminal."""
+        if int(child.flags) & NODE_FLAG_TERMINAL:
+            tv = float(child.terminal_value)  # P0 perspective
+            return tv if mover == 0 else -tv
+        if int(child.visit_count) == 0:
+            return None
+        wins = int(child.win_count_p0) if mover == 0 else int(child.win_count_p1)
+        p = wins / int(child.visit_count)
+        return clamp_unproven(2.0 * p - 1.0)
+
+    def _root_value(self, children: List[int], mover: int) -> float:
+        """Value of the most-visited root child (Robust-child), root
+        perspective; exact +/-1.0 iff that child is terminal."""
+        best_id = children[0]
+        best_visits = -1
+        for child_id in children:
+            v = int(self.tree.get_node(child_id).visit_count)
+            if v > best_visits:
+                best_visits = v
+                best_id = child_id
+        best = self.tree.get_node(best_id)
+        if int(best.flags) & NODE_FLAG_TERMINAL:
+            tv = float(best.terminal_value)
+            return tv if mover == 0 else -tv
+        if int(best.visit_count) == 0:
+            return 0.0
+        wins = int(best.win_count_p0) if mover == 0 else int(best.win_count_p1)
+        return clamp_unproven(2.0 * (wins / int(best.visit_count)) - 1.0)
+
+    def _principal_variation(self) -> List[Move]:
+        """Max-visit descent from the root; ties break on lowest action index.
+        Bounded by 16 plies (a full game)."""
+        pv: List[Move] = []
+        node_id = self.root_id
+        for _ in range(16):
+            if node_id is None:
+                break
+            children = self.tree.get_children(node_id)
+            if not children:
+                break
+            node_state = self.tree.get_state(node_id)
+            key_to_move: Dict[bytes, Move] = {}
+            for mv in generate_legal_moves_list(node_state.bb):
+                key = State(apply_move(node_state.bb, mv)).canonical_key()
+                key_to_move.setdefault(key, mv)
+            candidates = []
+            for child_id in children:
+                child = self.tree.get_node(child_id)
+                if int(child.visit_count) == 0:
+                    continue
+                ckey = self.tree.get_state(child_id).canonical_key()
+                matched_mv = key_to_move.get(ckey)
+                if matched_mv is None:
+                    continue
+                # sort key: most visits first, then lowest action index
+                candidates.append(
+                    (
+                        -int(child.visit_count),
+                        matched_mv.shape * 16 + matched_mv.position,
+                        child_id,
+                        matched_mv,
+                    )
+                )
+            if not candidates:
+                break
+            candidates.sort()
+            _, _, best_child_id, best_mv = candidates[0]
+            pv.append(best_mv)
+            node_id = best_child_id
+        return pv
 
     def get_statistics(self) -> dict:
         """Get MCTS statistics."""
