@@ -46,8 +46,8 @@ comparable magnitudes — cross-engine workload comparison belongs to
 
 | Counter | MCTS | Beam | Minimax |
 | --- | --- | --- | --- |
-| `expanded_nodes` | +1 per node created (root in `search()`, each fresh child in `_expand`) | +1 per frontier entry processed in `_expand_frontier` (incl. the no-legal-moves case) | +1 per `_children(...)` call (the one in `_search_root` and each in `_negamax`) |
-| `generated_nodes` | +1 per fresh child constructed in `_expand` (the retained successor) | +1 per `apply_move` on a candidate move in `_expand_moves` | += `len(ordered)` at each `_children(...)` call (every move applied before dedup) |
+| `expanded_nodes` | +1 per `_expand`, right after `generate_legal_moves` computes the node's successor set (the no-legal-moves case included; a node already terminal by a winning line returns before enumeration and is not counted) | +1 per frontier entry processed in `_expand_frontier` (incl. the no-legal-moves case) | +1 per successor-set computation: once for the root moves in `search()`, then once right after `generate_legal_moves_list` in each `_negamax` node (the depth-0 leaf and the no-legal-moves node included; a `has_winning_line` node returns before enumeration and is not counted) |
+| `generated_nodes` | +1 per candidate move whose successor state is constructed in the `_expand` loop (every `apply_move`/`State(...)`, including states re-derived for already-visited moves) | +1 per `apply_move` on a candidate move in `_expand_moves` | += `len(ordered)` at each `_children(...)` call (every move applied before dedup) |
 | `transposition_hits` | +1 when `add_child_node` reuses an existing node (node count unchanged) **and** `use_transposition_table` | **0** — beam never reuses search results | +1 at each TT early-return in `_negamax`: the `Bound.EXACT` return and the narrowed `alpha >= beta` return |
 | `canonical_dedup_hits` | **0** (structural — MCTS canonical merging is reflected in `root_identity_preserved`, not this counter) | +1 at the `if key in candidates` dedup-merge branch in `_expand_moves`; also bumps a private `root_dedup_hits` when `depth == 1` | += `len(ordered) - len(children)` (dedup skips) at each `_children(...)` call |
 | `terminal_hits` | +1 when `_expand` determines a node terminal (winner, or no legal moves). Rollouts never instrumented | +1 per terminal child (winner branch) and per no-legal-moves frontier entry. Rollouts never instrumented | +1 at the `has_winning_line` return and the `not moves` return in `_negamax` |
@@ -68,6 +68,14 @@ Distinctions worth calling out explicitly:
 - **Rollout terminals are excluded from `terminal_hits` in EVERY engine.** MCTS
   `_simulate`/rollouts and beam `_rollout`/`_default_evaluate` are never
   instrumented.
+- **MCTS counts events, not distinct nodes.** `_expand` recomputes a node's
+  successor set and re-derives already-visited children's states on every pass,
+  so a node revisited across iterations contributes an `expanded_nodes` event
+  each time and its siblings' constructions recur in `generated_nodes`. This is
+  faithful to the event definitions but means the Python MCTS magnitudes are
+  higher than Rust's, whose `expand` generates a node's moves once at creation
+  and constructs exactly one successor per call via `untried_moves`. Per the
+  Section 2 note, only `elapsed_ms` is meant for workload comparison.
 
 ### Structural zeros called out explicitly
 
