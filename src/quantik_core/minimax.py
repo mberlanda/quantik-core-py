@@ -233,6 +233,11 @@ class MinimaxEngine:
         root_moves = generate_legal_moves_list(bb)
         if not root_moves:
             raise ValueError("Cannot search from a state with no legal moves.")
+        # The root's successor set is computed once here and reused across every
+        # iterative-deepening pass, so count the root expansion exactly once
+        # (not per depth). Interior nodes regenerate their moves on each visit
+        # and are counted in `_negamax`.
+        self._counters.expanded_nodes += 1
 
         result: Optional[MinimaxResult] = None
         for depth in range(1, self.config.max_depth + 1):
@@ -294,7 +299,6 @@ class MinimaxEngine:
         """
         ordered = self._order_root_moves(moves)
         children = _children(bb, ordered, self.config.dedup_children)
-        self._counters.expanded_nodes += 1
         self._counters.generated_nodes += len(ordered)
         if self.config.dedup_children:
             self._counters.canonical_dedup_hits += len(ordered) - len(children)
@@ -355,6 +359,10 @@ class MinimaxEngine:
             return -(win - ply)
 
         moves = generate_legal_moves_list(bb)
+        # The successor set was just computed, so this node is expanded --
+        # including the no-legal-moves case below (which is then ALSO terminal)
+        # and the depth-0 leaf case, which returns before any child is built.
+        self._counters.expanded_nodes += 1
         if not moves:
             # No legal moves: the side to move also loses.
             self._counters.terminal_hits += 1
@@ -396,7 +404,6 @@ class MinimaxEngine:
 
         ordered = sorted(moves, key=_move_sort_key)
         children = _children(bb, ordered, self.config.dedup_children)
-        self._counters.expanded_nodes += 1
         self._counters.generated_nodes += len(ordered)
         if self.config.dedup_children:
             self._counters.canonical_dedup_hits += len(ordered) - len(children)
