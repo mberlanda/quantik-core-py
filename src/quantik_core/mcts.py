@@ -108,7 +108,9 @@ class MCTSEngine:
         self._counters = SearchEventCounters()
         self._max_depth_reached = 0
         self._searched = True
-        self._counters.expanded_nodes += 1  # root node created
+        # expanded_nodes is counted where a node's successor set is actually
+        # computed (inside _expand), not at node creation -- creating the root
+        # node enumerates nothing yet.
         _start = time.monotonic()
 
         deadline = (
@@ -268,6 +270,10 @@ class MCTSEngine:
         for shape_moves in moves_by_shape.values():
             all_moves.extend(shape_moves)
 
+        # The node's successor set was just computed, so it is expanded --
+        # including the no-legal-moves case below, which is then also terminal.
+        self._counters.expanded_nodes += 1
+
         if not all_moves:
             # No legal moves - the player who cannot move loses (opponent wins)
             node.flags = np.uint8(node.flags | NODE_FLAG_TERMINAL)
@@ -292,6 +298,10 @@ class MCTSEngine:
         for move in all_moves:
             new_bb = apply_move(state.bb, move)
             new_state = State(new_bb)
+            # A successor state was constructed for this candidate move; count
+            # it whether or not it is retained (already-visited moves are
+            # re-derived here on each _expand pass).
+            self._counters.generated_nodes += 1
 
             if new_state.canonical_key() not in existing_states:
                 nodes_before = self.tree.storage.node_count
@@ -315,11 +325,16 @@ class MCTSEngine:
         return None
 
     def _count_child_addition(self, child_id: int, nodes_before: int) -> None:
-        """Update event counters after `add_child_node` (instrumentation only)."""
+        """Track tree depth and transposition reuse after `add_child_node`.
+
+        The move-generation (`expanded_nodes`) and successor-construction
+        (`generated_nodes`) events are counted at their own sites in `_expand`;
+        this hook only records the retained child's depth and flags a
+        transposition-table reuse, keeping each event localized to the code
+        path where it occurs.
+        """
         if self.tree.storage.node_count > nodes_before:
-            # A fresh successor state was constructed and retained.
-            self._counters.expanded_nodes += 1
-            self._counters.generated_nodes += 1
+            # A fresh successor node was retained; track tree depth.
             child_depth = int(self.tree.get_node(child_id).depth)
             self._max_depth_reached = max(self._max_depth_reached, child_depth)
         elif self.config.use_transposition_table:
