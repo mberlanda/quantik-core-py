@@ -1,4 +1,4 @@
-"""Draft search-telemetry exporter example.
+"""Search-telemetry exporter example.
 
 Runs the MCTS, minimax, and beam engines against a handful of fixed positions
 and writes one `search-summary.v1` JSONL row per completed root search

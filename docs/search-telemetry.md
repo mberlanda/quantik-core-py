@@ -3,8 +3,8 @@
 This document describes the `search_telemetry` surface shared by the MCTS,
 beam, and minimax engines in this package: what each event counter means, how
 each engine maps its internal values onto a common `[-1, 1]` scale, when a
-telemetry record's root-move identity is trustworthy, and how to export draft
-JSONL rows for offline analysis.
+telemetry record's root-move identity is trustworthy, and how to export
+`search-summary.v1` JSONL rows for offline analysis.
 
 ## 1. Purpose
 
@@ -151,7 +151,7 @@ minimax `dedup_children=False`, and treat beam skips as expected.
 
 ## 6. Exporter usage
 
-Run the draft exporter example against a small fixed position set (the empty
+Run the exporter example against a small fixed position set (the empty
 board plus two mid-game positions), across all three engines:
 
 ```sh

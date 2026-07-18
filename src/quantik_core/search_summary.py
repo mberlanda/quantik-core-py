@@ -45,7 +45,7 @@ def search_summary_row(
     telemetry: SearchTelemetry,
     run_config: SearchSummaryRunConfig,
 ) -> Optional[dict]:
-    """Build one draft row, or None when root identity was not preserved.
+    """Build one row, or None when root identity was not preserved.
 
     Skips (returns None) rows whose telemetry has
     root_identity_preserved == False -- a legitimate skip, not an error.
