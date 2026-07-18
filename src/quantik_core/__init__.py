@@ -31,6 +31,15 @@ from .training_dataset import (
     training_view_from_observations,
     write_training_view_npz,
 )
+from .search_telemetry import (
+    UNPROVEN_VALUE_BOUND,
+    EngineKind,
+    PolicyMassKind,
+    RootMoveStat,
+    SearchEventCounters,
+    SearchTelemetry,
+    clamp_unproven,
+)
 
 try:
     __version__ = version("quantik-core")
@@ -72,4 +81,11 @@ __all__ = [
     "load_training_view_from_observations_parquet",
     "write_training_view_npz",
     "load_training_view_npz",
+    "UNPROVEN_VALUE_BOUND",
+    "clamp_unproven",
+    "EngineKind",
+    "PolicyMassKind",
+    "SearchEventCounters",
+    "RootMoveStat",
+    "SearchTelemetry",
 ]

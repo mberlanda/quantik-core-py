@@ -110,6 +110,20 @@ python examples/cross_engine_benchmark.py report \
   --input benchmarks/results/$(git rev-parse --short HEAD).json
 ```
 
+## Search Telemetry Export
+
+`examples/search_summary_export.py` runs the MCTS, minimax, and beam engines
+over a fixed set of positions (the empty board plus two mid-game positions,
+seed `20260716`) and writes one draft `search-summary.v1-draft` JSONL row per
+completed root search whose root identity was preserved. Rows skipped for an
+unpreserved root identity are logged to stderr, not written. See
+`docs/search-telemetry.md` for the counter semantics and value mapping this
+export relies on.
+
+```bash
+python examples/search_summary_export.py --out search-summaries.jsonl
+```
+
 ## Hybrid Player
 
 `quantik_core.hybrid.HybridPlayer` samples with MCTS or beam search while

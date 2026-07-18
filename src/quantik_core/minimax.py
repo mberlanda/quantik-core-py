@@ -49,6 +49,26 @@ from .evaluation import EvalConfig, evaluate
 from .game_utils import count_total_pieces, get_current_player_from_counts
 from .game_utils import has_winning_line
 from .move import Move, apply_move, generate_legal_moves_list
+from .search_telemetry import (
+    EngineKind,
+    PolicyMassKind,
+    RootMoveStat,
+    SearchEventCounters,
+    SearchTelemetry,
+)
+
+
+def minimax_q_from_score(score: float, win: float) -> float:
+    """Map a negamax score (root-player perspective) into [-1, 1].
+
+    Proven results (mate scores, |score| >= win - 16) map to exactly +/-1.0;
+    heuristic scores squash smoothly into (-1, 1) via score / (1 + |score|).
+    """
+    if score >= win - 16.0:
+        return 1.0
+    if score <= -(win - 16.0):
+        return -1.0
+    return score / (1.0 + abs(score))
 
 
 class Bound(IntEnum):
@@ -152,6 +172,12 @@ class MinimaxEngine:
             else None
         )
         self._pv_hint: List[Move] = []
+        self._counters = SearchEventCounters()
+        self._last_root_scored: List[Tuple[Move, float]] = []
+        self._last_root_value = 0.0
+        self._last_pv: List[Move] = []
+        self._last_depth = 0
+        self._last_elapsed_ms = 0
 
     def solve(self, state: State) -> MinimaxResult:
         """Exact solve: `search` with `max_depth=16` and no time limit.
@@ -191,6 +217,12 @@ class MinimaxEngine:
         self._nodes = 0
         self._tt = {}
         self._pv_hint = []
+        self._counters = SearchEventCounters()
+        self._last_root_scored = []
+        self._last_root_value = 0.0
+        self._last_pv = []
+        self._last_depth = 0
+        self._last_elapsed_ms = 0
         self._deadline = (
             start + self.config.time_limit_s
             if self.config.time_limit_s is not None
@@ -201,6 +233,11 @@ class MinimaxEngine:
         root_moves = generate_legal_moves_list(bb)
         if not root_moves:
             raise ValueError("Cannot search from a state with no legal moves.")
+        # The root's successor set is computed once here and reused across every
+        # iterative-deepening pass, so count the root expansion exactly once
+        # (not per depth). Interior nodes regenerate their moves on each visit
+        # and are counted in `_negamax`.
+        self._counters.expanded_nodes += 1
 
         result: Optional[MinimaxResult] = None
         for depth in range(1, self.config.max_depth + 1):
@@ -209,6 +246,9 @@ class MinimaxEngine:
             except _TimeUp:
                 break
             self._pv_hint = pv
+            self._last_pv = pv
+            self._last_depth = depth
+            self._last_elapsed_ms = int(round((time.monotonic() - start) * 1000))
             result = MinimaxResult(
                 best_move=best_move,
                 score=score,
@@ -259,6 +299,9 @@ class MinimaxEngine:
         """
         ordered = self._order_root_moves(moves)
         children = _children(bb, ordered, self.config.dedup_children)
+        self._counters.generated_nodes += len(ordered)
+        if self.config.dedup_children:
+            self._counters.canonical_dedup_hits += len(ordered) - len(children)
 
         best_value = float("-inf")
         scored: List[Tuple[Move, float, List[Move]]] = []
@@ -276,6 +319,8 @@ class MinimaxEngine:
         move, child_pv = (
             self._rng.choice(candidates) if self._rng is not None else candidates[0]
         )
+        self._last_root_scored = [(m, v) for m, v, _ in scored]
+        self._last_root_value = best_value
         return best_value, move, [move, *child_pv]
 
     def _check_time(self) -> None:
@@ -310,11 +355,17 @@ class MinimaxEngine:
             # The previous mover completed a line: the side to move here
             # has just lost. `ply` makes a sooner loss/win score more
             # extremely than a deeper one (shallower mates score higher).
+            self._counters.terminal_hits += 1
             return -(win - ply)
 
         moves = generate_legal_moves_list(bb)
+        # The successor set was just computed, so this node is expanded --
+        # including the no-legal-moves case below (which is then ALSO terminal)
+        # and the depth-0 leaf case, which returns before any child is built.
+        self._counters.expanded_nodes += 1
         if not moves:
             # No legal moves: the side to move also loses.
+            self._counters.terminal_hits += 1
             return -(win - ply)
 
         if depth == 0:
@@ -334,6 +385,7 @@ class MinimaxEngine:
                 stored_depth, stored_value, bound = entry
                 if stored_depth >= depth:
                     if bound == Bound.EXACT:
+                        self._counters.transposition_hits += 1
                         return stored_value
                     # LOWER/UPPER entries only narrow the window (and can
                     # trigger the early-return cutoff below) when
@@ -347,10 +399,14 @@ class MinimaxEngine:
                         elif bound == Bound.UPPER:
                             beta = min(beta, stored_value)
                         if alpha >= beta:
+                            self._counters.transposition_hits += 1
                             return stored_value
 
         ordered = sorted(moves, key=_move_sort_key)
         children = _children(bb, ordered, self.config.dedup_children)
+        self._counters.generated_nodes += len(ordered)
+        if self.config.dedup_children:
+            self._counters.canonical_dedup_hits += len(ordered) - len(children)
         # Move ordering: try immediate winning replies first. A move that
         # completes a line makes this node a forced win (child is terminal,
         # value -(win-ply) negated to +(win-ply)), so exploring it first
@@ -395,3 +451,28 @@ class MinimaxEngine:
             self._tt[tt_key] = (depth, best_value, bound)
 
         return best_value
+
+    def telemetry(self) -> Optional[SearchTelemetry]:
+        """Derive telemetry from the last completed root search.
+
+        Returns None before any search completes.
+        """
+        if not self._last_root_scored:
+            return None
+        win = self.config.eval_config.win
+        root_moves = [
+            RootMoveStat.from_move(mv, 0, minimax_q_from_score(score, win))
+            for mv, score in self._last_root_scored
+        ]
+        return SearchTelemetry(
+            engine_kind=EngineKind.MINIMAX,
+            root_value=minimax_q_from_score(self._last_root_value, win),
+            policy_mass_kind=PolicyMassKind.NONE,
+            root_moves=root_moves,
+            root_identity_preserved=not self.config.dedup_children,
+            principal_variation=list(self._last_pv),
+            counters=self._counters,
+            elapsed_ms=self._last_elapsed_ms,
+            depth_reached=self._last_depth,
+            seed=self.config.random_seed,
+        )
