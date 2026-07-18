@@ -1,7 +1,7 @@
 """Draft search-telemetry exporter example.
 
 Runs the MCTS, minimax, and beam engines against a handful of fixed positions
-and writes one `search-summary.v1-draft` JSONL row per completed root search
+and writes one `search-summary.v1` JSONL row per completed root search
 whose root identity was preserved. Rows skipped for an unpreserved root
 identity are logged to stderr, not written. Uses the SAME positions and seed as
 the Rust example (`examples/search_summary_export.rs`) so rows are

@@ -15,4 +15,5 @@ SUPPORTED_CONTRACTS = {
     "observation": "observation.v1",
     "game_result": "game-result.v1",
     "model_checkpoint": "model-checkpoint.v1",
+    "search_summary": "search-summary.v1",
 }

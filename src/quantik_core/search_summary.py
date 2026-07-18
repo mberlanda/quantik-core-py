@@ -1,9 +1,9 @@
-"""Draft `search-summary.v1-draft` JSONL exporter.
+"""`search-summary.v1` JSONL exporter.
 
 Mirrors `quantik-core-rust`'s `bench::contracts::search_summary_row`
-field-for-field. This is a DRAFT surface: the schema label is
-`search-summary.v1-draft` and the stable `search-summary.v1` label MUST NOT be
-emitted until the contract is registered in quantik-core-contracts.
+field-for-field. The contract is registered in quantik-core-contracts
+(`schemas/search-summary-v1.json`), so this exporter emits the stable
+`search-summary.v1` schema label.
 """
 
 from dataclasses import dataclass
@@ -15,10 +15,9 @@ from .core import State
 from .game_utils import count_total_pieces, get_current_player_from_counts
 from .search_telemetry import SearchTelemetry
 
-# Draft, unstable schema for per-search-call telemetry rows. NOT added to
-# contracts.SUPPORTED_CONTRACTS -- this is a draft surface, not a stabilized
-# cross-repository contract.
-SEARCH_SUMMARY_DRAFT_SCHEMA = "search-summary.v1-draft"
+# Registered schema label for per-search-call telemetry rows
+# (contracts.SUPPORTED_CONTRACTS["search_summary"]).
+SEARCH_SUMMARY_SCHEMA = "search-summary.v1"
 SEARCH_SUMMARY_CONTRACT_VERSION = "1.1.0"
 
 try:
@@ -81,7 +80,7 @@ def search_summary_row(
     ]
 
     return {
-        "schema": SEARCH_SUMMARY_DRAFT_SCHEMA,
+        "schema": SEARCH_SUMMARY_SCHEMA,
         "contract_version": SEARCH_SUMMARY_CONTRACT_VERSION,
         "run_id": run_id,
         "row_id": row_id,
