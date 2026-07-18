@@ -114,7 +114,7 @@ python examples/cross_engine_benchmark.py report \
 
 `examples/search_summary_export.py` runs the MCTS, minimax, and beam engines
 over a fixed set of positions (the empty board plus two mid-game positions,
-seed `20260716`) and writes one draft `search-summary.v1-draft` JSONL row per
+seed `20260716`) and writes one `search-summary.v1` JSONL row per
 completed root search whose root identity was preserved. Rows skipped for an
 unpreserved root identity are logged to stderr, not written. See
 `docs/search-telemetry.md` for the counter semantics and value mapping this

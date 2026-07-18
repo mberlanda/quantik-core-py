@@ -3,18 +3,17 @@
 This document describes the `search_telemetry` surface shared by the MCTS,
 beam, and minimax engines in this package: what each event counter means, how
 each engine maps its internal values onto a common `[-1, 1]` scale, when a
-telemetry record's root-move identity is trustworthy, and how to export draft
-JSONL rows for offline analysis.
+telemetry record's root-move identity is trustworthy, and how to export
+`search-summary.v1` JSONL rows for offline analysis.
 
 ## 1. Purpose
 
-`search-summary.v1` is a proposed but not-yet-registered data contract for
-search diagnostics (event counters, root-move statistics, principal
-variation) emitted by any of this package's search engines. Registration
-requires that the Rust and Python implementations expose the same observable
-semantics before any artifact carries the finished contract label. This is
-PR 2 of a three-part workstream: the Rust surface (PR 1, merged), this Python
-mirror (PR 2), and contract registration (PR 3, which flips the draft label).
+`search-summary.v1` is a registered data contract
+(`quantik-core-contracts` `schemas/search-summary-v1.json`) for search
+diagnostics (event counters, root-move statistics, principal variation) emitted
+by any of this package's search engines. The Rust surface, this Python mirror,
+and the contract registration all landed; this exporter emits the stable
+`search-summary.v1` schema label.
 
 See also:
 - Rust source doc: `quantik-core-rust/docs/search-telemetry.md` — the
@@ -152,7 +151,7 @@ minimax `dedup_children=False`, and treat beam skips as expected.
 
 ## 6. Exporter usage
 
-Run the draft exporter example against a small fixed position set (the empty
+Run the exporter example against a small fixed position set (the empty
 board plus two mid-game positions), across all three engines:
 
 ```sh
@@ -160,11 +159,11 @@ python examples/search_summary_export.py --out <path>
 ```
 
 This writes one JSON line per completed root search whose root identity was
-preserved, using the schema label `search-summary.v1-draft`
-(`SEARCH_SUMMARY_DRAFT_SCHEMA` in `quantik_core.search_summary`). Rows that are
+preserved, using the registered schema label `search-summary.v1`
+(`SEARCH_SUMMARY_SCHEMA` in `quantik_core.search_summary`). Rows that are
 skipped for an unpreserved root identity are logged to stderr, not written.
 
-**`search-summary.v1` (the non-draft label) must not be emitted anywhere
-until the contract is registered in `quantik-core-contracts`.** The draft
-label exists specifically so downstream consumers can distinguish
-work-in-progress rows from a finished, versioned contract.
+The contract is registered in `quantik-core-contracts`
+(`schemas/search-summary-v1.json`, and `search_summary` in
+`SUPPORTED_CONTRACTS`), so downstream consumers can rely on the stable
+`search-summary.v1` label.

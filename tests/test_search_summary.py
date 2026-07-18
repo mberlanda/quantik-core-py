@@ -1,16 +1,17 @@
-"""Tests for the draft search-summary.v1-draft exporter."""
+"""Tests for the search-summary.v1 exporter."""
 
 import json
 
 import pytest
 
 from quantik_core import State
+from quantik_core.contracts import SUPPORTED_CONTRACTS
 from quantik_core.mcts import MCTSConfig, MCTSEngine
 from quantik_core.minimax import MinimaxConfig, MinimaxEngine
 from quantik_core.move import Move
 from quantik_core.search_summary import (
     SEARCH_SUMMARY_CONTRACT_VERSION,
-    SEARCH_SUMMARY_DRAFT_SCHEMA,
+    SEARCH_SUMMARY_SCHEMA,
     SearchSummaryRunConfig,
     search_summary_row,
 )
@@ -27,10 +28,10 @@ def _run_config() -> SearchSummaryRunConfig:
     return SearchSummaryRunConfig(config_label="test", search_depth=4)
 
 
-def test_draft_schema_label_is_exact() -> None:
-    assert SEARCH_SUMMARY_DRAFT_SCHEMA == "search-summary.v1-draft"
-    # The non-draft label must not appear anywhere in the module output.
-    assert "search-summary.v1" != SEARCH_SUMMARY_DRAFT_SCHEMA
+def test_schema_label_is_registered() -> None:
+    assert SEARCH_SUMMARY_SCHEMA == "search-summary.v1"
+    # The registered label is listed in the supported-contracts manifest.
+    assert SUPPORTED_CONTRACTS["search_summary"] == "search-summary.v1"
 
 
 def test_row_shape_and_mask_consistency() -> None:
@@ -43,7 +44,7 @@ def test_row_shape_and_mask_consistency() -> None:
     assert t is not None
     row = search_summary_row(0, "run-test", qfen, t, _run_config())
     assert row is not None
-    assert row["schema"] == SEARCH_SUMMARY_DRAFT_SCHEMA
+    assert row["schema"] == SEARCH_SUMMARY_SCHEMA
     assert row["contract_version"] == SEARCH_SUMMARY_CONTRACT_VERSION
     assert row["engine_kind"] == "minimax"
     assert len(row["policy_visits"]) == 64
