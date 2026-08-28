@@ -12,10 +12,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: mberlanda/quantik-core-contracts/actions/validate-contracts@v1.2.0
+      # quantik-core-contracts removed the composite validate-contracts action
+      # in mberlanda/quantik-core-contracts#6 ("keep validate-contracts local to
+      # the workflow"). It survives only in the v1.1.0 tag, so this job pinned
+      # itself to a deleted action. Call the script from a pinned checkout.
+      - name: Checkout contracts
+        uses: actions/checkout@v7
         with:
-          fixture-glob: "tests/fixtures/selfplay*.jsonl"
-          expected-release: "1.2.0"
+          repository: mberlanda/quantik-core-contracts
+          ref: v1.2.0
+          path: .contracts
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate contract fixtures
+        run: |
+          python .contracts/scripts/validate_contracts.py \
+            --fixture-glob "tests/fixtures/selfplay*.jsonl" \
+            --expected-release 1.2.0
 
   opening-book-consistency:
     runs-on: ubuntu-latest

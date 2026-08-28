@@ -589,7 +589,7 @@ def test_observation_parquet_rejects_release_metadata_drift(tmp_path):
 
     pq.write_table(table.replace_schema_metadata(metadata), path)
 
-    with pytest.raises(ValueError, match="contracts_release must be 1\\.1\\.0"):
+    with pytest.raises(ValueError, match="contracts_release must be 1\\.2\\.0"):
         load_observations_parquet(path)
 
 
