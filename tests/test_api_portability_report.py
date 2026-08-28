@@ -15,11 +15,11 @@ def make_contracts_root(tmp_path: Path) -> Path:
     contracts_root = tmp_path / "contracts"
     fixture_dir = contracts_root / "fixtures" / "api-portability"
     fixture_dir.mkdir(parents=True)
-    (contracts_root / "VERSION").write_text("1.1.0\n", encoding="utf-8")
+    (contracts_root / "VERSION").write_text("1.2.0\n", encoding="utf-8")
     (contracts_root / "contracts.json").write_text(
         json.dumps(
             {
-                "release_version": "1.1.0",
+                "release_version": "1.2.0",
                 "contracts": {
                     "qfen": {"id": "qfen.v1"},
                     "bitboard": {"id": "bitboard.v1"},
@@ -33,7 +33,7 @@ def make_contracts_root(tmp_path: Path) -> Path:
         json.dumps(
             {
                 "schema": "api-portability-fixtures.v1",
-                "contract_version": "1.1.0",
+                "contract_version": "1.2.0",
                 "game_state_cases": [
                     {
                         "case_id": "empty-board",
@@ -94,11 +94,11 @@ def test_api_portability_report_cli_writes_normalized_report(tmp_path: Path) -> 
     assert raw.endswith("\n")
     report = json.loads(raw)
     assert report["schema"] == "api-portability-report.v1"
-    assert report["contracts_release"] == "1.1.0"
+    assert report["contracts_release"] == "1.2.0"
     assert report["implementation"] == {
         "language": "python",
         "package": "quantik-core",
-        "version": "1.1.0",
+        "version": "1.2.0",
     }
     assert report["contract_ids"] == {
         "qfen": "qfen.v1",
@@ -360,7 +360,7 @@ def test_api_portability_report_rejects_fixture_metadata_drift(
     fixture["contract_version"] = "1.0.0"
     write_fixture(contracts_root, fixture)
 
-    with pytest.raises(ValueError, match="contract_version must match 1.1.0"):
+    with pytest.raises(ValueError, match="contract_version must match 1.2.0"):
         build_report(contracts_root)
 
 
