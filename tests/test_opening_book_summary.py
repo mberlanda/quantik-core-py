@@ -95,7 +95,7 @@ def test_build_summary_exports_rust_style_book_metrics(tmp_path):
 
     assert summary == {
         "schema": "opening-book-summary.v1",
-        "contract_version": "1.1.0",
+        "contract_version": "1.2.0",
         "depth": 2,
         "total_positions": 4,
         "terminal_positions": 1,

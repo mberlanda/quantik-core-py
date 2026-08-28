@@ -18,7 +18,7 @@ from .search_telemetry import SearchTelemetry
 # Registered schema label for per-search-call telemetry rows
 # (contracts.SUPPORTED_CONTRACTS["search_summary"]).
 SEARCH_SUMMARY_SCHEMA = "search-summary.v1"
-SEARCH_SUMMARY_CONTRACT_VERSION = "1.1.0"
+SEARCH_SUMMARY_CONTRACT_VERSION = "1.2.0"
 
 try:
     _ENGINE_VERSION = version("quantik-core")

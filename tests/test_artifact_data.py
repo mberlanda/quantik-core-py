@@ -32,7 +32,7 @@ def observation_record():
     visits[0] = 1
     return {
         "schema": OBSERVATION_SCHEMA,
-        "contract_version": "1.1.0",
+        "contract_version": "1.2.0",
         "run_id": "run-1",
         "row_id": 0,
         "position_key": "00",
@@ -54,7 +54,7 @@ def observation_record():
 def game_result_record():
     return {
         "schema": GAME_RESULT_SCHEMA,
-        "contract_version": "1.1.0",
+        "contract_version": "1.2.0",
         "game_id": "game-1",
         "started_at": "2026-07-14T00:00:00+0200",
         "p0_engine_kind": "mcts",
@@ -73,7 +73,7 @@ def game_result_record():
 def model_manifest_record():
     return {
         "schema": MODEL_CHECKPOINT_SCHEMA,
-        "contract_version": "1.1.0",
+        "contract_version": "1.2.0",
         "model_id": "quantik-qnue-small",
         "model_family": "qnue",
         "created_at": "2026-07-14T00:00:00+0200",
@@ -95,7 +95,7 @@ def test_parse_observation_row_accepts_valid_contract_row():
     row = parse_observation_row(observation_record())
 
     assert row.schema == OBSERVATION_SCHEMA
-    assert row.contract_version == "1.1.0"
+    assert row.contract_version == "1.2.0"
     assert row.run_id == "run-1"
     assert row.row_id == 0
     assert row.bitboards == (0, 0, 0, 0, 0, 0, 0, 0)
@@ -221,7 +221,7 @@ def test_parse_game_result_row_accepts_valid_contract_row():
     row = parse_game_result_row(game_result_record())
 
     assert row.schema == GAME_RESULT_SCHEMA
-    assert row.contract_version == "1.1.0"
+    assert row.contract_version == "1.2.0"
     assert row.game_id == "game-1"
     assert row.started_at == "2026-07-14T00:00:00+0200"
     assert row.p0_engine_kind == "mcts"
@@ -278,7 +278,7 @@ def test_parse_model_checkpoint_manifest_accepts_valid_manifest():
     manifest = parse_model_checkpoint_manifest(model_manifest_record())
 
     assert manifest.schema == MODEL_CHECKPOINT_SCHEMA
-    assert manifest.contract_version == "1.1.0"
+    assert manifest.contract_version == "1.2.0"
     assert manifest.model_id == "quantik-qnue-small"
     assert manifest.created_at == "2026-07-14T00:00:00+0200"
     assert manifest.input_contracts == ("bitboard.v1", "action-index.v1")
@@ -307,7 +307,7 @@ def test_load_model_checkpoint_manifest_fixture():
     manifest = load_model_checkpoint_manifest(MODEL_CHECKPOINT_FIXTURE)
 
     assert manifest.schema == MODEL_CHECKPOINT_SCHEMA
-    assert manifest.contract_version == "1.1.0"
+    assert manifest.contract_version == "1.2.0"
     assert manifest.model_id == "quantik-policy-value-fixture"
     assert manifest.input_contracts == ("observation.v1",)
     assert manifest.weights_format == "safetensors"
@@ -338,7 +338,7 @@ def test_parse_model_checkpoint_manifest_rejects_empty_input_contracts():
         (
             "contract_version",
             "1.0.0",
-            "contract_version must match supported contracts release 1.1.0",
+            "contract_version must match supported contracts release 1.2.0",
         ),
         ("model_id", "   ", "model_id must be a non-empty string"),
         ("model_family", "   ", "model_family must be a non-empty string"),
@@ -589,7 +589,7 @@ def test_observation_parquet_rejects_release_metadata_drift(tmp_path):
 
     pq.write_table(table.replace_schema_metadata(metadata), path)
 
-    with pytest.raises(ValueError, match="contracts_release must be 1\\.1\\.0"):
+    with pytest.raises(ValueError, match="contracts_release must be 1\\.2\\.0"):
         load_observations_parquet(path)
 
 
@@ -618,7 +618,7 @@ def test_game_result_parquet_rejects_physical_schema_drift(tmp_path):
             [
                 {
                     "schema": GAME_RESULT_SCHEMA,
-                    "contract_version": "1.1.0",
+                    "contract_version": "1.2.0",
                     "game_id": "game-1",
                 }
             ],

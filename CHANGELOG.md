@@ -4,6 +4,21 @@ All notable changes to `quantik-core` are documented here.
 
 ## Unreleased
 
+## 1.2.0 - 2026-08-28
+
+### Changed
+
+- Bumped `SUPPORTED_CONTRACTS_RELEASE` and `SEARCH_SUMMARY_CONTRACT_VERSION` to
+  `1.2.0`, tracking the `quantik-core-contracts` 1.2.0 release that registers
+  `model-checkpoint.v1` and `search-summary.v1`.
+- Bumped the `validate-contracts` and `opening-book-consistency` actions to
+  `@v1.2.0` and their `expected-release` inputs to `1.2.0`.
+- The opening-book consistency job now checks out `quantik-core-rust` at `main`
+  (or the matching `v*` tag when this repo is tagged) instead of the frozen
+  `contracts-1.1-opening-book-consistency` branch, mirroring how
+  `quantik-core-rust` already pins this repo. The frozen branch was stuck at
+  contracts 1.1.0 and would have failed every release bump from now on.
+
 ## 1.1.0 - 2026-07-14
 
 ### Added

@@ -29,7 +29,7 @@ def observation_record(row_id: int = 0):
     visits[21] = 1
     return {
         "schema": OBSERVATION_SCHEMA,
-        "contract_version": "1.1.0",
+        "contract_version": "1.2.0",
         "run_id": "run-1",
         "row_id": row_id,
         "position_key": f"pos-{row_id}",
@@ -91,7 +91,7 @@ def test_training_view_uses_materialized_bitboards_without_qfen_roundtrip():
     visits[21] = 1
     row = ObservationRow(
         schema=OBSERVATION_SCHEMA,
-        contract_version="1.1.0",
+        contract_version="1.2.0",
         run_id="run-1",
         row_id=0,
         position_key="pos-0",

@@ -6,7 +6,7 @@ owns high-throughput search, self-play generation, and other compute-heavy
 loops. Both packages must agree on the canonical contracts from
 `mberlanda/quantik-core-contracts`.
 
-Python currently declares support for contracts release `1.1.0` via
+Python currently declares support for contracts release `1.2.0` via
 `quantik_core.SUPPORTED_CONTRACTS_RELEASE`.
 
 ## Stable Shared Model
@@ -31,7 +31,7 @@ Rust self-play export rows are one JSON object per line:
 ```json
 {
   "schema": "selfplay.v1",
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "game_id": 0,
   "ply": 0,
   "qfen": "..../..../..../....",
@@ -47,7 +47,7 @@ Rust self-play export rows are one JSON object per line:
 Python validates that:
 
 - `schema` is `selfplay.v1`.
-- `contract_version`, when present, is `1.1.0`.
+- `contract_version`, when present, is `1.2.0`.
 - `qfen` parses and `side_to_move` matches the current player implied by the bitboards.
 - each policy entry is a legal move for the row state.
 - each policy entry has `shape` in `0..3`, `position` in `0..15`, and positive integer `visits`.
@@ -86,13 +86,13 @@ Rows and columns match the QFEN position order: `row = position // 4`,
 exporter schema. `tests/fixtures/selfplay_v1_rust_smoke.jsonl` mirrors the
 checked-in Rust-builder smoke rows so Python keeps proving that Rust-emitted
 JSONL remains consumable. The dedicated `Contracts` workflow also validates the
-fixture through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.1.0`.
+fixture through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.2.0`.
 
 ## Next Steps
 
 1. Rust: keep `MCTSEngine::root_move_visits()` exports routed through the `selfplay.v1` contract builder.
 2. Python: keep `quantik_core.ml_data` as the reference reader, tensor/policy encoder, and dense storage-record converter.
-3. Contracts: validate fixtures through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.1.0`.
+3. Contracts: validate fixtures through `mberlanda/quantik-core-contracts/actions/validate-contracts@v1.2.0`.
 4. Cross-repo: add live producer/consumer CI wiring once release artifacts are published, using the checked-in Rust smoke fixture as the minimum evidence floor.
 5. ML: build the PyTorch dataset and policy/value model on top of `SelfPlayRow`, `qfen_to_tensor`, and `policy_visits_to_distribution`.
 6. Evaluation: register the trained model in the existing cross-engine benchmark harness instead of creating a separate ladder.
