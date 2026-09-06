@@ -54,8 +54,8 @@ def test_load_rust_generated_selfplay_smoke_fixture():
 
 
 def test_supported_contracts_are_declared():
-    assert SUPPORTED_CONTRACTS_RELEASE == "1.2.0"
-    assert SUPPORTED_CONTRACTS["contracts_release"] == "1.2.0"
+    assert SUPPORTED_CONTRACTS_RELEASE == "1.3.0"
+    assert SUPPORTED_CONTRACTS["contracts_release"] == "1.3.0"
     assert SUPPORTED_CONTRACTS["selfplay"] == "selfplay.v1"
     assert SUPPORTED_CONTRACTS["action_index"] == "action-index.v1"
     assert SUPPORTED_CONTRACTS["arrow_parquet_selfplay"] == "arrow-parquet-selfplay.v1"
