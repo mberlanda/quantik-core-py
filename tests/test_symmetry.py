@@ -349,5 +349,104 @@ class TestMoveSymmetry:
         assert restored.position == move.position
 
 
+class TestActionIndexRemap:
+    """
+    Tests for SymmetryHandler.remap_action_index / inverse_transform_index --
+    the QW-001 action-index.v1 transform-remap contract (see
+    quantik-core-contracts/docs/symmetry-transposition.md and
+    fixtures/symmetry/symmetry-v1.json).
+    """
+
+    def test_identity_transform_is_a_no_op(self):
+        for action_index in range(64):
+            assert SymmetryHandler.remap_action_index(action_index, 0) == action_index
+
+    def test_rejects_out_of_range_action_index(self):
+        with pytest.raises(ValueError):
+            SymmetryHandler.remap_action_index(64, 0)
+        with pytest.raises(ValueError):
+            SymmetryHandler.remap_action_index(-1, 0)
+
+    def test_rejects_out_of_range_transform_index(self):
+        with pytest.raises(ValueError):
+            SymmetryHandler.remap_action_index(0, 192)
+        with pytest.raises(ValueError):
+            SymmetryHandler.remap_action_index(0, -1)
+        with pytest.raises(ValueError):
+            SymmetryHandler.inverse_transform_index(192)
+
+    def test_round_trip_every_transform_and_action(self):
+        """remap then remap-by-inverse must recover the original action index,
+        for every one of the 192 transforms and 64 action indices."""
+        for transform_index in range(192):
+            inverse = SymmetryHandler.inverse_transform_index(transform_index)
+            for action_index in range(64):
+                transformed = SymmetryHandler.remap_action_index(
+                    action_index, transform_index
+                )
+                assert 0 <= transformed < 64
+                restored = SymmetryHandler.remap_action_index(transformed, inverse)
+                assert restored == action_index
+
+    def test_inverse_of_inverse_is_identity_transform(self):
+        for transform_index in range(192):
+            inverse = SymmetryHandler.inverse_transform_index(transform_index)
+            assert SymmetryHandler.inverse_transform_index(inverse) == transform_index
+
+    def test_pure_d4_matches_apply_symmetry_to_move(self):
+        """remap_action_index must agree with the existing Move-level
+        apply_symmetry_to_move for every pure D4 transform (no shape perm)."""
+        move = Move(player=0, shape=2, position=5)
+        action_index = move.shape * 16 + move.position
+        for d4_idx in range(8):
+            transform = SymmetryTransform(
+                d4_index=d4_idx, color_swap=False, shape_perm=(0, 1, 2, 3)
+            )
+            via_move = SymmetryHandler.apply_symmetry_to_move(move, transform)
+            via_action_index = SymmetryHandler.remap_action_index(
+                action_index, d4_idx * 24
+            )
+            assert via_action_index == via_move.shape * 16 + via_move.position
+
+    def test_pure_shape_relabel_matches_apply_symmetry_to_move(self):
+        move = Move(player=0, shape=2, position=5)
+        action_index = move.shape * 16 + move.position
+        perm = (0, 1, 3, 2)
+        transform = SymmetryTransform(d4_index=0, color_swap=False, shape_perm=perm)
+        via_move = SymmetryHandler.apply_symmetry_to_move(move, transform)
+        perm_index = SymmetryHandler.ALL_SHAPE_PERMS.index(perm)
+        via_action_index = SymmetryHandler.remap_action_index(action_index, perm_index)
+        assert via_action_index == via_move.shape * 16 + via_move.position
+
+    def test_golden_cases_from_contracts_fixture(self):
+        """Values copied from quantik-core-contracts'
+        fixtures/symmetry/symmetry-v1.json action_remap_cases, which were
+        themselves generated from this implementation -- this test exists so
+        a future change to remap_action_index/inverse_transform_index has to
+        deliberately update the shared fixture, not silently drift from it."""
+        golden = [
+            # (action_index, transform_index, expected_action_index, inverse_transform_index)
+            (37, 0, 37, 0),  # identity
+            (37, 24, 38, 72),  # rot90
+            (37, 48, 42, 48),  # rot180
+            (37, 72, 41, 24),  # rot270
+            (37, 96, 38, 96),  # reflV
+            (37, 120, 41, 120),  # reflH
+            (37, 144, 37, 144),  # reflD
+            (37, 168, 42, 168),  # reflAD
+            (37, 1, 53, 1),  # pure shape relabel (shapes 2<->3)
+            (37, 25, 54, 73),  # rot90 + shape relabel
+        ]
+        for action_index, transform_index, expected, expected_inverse in golden:
+            assert (
+                SymmetryHandler.remap_action_index(action_index, transform_index)
+                == expected
+            )
+            assert (
+                SymmetryHandler.inverse_transform_index(transform_index)
+                == expected_inverse
+            )
+
+
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])

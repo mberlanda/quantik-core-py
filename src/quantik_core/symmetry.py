@@ -464,6 +464,68 @@ class SymmetryHandler:
         return Move(player=new_player, shape=new_shape, position=new_pos)
 
     @classmethod
+    def remap_action_index(cls, action_index: int, transform_index: int) -> int:
+        """
+        Remap an `action-index.v1` value (`shape * 16 + position`) under one
+        of the 192 canonicalization transforms.
+
+        `transform_index` encodes `(d4_index, shape_perm)` as
+        `d4_index * 24 + shape_perm_index`, where `shape_perm_index` indexes
+        `ALL_SHAPE_PERMS` (lexicographic order of the 24 permutations of
+        `(0, 1, 2, 3)`, matching Rust's independently-generated table and
+        `itertools.permutations`). This is the same 192-element group
+        `find_canonical_form`/`count_orbit_size` search over -- color swap is
+        not part of it. See `docs/symmetry-transposition.md` in
+        quantik-core-contracts for the normative definition and
+        `fixtures/symmetry/symmetry-v1.json` for golden cases.
+
+        Args:
+            action_index: 0..63, `shape * 16 + position`.
+            transform_index: 0..191, `d4_index * 24 + shape_perm_index`.
+
+        Returns:
+            The transformed action index, 0..63.
+        """
+        if not 0 <= action_index < 64:
+            raise ValueError(f"action_index must be 0..63, got {action_index}")
+        if not 0 <= transform_index < 192:
+            raise ValueError(f"transform_index must be 0..191, got {transform_index}")
+
+        cls._ensure_initialized()
+        shape, position = divmod(action_index, 16)
+        d4_index, shape_perm_index = divmod(transform_index, 24)
+        shape_perm = cls.ALL_SHAPE_PERMS[shape_perm_index]
+
+        new_position = cls.D4_MAPPINGS[d4_index][position]
+        # Inverse lookup, not shape_perm[shape]: shape_perm[k] names which
+        # *original* shape moves into output slot k (see apply_symmetry/
+        # find_canonical_form), so the slot receiving old shape `shape` is
+        # shape_perm.index(shape).
+        new_shape = shape_perm.index(shape)
+        return new_shape * 16 + new_position
+
+    @classmethod
+    def inverse_transform_index(cls, transform_index: int) -> int:
+        """
+        Return the `transform_index` of the inverse transform.
+
+        Applying `remap_action_index(remap_action_index(a, t), inverse_transform_index(t))`
+        returns `a` for every action index `a` and transform index `t`.
+        """
+        if not 0 <= transform_index < 192:
+            raise ValueError(f"transform_index must be 0..191, got {transform_index}")
+
+        d4_index, shape_perm_index = divmod(transform_index, 24)
+        shape_perm = cls.ALL_SHAPE_PERMS[shape_perm_index]
+        inverse_perm = [0] * 4
+        for i, j in enumerate(shape_perm):
+            inverse_perm[j] = i
+
+        d4_inverse = int(cls.get_d4_inverse(D4Index(d4_index)))
+        inverse_perm_index = cls.ALL_SHAPE_PERMS.index(tuple(inverse_perm))
+        return d4_inverse * 24 + inverse_perm_index
+
+    @classmethod
     def get_qfen_canonical_form(cls, qfen: str) -> str:
         """
         Get the canonical QFEN among all symmetric variants.
