@@ -98,7 +98,7 @@ def test_api_portability_report_cli_writes_normalized_report(tmp_path: Path) -> 
     assert report["implementation"] == {
         "language": "python",
         "package": "quantik-core",
-        "version": "1.2.0",
+        "version": "1.3.0",
     }
     assert report["contract_ids"] == {
         "qfen": "qfen.v1",
