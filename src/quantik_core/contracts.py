@@ -1,6 +1,6 @@
 """Shared Quantik portability contract identifiers."""
 
-SUPPORTED_CONTRACTS_RELEASE = "1.2.0"
+SUPPORTED_CONTRACTS_RELEASE = "1.3.0"
 
 SUPPORTED_CONTRACTS = {
     "contracts_release": SUPPORTED_CONTRACTS_RELEASE,

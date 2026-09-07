@@ -4,6 +4,27 @@ All notable changes to `quantik-core` are documented here.
 
 ## Unreleased
 
+## 1.3.0 - 2026-09-06
+
+### Added
+
+- `SymmetryHandler.remap_action_index(action_index, transform_index)` and
+  `SymmetryHandler.inverse_transform_index(transform_index)` — the
+  `action-index.v1` transform-remap contract from QW-001.
+  `transform_index = d4_index * 24 + shape_perm_index` (0..191) over the
+  same 192-element D4 x shape-permutation group `find_canonical_form`/
+  `count_orbit_size` already search over; color swap is not part of it. See
+  `quantik-core-contracts`' `docs/symmetry-transposition.md` for the
+  normative definition and `fixtures/symmetry/symmetry-v1.json` for golden
+  cases this implementation is cross-checked against.
+
+### Changed
+
+- Bumped `SUPPORTED_CONTRACTS_RELEASE` and `SEARCH_SUMMARY_CONTRACT_VERSION`
+  to `1.3.0`, tracking the `quantik-core-contracts` 1.3.0 release.
+- Bumped the `validate-contracts` and `opening-book-consistency` actions to
+  `@v1.3.0` and their `expected-release` inputs to `1.3.0`.
+
 ## 1.2.0 - 2026-08-28
 
 ### Changed

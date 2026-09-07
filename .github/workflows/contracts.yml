@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: mberlanda/quantik-core-contracts
-          ref: v1.2.0
+          ref: v1.3.0
           path: .contracts
 
       - name: Set up Python
@@ -32,7 +32,7 @@ jobs:
         run: |
           python .contracts/scripts/validate_contracts.py \
             --fixture-glob "tests/fixtures/selfplay*.jsonl" \
-            --expected-release 1.2.0
+            --expected-release 1.3.0
 
   opening-book-consistency:
     runs-on: ubuntu-latest
@@ -65,7 +65,16 @@ jobs:
         run: python -m pip install -e .
 
       - name: Run opening-book consistency action
-        uses: mberlanda/quantik-core-contracts/actions/opening-book-consistency@v1.2.0
+        # expected-release is deliberately not set here: this job checks out
+        # quantik-core-rust at `main`, and asserting a fixed release against
+        # a sibling's main is exactly the cross-repo circular-wait deadlock
+        # this project hit once already during the 1.2.0 release (see
+        # https://mauroberlanda.substack.com/p/the-deadlock-i-wrote-myself-when).
+        # This step is drift detection only (do both stacks enumerate the
+        # same opening-book graph?); version alignment is verified against
+        # published PyPI/crates.io artifacts by a separate nightly job in
+        # quantik-core-contracts instead.
+        uses: mberlanda/quantik-core-contracts/actions/opening-book-consistency@v1.3.1
         with:
           rust-command: |
             mkdir -p quantik-core-rust/target/opening-book-consistency
@@ -89,4 +98,3 @@ jobs:
           rust-summary: quantik-core-rust/target/opening-book-consistency/rust-summary.json
           python-summary: quantik-core-rust/target/opening-book-consistency/python-summary.json
           expected-depth: "4"
-          expected-release: "1.2.0"
