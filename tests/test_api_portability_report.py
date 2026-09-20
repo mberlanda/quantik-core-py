@@ -621,9 +621,10 @@ def test_default_contracts_root_falls_back_to_the_module_location_without_git(
     monkeypatch.setattr(subprocess, "run", no_git)
     monkeypatch.setattr(apr, "__file__", str(module))
 
-    assert apr._get_default_contracts_root() == (
-        tmp_path / "quantik-core-contracts"
-    ).resolve()
+    assert (
+        apr._get_default_contracts_root()
+        == (tmp_path / "quantik-core-contracts").resolve()
+    )
 
 
 def test_main_without_contracts_root_uses_the_default(
