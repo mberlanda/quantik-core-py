@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import struct
+import subprocess
+import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Sequence, cast
@@ -20,6 +22,48 @@ REPORT_SCHEMA = "api-portability-report.v1"
 FIXTURE_SCHEMA = "api-portability-fixtures.v1"
 FIXTURE_PATH = Path("fixtures/api-portability/game-state-v1.json")
 CONTRACT_KEYS = ("qfen", "bitboard", "action_index")
+
+
+def _get_default_contracts_root() -> Path:
+    """Get the default contracts root path (sibling quantik-core-contracts checkout).
+
+    Returns the sibling directory ../quantik-core-contracts relative to the
+    repository root. Raises ValueError if the path does not exist.
+    """
+    # Find the repo root using git, handling worktrees
+    repo_root = None
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        git_dir = Path(result.stdout.strip()).resolve()
+        # For worktrees, git_dir is .../quantik-core-py/.git/worktrees/wt-name
+        # We need to go back to the actual repo root
+        if git_dir.parent.name == "worktrees":
+            # This is a worktree; go up to .git, then to repo root
+            repo_root = git_dir.parent.parent.parent
+        else:
+            # This is a regular checkout; go up from .git to repo root
+            repo_root = git_dir.parent
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    if repo_root is None:
+        # Fallback: use the module file location
+        module_file = Path(__file__).resolve()
+        repo_root = module_file.parents[2]  # src is 2 levels up
+
+    contracts_root = repo_root.parent / "quantik-core-contracts"
+
+    if not contracts_root.exists():
+        raise ValueError(
+            f"Contracts root not found at {contracts_root}. "
+            f"Use --contracts-root to specify an alternative path."
+        )
+    return contracts_root
 
 
 def _package_version() -> str:
@@ -226,15 +270,39 @@ def build_report(contracts_root: Path) -> dict[str, Any]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--contracts-root", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--contracts-root",
+        type=Path,
+        required=False,
+        default=None,
+        help="Path to quantik-core-contracts root (defaults to ../quantik-core-contracts)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        required=False,
+        default=None,
+        help="Output file path (defaults to stdout)",
+    )
     args = parser.parse_args(argv)
 
+    # Resolve contracts-root default
+    if args.contracts_root is None:
+        args.contracts_root = _get_default_contracts_root()
+
     report = build_report(args.contracts_root)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("w", encoding="utf-8") as handle:
-        json.dump(report, handle, sort_keys=True)
-        handle.write("\n")
+
+    # Write output
+    if args.output is None:
+        # Write to stdout
+        json.dump(report, sys.stdout, sort_keys=True)
+        sys.stdout.write("\n")
+    else:
+        # Write to file
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(report, handle, sort_keys=True)
+            handle.write("\n")
     return 0
 
 
