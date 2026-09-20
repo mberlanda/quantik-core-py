@@ -571,3 +571,68 @@ def test_api_portability_report_default_contracts_root_error_message(
         ValueError, match="Contracts root not found.*Use --contracts-root"
     ):
         apr._get_default_contracts_root()
+
+
+def _fake_git_dir(git_dir: Path) -> Any:
+    def run(*_: object, **__: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args="git", returncode=0, stdout=f"{git_dir}\n", stderr=""
+        )
+
+    return run
+
+
+def test_default_contracts_root_is_the_sibling_of_a_regular_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "quantik-core-py" / ".git").mkdir(parents=True)
+    sibling = tmp_path / "quantik-core-contracts"
+    sibling.mkdir()
+    monkeypatch.setattr(
+        subprocess, "run", _fake_git_dir(tmp_path / "quantik-core-py" / ".git")
+    )
+
+    assert apr._get_default_contracts_root() == sibling.resolve()
+
+
+def test_default_contracts_root_from_a_worktree_uses_the_main_checkout_sibling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    worktree_git = tmp_path / "quantik-core-py" / ".git" / "worktrees" / "wt-x"
+    worktree_git.mkdir(parents=True)
+    sibling = tmp_path / "quantik-core-contracts"
+    sibling.mkdir()
+    monkeypatch.setattr(subprocess, "run", _fake_git_dir(worktree_git))
+
+    assert apr._get_default_contracts_root() == sibling.resolve()
+
+
+def test_default_contracts_root_falls_back_to_the_module_location_without_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = tmp_path / "quantik-core-py" / "src" / "quantik_core" / "mod.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("", encoding="utf-8")
+    (tmp_path / "quantik-core-contracts").mkdir()
+
+    def no_git(*_: object, **__: object) -> subprocess.CompletedProcess[str]:
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(subprocess, "run", no_git)
+    monkeypatch.setattr(apr, "__file__", str(module))
+
+    assert apr._get_default_contracts_root() == (
+        tmp_path / "quantik-core-contracts"
+    ).resolve()
+
+
+def test_main_without_contracts_root_uses_the_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    contracts_root = make_contracts_root(tmp_path)
+    monkeypatch.setattr(apr, "_get_default_contracts_root", lambda: contracts_root)
+
+    assert main([]) == 0
+    assert json.loads(capsys.readouterr().out)["schema"] == "api-portability-report.v1"
