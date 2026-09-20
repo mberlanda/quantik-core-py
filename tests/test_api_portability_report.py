@@ -494,3 +494,80 @@ def test_api_portability_report_rejects_valid_move_without_bitboard(
 
     with pytest.raises(ValueError, match="valid move did not return a new bitboard"):
         apr._move_report({"shape": 0, "position": 0}, (0, 0, 0, 0, 0, 0, 0, 0), 0)
+
+
+def test_api_portability_report_outputs_to_stdout_when_no_output_specified(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    contracts_root = make_contracts_root(tmp_path)
+
+    exit_code = main(["--contracts-root", str(contracts_root)])
+
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert captured.out.endswith("\n")
+    report = json.loads(captured.out)
+    assert report["schema"] == "api-portability-report.v1"
+    assert report["contracts_release"] == "1.2.0"
+
+
+def test_api_portability_report_outputs_to_file_when_specified(tmp_path: Path) -> None:
+    output = tmp_path / "report.json"
+    contracts_root = make_contracts_root(tmp_path)
+
+    exit_code = main(["--contracts-root", str(contracts_root), "--output", str(output)])
+
+    assert exit_code == 0
+    assert output.exists()
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["schema"] == "api-portability-report.v1"
+
+
+def test_api_portability_report_module_execution_with_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    contracts_root = make_contracts_root(tmp_path)
+    output = tmp_path / "module-report.json"
+
+    # Simulate the module being run from a worktree with the contracts sibling
+    # For this test, we pass the contracts-root explicitly since we can't set up
+    # the directory structure in a temp directory with the sibling checkout
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "quantik_core.api_portability_report",
+            "--contracts-root",
+            str(contracts_root),
+        ],
+        check=False,
+        text=True,
+        capture_output=True,
+        cwd=str(tmp_path),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "schema" in result.stdout
+    report = json.loads(result.stdout)
+    assert report["schema"] == "api-portability-report.v1"
+
+
+def test_api_portability_report_default_contracts_root_error_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Test that the error message is helpful when sibling contracts don't exist
+    # Monkeypatch to simulate a missing contracts directory
+    def mock_git_dir(*_: object, **__: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args="git",
+            returncode=0,
+            stdout="/fake/path/quantik-core-py/.git/worktrees/wt-test",
+            stderr="",
+        )
+
+    monkeypatch.setattr(subprocess, "run", mock_git_dir)
+
+    with pytest.raises(
+        ValueError, match="Contracts root not found.*Use --contracts-root"
+    ):
+        apr._get_default_contracts_root()
