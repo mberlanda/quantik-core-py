@@ -6,7 +6,7 @@ owns high-throughput search, self-play generation, and other compute-heavy
 loops. Both packages must agree on the canonical contracts from
 `mberlanda/quantik-core-contracts`.
 
-Python currently declares support for contracts release `1.3.0` via
+Python currently declares support for contracts release `1.4.0` via
 `quantik_core.SUPPORTED_CONTRACTS_RELEASE`.
 
 ## Stable Shared Model
@@ -31,7 +31,7 @@ Rust self-play export rows are one JSON object per line:
 ```json
 {
   "schema": "selfplay.v1",
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "game_id": 0,
   "ply": 0,
   "qfen": "..../..../..../....",
@@ -47,7 +47,7 @@ Rust self-play export rows are one JSON object per line:
 Python validates that:
 
 - `schema` is `selfplay.v1`.
-- `contract_version`, when present, is `1.3.0`.
+- `contract_version`, when present, is `1.4.0`.
 - `qfen` parses and `side_to_move` matches the current player implied by the bitboards.
 - each policy entry is a legal move for the row state.
 - each policy entry has `shape` in `0..3`, `position` in `0..15`, and positive integer `visits`.

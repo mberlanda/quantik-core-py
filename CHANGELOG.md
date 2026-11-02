@@ -4,6 +4,25 @@ All notable changes to `quantik-core` are documented here.
 
 ## Unreleased
 
+## 1.4.0 - 2026-11-02
+
+This is a lockstep release. `quantik-core-contracts` 1.4.0 adds
+`engine-request.v1`, `engine-response.v1`, `engine-response.v2` and
+`opening-probe.v1`, all additive. `quantik-core` implements none of them; this
+release changes no runtime behaviour and exists to keep the core trio on one
+version line.
+
+### Changed
+
+- Bumped `SUPPORTED_CONTRACTS_RELEASE` and `SEARCH_SUMMARY_CONTRACT_VERSION`
+  to `1.4.0`, tracking the `quantik-core-contracts` 1.4.0 release.
+- Bumped the `validate-contracts` job's contracts checkout ref and
+  `expected-release` input to `1.4.0`.
+- The API portability report adapter's defaults are now runnable without
+  arguments (#49).
+- CI: bumped `actions/checkout` and `actions/setup-python` off Node 20.
+- CI: pinned the `opening-book-consistency` action to contracts `v1.4.0`.
+
 ## 1.3.0 - 2026-09-06
 
 ### Added
